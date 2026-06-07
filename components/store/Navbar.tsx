@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck } from "lucide-react";
 import { useCart } from "@/lib/hooks/useCart";
+import { Brand } from "@/components/Brand";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Role } from "@/lib/types";
 
 export interface NavUser {
@@ -37,31 +39,29 @@ export function Navbar({
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-extrabold text-gray-900">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-sm text-white">
-            🛒
-          </span>
-          {shopName}
+    <header className="sticky top-0 z-40 border-b border-line bg-base/85 backdrop-blur-md">
+      <div className="mx-auto flex h-15 max-w-5xl items-center justify-between px-4 py-2.5">
+        <Link href="/" className="flex items-center gap-2">
+          <Brand size={34} textClassName="text-content" />
           <span
-            className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              isOpen ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            className={`ml-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              isOpen ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-red-500/15 text-red-500"
             }`}
           >
             {isOpen ? "OPEN" : "CLOSED"}
           </span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           <Link
             href="/cart"
-            className="relative rounded-lg p-2 text-gray-700 hover:bg-gray-100"
+            className="relative rounded-lg p-2 text-content hover:bg-elevated"
             aria-label="Cart"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-ink">
                 {count}
               </span>
             )}
@@ -83,15 +83,15 @@ export function Navbar({
               {menuOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl"
+                  className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-line bg-card shadow-xl"
                 >
-                  <div className="flex items-center gap-3 border-b border-gray-100 p-4">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-indigo-600">
+                  <div className="flex items-center gap-3 border-b border-line p-4">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-brand">
                       <Avatar name={user.name} email={user.email} src={user.avatarUrl} large />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-gray-900">Hi, {firstName}</p>
-                      <p className="truncate text-xs text-gray-500">{user.email}</p>
+                      <p className="truncate font-bold text-content">Hi, {firstName}</p>
+                      <p className="truncate text-xs text-muted">{user.email}</p>
                     </div>
                   </div>
 
@@ -106,8 +106,8 @@ export function Navbar({
                     )}
                   </div>
 
-                  <form action="/auth/signout" method="post" className="border-t border-gray-100 p-2">
-                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50">
+                  <form action="/auth/signout" method="post" className="border-t border-line p-2">
+                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-500/10">
                       <LogOut className="h-4 w-4" /> Sign out
                     </button>
                   </form>
@@ -117,7 +117,7 @@ export function Navbar({
           ) : (
             <Link
               href="/login"
-              className="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+              className="rounded-xl bg-brand px-4 py-1.5 text-sm font-bold text-brand-ink hover:bg-brand-hover"
             >
               Sign in
             </Link>
@@ -145,7 +145,7 @@ function Avatar({
     return <img src={src} alt={name ?? "avatar"} referrerPolicy="no-referrer" className="h-full w-full object-cover" />;
   }
   return (
-    <span className={`grid h-full w-full place-items-center bg-indigo-600 font-bold text-white ${large ? "text-lg" : "text-sm"}`}>
+    <span className={`grid h-full w-full place-items-center bg-brand font-bold text-brand-ink ${large ? "text-lg" : "text-sm"}`}>
       {initial}
     </span>
   );

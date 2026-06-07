@@ -43,12 +43,11 @@ function Pill({
   return (
     <button
       onClick={onClick}
-      style={active && color ? { backgroundColor: color, borderColor: color } : undefined}
       className={cn(
-        "flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition",
+        "flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-semibold transition",
         active
-          ? "border-gray-900 bg-gray-900 text-white"
-          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+          ? "border-brand bg-brand text-brand-ink"
+          : "border-line bg-card text-content hover:border-brand/60"
       )}
     >
       <span>{icon}</span>

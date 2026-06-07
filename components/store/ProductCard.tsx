@@ -19,11 +19,11 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
   const outOfStock = product.current_stock <= 0;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm transition hover:shadow-md hover:-translate-y-0.5">
       <button
         type="button"
         onClick={() => setDetailOpen(true)}
-        className="relative aspect-square w-full cursor-pointer bg-gray-50 text-left"
+        className="relative aspect-square w-full cursor-pointer bg-elevated text-left"
         aria-label={`View ${product.name} details`}
       >
         {product.image_url ? (
@@ -40,7 +40,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
           </div>
         )}
         {outOfStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+          <div className="absolute inset-0 flex items-center justify-center bg-base/70">
             <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
               Out of Stock
             </span>
@@ -59,22 +59,22 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
         <button
           type="button"
           onClick={() => setDetailOpen(true)}
-          className="line-clamp-2 text-left text-sm font-medium text-gray-900 hover:text-indigo-600"
+          className="line-clamp-2 text-left text-sm font-medium text-content hover:text-brand"
         >
           {product.name}
         </button>
         {product.description && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">{product.description}</p>
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted">{product.description}</p>
         )}
         <div className="mt-auto flex items-center justify-between pt-3">
-          <span className="text-base font-bold text-gray-900">
+          <span className="text-base font-bold text-content">
             {formatCurrency(product.selling_price, currency)}
           </span>
 
           {outOfStock ? (
             <button
               disabled
-              className="cursor-not-allowed rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-300"
+              className="cursor-not-allowed rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted"
             >
               ADD
             </button>
@@ -84,15 +84,15 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
                 addItem(product);
                 toast.success(`${product.name} added`);
               }}
-              className="rounded-lg border border-indigo-600 px-4 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50"
+              className="rounded-lg border-2 border-brand bg-brand/10 px-4 py-1 text-xs font-bold text-content hover:bg-brand/20"
             >
               ADD
             </button>
           ) : (
-            <div className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white">
+            <div className="flex items-center gap-2 rounded-lg bg-brand text-brand-ink">
               <button
                 onClick={() => decrement(product.id)}
-                className="grid h-8 w-8 place-items-center rounded-l-lg hover:bg-indigo-700"
+                className="grid h-8 w-8 place-items-center rounded-l-lg hover:bg-brand-hover"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -100,7 +100,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
               <button
                 onClick={() => increment(product.id)}
                 disabled={qty >= product.current_stock}
-                className="grid h-8 w-8 place-items-center rounded-r-lg hover:bg-indigo-700 disabled:opacity-40"
+                className="grid h-8 w-8 place-items-center rounded-r-lg hover:bg-brand-hover disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

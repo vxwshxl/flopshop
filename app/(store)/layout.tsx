@@ -30,7 +30,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-base">
       <Navbar shopName={settings.shop_name} isOpen={isOpen} user={navUser} role={role} />
       {children}
     </div>

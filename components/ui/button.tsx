@@ -5,12 +5,13 @@ type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "dark"
 type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-indigo-600 text-white hover:bg-indigo-700",
-  secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
-  outline: "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50",
-  ghost: "text-gray-700 hover:bg-gray-100",
+  // Brand = the FlopShop yellow with dark ink (Blinkit-style)
+  primary: "bg-brand text-brand-ink hover:bg-brand-hover",
+  dark: "bg-brand text-brand-ink hover:bg-brand-hover",
+  secondary: "bg-elevated text-content hover:opacity-80",
+  outline: "border border-line bg-card text-content hover:bg-elevated",
+  ghost: "text-content hover:bg-elevated",
   danger: "bg-red-600 text-white hover:bg-red-700",
-  dark: "bg-white text-black hover:bg-gray-200",
 };
 
 const sizes: Record<Size, string> = {
@@ -32,7 +33,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
         variants[variant],
         sizes[size],
         className
