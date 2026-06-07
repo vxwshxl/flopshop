@@ -17,15 +17,22 @@ CREATE TABLE profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Auto-create profile on signup
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+-- Auto-create profile on signup.
+-- NOTE: schema-qualified + fixed search_path so it works when fired by the
+-- auth service (whose search_path does not include public).
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-  INSERT INTO profiles (id, email, full_name)
-  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name')
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -140,15 +147,17 @@ INSERT INTO settings (key, value, label) VALUES
 -- ============================================================
 -- STOCK HELPERS (atomic increment / decrement)
 -- ============================================================
-CREATE OR REPLACE FUNCTION adjust_stock(p_product_id UUID, p_delta INTEGER)
-RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION public.adjust_stock(p_product_id UUID, p_delta INTEGER)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
 BEGIN
-  UPDATE products
+  UPDATE public.products
   SET current_stock = GREATEST(current_stock + p_delta, 0),
       updated_at = NOW()
   WHERE id = p_product_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -162,15 +171,15 @@ ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 -- Helper: is the current user an admin? (avoids recursive policy lookups)
-CREATE OR REPLACE FUNCTION is_admin()
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin');
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$ SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'); $$;
 
-CREATE OR REPLACE FUNCTION is_staff()
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'delivery'));
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+CREATE OR REPLACE FUNCTION public.is_staff()
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$ SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'delivery')); $$;
 
 -- Profiles
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
