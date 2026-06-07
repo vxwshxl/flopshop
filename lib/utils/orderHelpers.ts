@@ -20,12 +20,12 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
 
 /** Tailwind classes for status pills (works on light & dark). */
 export const STATUS_STYLES: Record<OrderStatus, string> = {
-  pending: "bg-amber-100 text-amber-800 border-amber-200",
-  confirmed: "bg-blue-100 text-blue-800 border-blue-200",
-  preparing: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
-  delivered: "bg-green-100 text-green-800 border-green-200",
-  cancelled: "bg-red-100 text-red-800 border-red-200",
+  pending: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/20",
+  confirmed: "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-400/15 dark:text-sky-200 dark:border-sky-400/20",
+  preparing: "bg-lime-100 text-lime-800 border-lime-200 dark:bg-lime-400/15 dark:text-lime-200 dark:border-lime-400/20",
+  out_for_delivery: "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-400/15 dark:text-violet-200 dark:border-violet-400/20",
+  delivered: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-200 dark:border-emerald-400/20",
+  cancelled: "bg-red-100 text-red-800 border-red-200 dark:bg-red-400/15 dark:text-red-200 dark:border-red-400/20",
 };
 
 /** Next status options in the flow, given current status & order type. */

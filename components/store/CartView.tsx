@@ -24,13 +24,13 @@ export function CartView({ settings }: { settings: SettingsMap }) {
   const deliveryShare = Number(settings.delivery_person_share ?? 8);
   const adminShare = Number(settings.admin_delivery_share ?? 2);
 
-  if (!hydrated) return <div className="p-10 text-center text-gray-400">Loading cart…</div>;
+  if (!hydrated) return <div className="p-10 text-center text-stone-400">Loading cart...</div>;
 
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <ShoppingBag className="mb-3 h-12 w-12 text-gray-300" />
-        <p className="text-gray-500">Your cart is empty.</p>
+        <ShoppingBag className="mb-3 h-12 w-12 text-stone-300 dark:text-stone-600" />
+        <p className="text-stone-500 dark:text-stone-400">Your cart is empty.</p>
         <Link href="/" className="mt-4">
           <Button>Browse products</Button>
         </Link>
@@ -44,12 +44,12 @@ export function CartView({ settings }: { settings: SettingsMap }) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
-      <h1 className="mb-4 text-xl font-bold text-gray-900">Your Cart</h1>
+      <h1 className="mb-4 text-xl font-extrabold text-stone-950 dark:text-white">Your Cart</h1>
 
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+          <div key={item.id} className="flex items-center gap-3 rounded-lg border border-black/10 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-stone-900">
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-stone-50 dark:bg-stone-800">
               {item.image_url ? (
                 <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="56px" />
               ) : (
@@ -57,10 +57,10 @@ export function CartView({ settings }: { settings: SettingsMap }) {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-gray-900">{item.name}</p>
-              <p className="text-sm text-gray-500">{formatCurrency(item.price, currency)}</p>
+              <p className="truncate text-sm font-semibold text-stone-950 dark:text-white">{item.name}</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400">{formatCurrency(item.price, currency)}</p>
             </div>
-            <div className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white">
+            <div className="flex items-center gap-2 rounded-lg bg-lime-500 text-stone-950">
               <button onClick={() => decrement(item.id)} className="grid h-7 w-7 place-items-center">
                 <Minus className="h-3 w-3" />
               </button>
@@ -73,7 +73,7 @@ export function CartView({ settings }: { settings: SettingsMap }) {
                 <Plus className="h-3 w-3" />
               </button>
             </div>
-            <button onClick={() => removeItem(item.id)} className="p-1 text-gray-400 hover:text-red-500">
+            <button onClick={() => removeItem(item.id)} className="p-1 text-stone-400 hover:text-red-500">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -82,47 +82,51 @@ export function CartView({ settings }: { settings: SettingsMap }) {
 
       {/* Order type */}
       <div className="mt-6">
-        <p className="mb-2 text-sm font-semibold text-gray-700">Order Type</p>
+        <p className="mb-2 text-sm font-semibold text-stone-700 dark:text-stone-300">Order Type</p>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setOrderType("pickup")}
-            className={`rounded-xl border p-3 text-left text-sm ${
-              orderType === "pickup" ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"
+            className={`rounded-lg border p-3 text-left text-sm ${
+              orderType === "pickup"
+                ? "border-lime-500 bg-lime-50 dark:bg-lime-400/10"
+                : "border-black/10 bg-white dark:border-white/10 dark:bg-stone-900"
             }`}
           >
-            <p className="font-semibold text-gray-900">🚶 Pickup</p>
-            <p className="text-xs text-gray-500">Collect yourself · Free</p>
+            <p className="font-semibold text-stone-950 dark:text-white">Pickup</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Collect yourself · Free</p>
           </button>
           <button
             onClick={() => setOrderType("delivery")}
-            className={`rounded-xl border p-3 text-left text-sm ${
-              orderType === "delivery" ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"
+            className={`rounded-lg border p-3 text-left text-sm ${
+              orderType === "delivery"
+                ? "border-lime-500 bg-lime-50 dark:bg-lime-400/10"
+                : "border-black/10 bg-white dark:border-white/10 dark:bg-stone-900"
             }`}
           >
-            <p className="font-semibold text-gray-900">🛵 Delivery</p>
-            <p className="text-xs text-gray-500">To your room · +{formatCurrency(deliveryFee, currency)}</p>
+            <p className="font-semibold text-stone-950 dark:text-white">Delivery</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">To your room · +{formatCurrency(deliveryFee, currency)}</p>
           </button>
         </div>
       </div>
 
       {/* Summary */}
-      <div className="mt-6 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="flex justify-between text-sm text-gray-600">
+      <div className="mt-6 rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
+        <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
           <span>Subtotal</span>
           <span>{formatCurrency(subtotal, currency)}</span>
         </div>
         {orderType === "delivery" && (
           <>
-            <div className="mt-2 flex justify-between text-sm text-gray-600">
+            <div className="mt-2 flex justify-between text-sm text-stone-600 dark:text-stone-400">
               <span>Delivery fee</span>
               <span>{formatCurrency(deliveryFee, currency)}</span>
             </div>
-            <p className="mt-0.5 text-xs text-gray-400">
+            <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
               {formatCurrency(deliveryShare, currency)} delivery person + {formatCurrency(adminShare, currency)} shop
             </p>
           </>
         )}
-        <div className="mt-3 flex justify-between border-t border-gray-100 pt-3 text-base font-bold text-gray-900">
+        <div className="mt-3 flex justify-between border-t border-black/10 pt-3 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">
           <span>Total</span>
           <span>{formatCurrency(total, currency)}</span>
         </div>

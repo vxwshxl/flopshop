@@ -18,6 +18,8 @@ import {
   X,
   Store,
 } from "lucide-react";
+import { Brand } from "@/components/Brand";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils/cn";
 
 interface NavItem {
@@ -71,16 +73,14 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
 
   const nav = (
     <nav className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-5 py-5 text-lg font-bold text-white">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-sm text-black">
-          🛒
-        </span>
-        {shopName}
+      <div className="flex items-center justify-between gap-2 px-4 py-5">
+        <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" markClassName="h-8 w-8" />
+        <ThemeToggle />
       </div>
       <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
         {sections.map((section) => (
           <div key={section.title}>
-            <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-500">
               {section.title}
             </p>
             <div className="space-y-0.5">
@@ -94,8 +94,8 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
                       isActive(item.href)
-                        ? "bg-white/10 font-medium text-white"
-                        : "text-gray-400 hover:bg-white/5 hover:text-white"
+                        ? "bg-lime-400 font-semibold text-stone-950"
+                        : "text-stone-600 hover:bg-black/5 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-white"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -107,15 +107,15 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
           </div>
         ))}
       </div>
-      <div className="border-t border-white/10 p-3">
+      <div className="border-t border-black/10 p-3 dark:border-white/10">
         <Link
           href="/"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-white/5 hover:text-white"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-stone-600 hover:bg-black/5 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-white"
         >
           <Store className="h-4 w-4" /> View Store
         </Link>
         <form action="/auth/signout" method="post">
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-400 hover:bg-white/5 hover:text-white">
+          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-stone-600 hover:bg-black/5 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-white">
             <X className="h-4 w-4" /> Sign out
           </button>
         </form>
@@ -126,15 +126,15 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between border-b border-white/10 bg-[#0a0a0a] px-4 py-3 md:hidden">
-        <span className="font-bold text-white">{shopName}</span>
-        <button onClick={() => setOpen(true)} className="text-white">
+      <div className="flex items-center justify-between border-b border-black/10 bg-[#fffdf5]/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-stone-950/90 md:hidden">
+        <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" markClassName="h-8 w-8" />
+        <button onClick={() => setOpen(true)} className="text-stone-950 dark:text-white">
           <Menu className="h-6 w-6" />
         </button>
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-[220px] border-r border-white/10 bg-[#0a0a0a] md:block">
+      <aside className="fixed inset-y-0 left-0 hidden w-[220px] border-r border-black/10 bg-[#fffdf5]/95 backdrop-blur dark:border-white/10 dark:bg-stone-950/90 md:block">
         {nav}
       </aside>
 
@@ -142,8 +142,8 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[260px] bg-[#0a0a0a]">
-            <button onClick={() => setOpen(false)} className="absolute right-3 top-4 text-gray-400">
+          <aside className="absolute inset-y-0 left-0 w-[260px] bg-[#fffdf5] dark:bg-stone-950">
+            <button onClick={() => setOpen(false)} className="absolute right-3 top-4 text-stone-500 dark:text-stone-400">
               <X className="h-5 w-5" />
             </button>
             {nav}

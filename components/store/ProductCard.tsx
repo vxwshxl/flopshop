@@ -19,11 +19,11 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
   const outOfStock = product.current_stock <= 0;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm transition hover:shadow-md hover:-translate-y-0.5">
+    <div className="flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-stone-900">
       <button
         type="button"
         onClick={() => setDetailOpen(true)}
-        className="relative aspect-square w-full cursor-pointer bg-elevated text-left"
+        className="relative aspect-square w-full cursor-pointer bg-stone-50 text-left dark:bg-stone-800/70"
         aria-label={`View ${product.name} details`}
       >
         {product.image_url ? (
@@ -40,7 +40,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
           </div>
         )}
         {outOfStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-base/70">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/75 dark:bg-stone-950/70">
             <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
               Out of Stock
             </span>
@@ -59,22 +59,22 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
         <button
           type="button"
           onClick={() => setDetailOpen(true)}
-          className="line-clamp-2 text-left text-sm font-medium text-content hover:text-brand"
+          className="line-clamp-2 text-left text-sm font-semibold text-stone-950 hover:text-lime-700 dark:text-white dark:hover:text-lime-300"
         >
           {product.name}
         </button>
         {product.description && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted">{product.description}</p>
+          <p className="mt-0.5 line-clamp-1 text-xs text-stone-500 dark:text-stone-400">{product.description}</p>
         )}
         <div className="mt-auto flex items-center justify-between pt-3">
-          <span className="text-base font-bold text-content">
+          <span className="text-base font-extrabold text-stone-950 dark:text-white">
             {formatCurrency(product.selling_price, currency)}
           </span>
 
           {outOfStock ? (
             <button
               disabled
-              className="cursor-not-allowed rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted"
+              className="cursor-not-allowed rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-300 dark:border-stone-700 dark:text-stone-600"
             >
               ADD
             </button>
@@ -84,15 +84,15 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
                 addItem(product);
                 toast.success(`${product.name} added`);
               }}
-              className="rounded-lg border-2 border-brand bg-brand/10 px-4 py-1 text-xs font-bold text-content hover:bg-brand/20"
+              className="rounded-lg border border-lime-500 px-4 py-1.5 text-xs font-extrabold text-lime-700 hover:bg-lime-50 dark:text-lime-300 dark:hover:bg-lime-400/10"
             >
               ADD
             </button>
           ) : (
-            <div className="flex items-center gap-2 rounded-lg bg-brand text-brand-ink">
+            <div className="flex items-center gap-2 rounded-lg bg-lime-500 text-stone-950">
               <button
                 onClick={() => decrement(product.id)}
-                className="grid h-8 w-8 place-items-center rounded-l-lg hover:bg-brand-hover"
+                className="grid h-8 w-8 place-items-center rounded-l-lg hover:bg-lime-400"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -100,7 +100,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
               <button
                 onClick={() => increment(product.id)}
                 disabled={qty >= product.current_stock}
-                className="grid h-8 w-8 place-items-center rounded-r-lg hover:bg-brand-hover disabled:opacity-40"
+                className="grid h-8 w-8 place-items-center rounded-r-lg hover:bg-lime-400 disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

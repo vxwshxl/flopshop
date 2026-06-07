@@ -5,13 +5,12 @@ type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "dark"
 type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
-  // Brand = the FlopShop yellow with dark ink (Blinkit-style)
-  primary: "bg-brand text-brand-ink hover:bg-brand-hover",
-  dark: "bg-brand text-brand-ink hover:bg-brand-hover",
-  secondary: "bg-elevated text-content hover:opacity-80",
-  outline: "border border-line bg-card text-content hover:bg-elevated",
-  ghost: "text-content hover:bg-elevated",
-  danger: "bg-red-600 text-white hover:bg-red-700",
+  primary: "bg-yellow-400 text-black hover:bg-yellow-300",
+  secondary: "bg-white text-black hover:bg-yellow-400 dark:bg-black dark:text-white dark:hover:bg-yellow-400 dark:hover:text-black",
+  outline: "border border-black/15 bg-white text-black hover:bg-yellow-400 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-yellow-400 dark:hover:text-black",
+  ghost: "text-black hover:bg-yellow-400 dark:text-white dark:hover:bg-yellow-400 dark:hover:text-black",
+  danger: "bg-black text-white hover:bg-yellow-400 hover:text-black dark:bg-white dark:text-black dark:hover:bg-yellow-400",
+  dark: "bg-black text-white hover:bg-yellow-400 hover:text-black dark:bg-white dark:text-black dark:hover:bg-yellow-400",
 };
 
 const sizes: Record<Size, string> = {
@@ -33,7 +32,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
+        "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50",
         variants[variant],
         sizes[size],
         className

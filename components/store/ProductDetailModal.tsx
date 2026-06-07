@@ -42,7 +42,7 @@ export function ProductDetailModal({
 
   return (
     <Modal open={open} onClose={onClose} className="max-w-md">
-      <div className="relative mx-auto mb-4 aspect-square w-full max-w-[260px] overflow-hidden rounded-xl bg-gray-50">
+      <div className="relative mx-auto mb-4 aspect-square w-full max-w-[260px] overflow-hidden rounded-lg bg-stone-50 dark:bg-stone-800">
         {product.image_url ? (
           <Image src={product.image_url} alt={product.name} fill className="object-contain" sizes="260px" />
         ) : (
@@ -51,7 +51,7 @@ export function ProductDetailModal({
           </div>
         )}
         {outOfStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/75 dark:bg-stone-950/70">
             <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
               Out of Stock
             </span>
@@ -61,15 +61,15 @@ export function ProductDetailModal({
 
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{product.name}</h2>
-          {d?.brand && <p className="text-sm text-gray-500">{[d.brand, d.quantity].filter(Boolean).join(" · ")}</p>}
+          <h2 className="text-lg font-extrabold text-stone-950 dark:text-white">{product.name}</h2>
+          {d?.brand && <p className="text-sm text-stone-500 dark:text-stone-400">{[d.brand, d.quantity].filter(Boolean).join(" · ")}</p>}
         </div>
-        <span className="shrink-0 text-xl font-bold text-gray-900">
+        <span className="shrink-0 text-xl font-extrabold text-stone-950 dark:text-white">
           {formatCurrency(product.selling_price, currency)}
         </span>
       </div>
 
-      {product.description && <p className="mt-2 text-sm text-gray-600">{product.description}</p>}
+      {product.description && <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">{product.description}</p>}
 
       {product.category && (
         <span
@@ -82,17 +82,17 @@ export function ProductDetailModal({
 
       {hasNutrition && (
         <div className="mt-4">
-          <p className="mb-1.5 text-sm font-semibold text-gray-700">Nutrition (per 100g)</p>
+          <p className="mb-1.5 text-sm font-semibold text-stone-700 dark:text-stone-300">Nutrition (per 100g)</p>
           <div className="grid grid-cols-3 gap-2">
             {nutritionRows
               .filter((r) => r.value !== null && r.value !== undefined)
               .map((r) => (
-                <div key={r.label} className="rounded-lg bg-gray-50 p-2 text-center">
-                  <p className="text-sm font-bold text-gray-900">
+                <div key={r.label} className="rounded-lg bg-stone-50 p-2 text-center dark:bg-stone-800">
+                  <p className="text-sm font-bold text-stone-950 dark:text-white">
                     {Math.round(Number(r.value) * 10) / 10}
-                    <span className="text-xs font-normal text-gray-400">{r.unit}</span>
+                    <span className="text-xs font-normal text-stone-400">{r.unit}</span>
                   </p>
-                  <p className="text-[10px] uppercase text-gray-400">{r.label}</p>
+                  <p className="text-[10px] uppercase text-stone-400">{r.label}</p>
                 </div>
               ))}
           </div>
@@ -101,8 +101,8 @@ export function ProductDetailModal({
 
       {d?.ingredients && (
         <div className="mt-4">
-          <p className="mb-1 text-sm font-semibold text-gray-700">Ingredients</p>
-          <p className="text-xs leading-relaxed text-gray-500">{d.ingredients}</p>
+          <p className="mb-1 text-sm font-semibold text-stone-700 dark:text-stone-300">Ingredients</p>
+          <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">{d.ingredients}</p>
         </div>
       )}
 
@@ -123,7 +123,7 @@ export function ProductDetailModal({
             Add to cart · {formatCurrency(product.selling_price, currency)}
           </Button>
         ) : (
-          <div className="flex items-center justify-between rounded-lg bg-indigo-600 px-2 text-white">
+          <div className="flex items-center justify-between rounded-lg bg-lime-500 px-2 text-stone-950">
             <button onClick={() => decrement(product.id)} className="grid h-11 w-11 place-items-center">
               <Minus className="h-4 w-4" />
             </button>

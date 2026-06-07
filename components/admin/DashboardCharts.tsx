@@ -15,28 +15,28 @@ import {
 } from "recharts";
 
 const tooltipStyle = {
-  backgroundColor: "#0a0a0a",
-  border: "1px solid #333",
+  backgroundColor: "#1c1a16",
+  border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 8,
   fontSize: 12,
-  color: "#fff",
+  color: "#f7f3e8",
 };
 
 export function RevenueChart({ data }: { data: { date: string; revenue: number; orders: number }[] }) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-        <XAxis dataKey="date" stroke="#666" fontSize={11} />
-        <YAxis stroke="#666" fontSize={11} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#d8d1bd" />
+        <XAxis dataKey="date" stroke="#78716c" fontSize={11} />
+        <YAxis stroke="#78716c" fontSize={11} />
         <Tooltip contentStyle={tooltipStyle} />
-        <Line type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} dot={false} name="Revenue ₹" />
+        <Line type="monotone" dataKey="revenue" stroke="#84cc16" strokeWidth={3} dot={false} name="Revenue ₹" />
       </LineChart>
     </ResponsiveContainer>
   );
 }
 
-const PIE_COLORS = ["#f59e0b", "#3b82f6", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"];
+const PIE_COLORS = ["#84cc16", "#f59e0b", "#06b6d4", "#ef4444", "#8b5cf6", "#14b8a6"];
 
 export function CategoryPie({ data }: { data: { name: string; value: number }[] }) {
   if (!data.length) return <p className="py-10 text-center text-sm text-gray-500">No sales yet.</p>;

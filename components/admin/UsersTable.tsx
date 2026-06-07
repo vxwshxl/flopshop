@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/input";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import type { Order, Profile, Role } from "@/lib/types";
 
@@ -71,19 +72,19 @@ export function UsersTable({
   return (
     <div>
       <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name or email…"
-          className="h-10 w-full rounded-lg border border-[#333] bg-[#1a1a1a] pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none"
+          className="h-10 w-full rounded-lg border border-black/15 bg-white pl-9 pr-3 text-sm text-black placeholder:text-black/40 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40"
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#1a1a1a]">
+      <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#222] text-left text-xs text-gray-500">
+            <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <th className="p-3">Name</th>
               <th className="p-3">Email</th>
               <th className="p-3">Room</th>
@@ -94,39 +95,43 @@ export function UsersTable({
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-black/75 dark:text-white/75">
             {filtered.map((u) => (
-              <tr key={u.id} className="border-b border-[#222] last:border-0 hover:bg-white/5">
-                <td className="p-3 font-medium text-white">{u.full_name ?? "—"}</td>
-                <td className="p-3 text-gray-400">{u.email}</td>
+              <tr key={u.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                <td className="p-3 font-medium text-black dark:text-white">{u.full_name ?? "—"}</td>
+                <td className="p-3 text-black/60 dark:text-white/60">{u.email}</td>
                 <td className="p-3">{u.room_number ?? "—"}</td>
                 <td className="p-3">{orderCounts[u.id] ?? 0}</td>
                 <td className="p-3">
-                  <select
+                  <Select
                     value={u.role}
                     disabled={busy === u.id}
                     onChange={(e) => changeRole(u, e.target.value as Role)}
-                    className="rounded-md border border-[#333] bg-[#0a0a0a] px-2 py-1 text-xs capitalize text-white focus:outline-none"
+                    className="min-w-28"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </td>
                 <td className="p-3">
                   <button
                     onClick={() => toggleActive(u)}
                     disabled={busy === u.id}
-                    className={`rounded-full px-2 py-0.5 text-xs ${u.is_active ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      u.is_active
+                        ? "border border-yellow-400 bg-yellow-400 text-black"
+                        : "border border-black/15 text-black/50 dark:border-white/15 dark:text-white/50"
+                    }`}
                   >
                     {u.is_active ? "Active" : "Inactive"}
                   </button>
                 </td>
-                <td className="p-3 text-xs text-gray-500">{formatDate(u.created_at)}</td>
+                <td className="p-3 text-xs text-black/50 dark:text-white/50">{formatDate(u.created_at)}</td>
                 <td className="p-3 text-right">
-                  <button onClick={() => openHistory(u)} className="text-xs text-indigo-400 hover:underline">
+                  <button onClick={() => openHistory(u)} className="text-xs text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
                     View orders
                   </button>
                 </td>
@@ -138,20 +143,20 @@ export function UsersTable({
 
       <Modal open={!!historyFor} onClose={() => setHistoryFor(null)} title={`${historyFor?.full_name ?? "User"} — Orders`}>
         {history === null ? (
-          <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+          <p className="py-6 text-center text-sm text-black/50 dark:text-white/50">Loading...</p>
         ) : history.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-400">No orders.</p>
+          <p className="py-6 text-center text-sm text-black/50 dark:text-white/50">No orders.</p>
         ) : (
           <div className="space-y-2">
             {history.map((o) => (
-              <div key={o.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-2.5 text-sm">
+              <div key={o.id} className="flex items-center justify-between rounded-lg border border-black/10 p-2.5 text-sm dark:border-white/10">
                 <div>
-                  <p className="font-medium text-gray-900">{o.order_number}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="font-medium text-black dark:text-white">{o.order_number}</p>
+                  <p className="text-xs text-black/50 dark:text-white/50">
                     {formatDate(o.created_at)} · {o.status}
                   </p>
                 </div>
-                <span className="font-semibold text-gray-900">{formatCurrency(o.total_amount, currency)}</span>
+                <span className="font-semibold text-black dark:text-white">{formatCurrency(o.total_amount, currency)}</span>
               </div>
             ))}
           </div>

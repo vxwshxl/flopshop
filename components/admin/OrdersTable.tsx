@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction, assignDeliveryAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import { Select } from "@/components/ui/input";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
@@ -71,7 +72,9 @@ export function OrdersTable({
             key={t}
             onClick={() => setTab(t)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-              tab === t ? "bg-white text-black" : "bg-[#1a1a1a] text-gray-400 hover:text-white"
+              tab === t
+                ? "bg-yellow-400 text-black"
+                : "border border-black/10 bg-white text-black/60 hover:text-black dark:border-white/10 dark:bg-black dark:text-white/60 dark:hover:text-white"
             }`}
           >
             {t === "all" ? "All" : STATUS_LABELS[t]}{" "}
@@ -81,19 +84,19 @@ export function OrdersTable({
       </div>
 
       <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search order # or customer…"
-          className="h-10 w-full rounded-lg border border-[#333] bg-[#1a1a1a] pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none"
+          className="h-10 w-full rounded-lg border border-black/15 bg-white pl-9 pr-3 text-sm text-black placeholder:text-black/40 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40"
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#1a1a1a]">
+      <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#222] text-left text-xs text-gray-500">
+            <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <th className="p-3">Order</th>
               <th className="p-3">Customer</th>
               <th className="p-3">Type</th>
@@ -105,24 +108,24 @@ export function OrdersTable({
               <th className="p-3">Delivery</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-black/75 dark:text-white/75">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-8 text-center text-gray-500">
+                <td colSpan={9} className="p-8 text-center text-black/50 dark:text-white/50">
                   No orders.
                 </td>
               </tr>
             )}
             {filtered.map((o) => (
-              <tr key={o.id} className="border-b border-[#222] last:border-0 hover:bg-white/5">
+              <tr key={o.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                 <td className="p-3">
-                  <Link href={`/admin/orders/${o.id}`} className="font-medium text-indigo-400 hover:underline">
+                  <Link href={`/admin/orders/${o.id}`} className="font-medium text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
                     {o.order_number}
                   </Link>
                 </td>
                 <td className="p-3">
                   {o.customer_name}
-                  {o.is_manual && <span className="ml-1 text-[10px] text-gray-500">(walk-in)</span>}
+                  {o.is_manual && <span className="ml-1 text-[10px] text-black/50 dark:text-white/50">(walk-in)</span>}
                 </td>
                 <td className="p-3 capitalize">{o.order_type}</td>
                 <td className="p-3">{o.order_items?.length ?? 0}</td>
@@ -130,28 +133,28 @@ export function OrdersTable({
                 <td className="p-3">
                   <OrderStatusBadge status={o.status} />
                 </td>
-                <td className="p-3 whitespace-nowrap text-xs text-gray-500">{formatDateTime(o.created_at)}</td>
+                <td className="p-3 whitespace-nowrap text-xs text-black/50 dark:text-white/50">{formatDateTime(o.created_at)}</td>
                 <td className="p-3">
-                  <select
+                  <Select
                     value={o.status}
                     disabled={pending}
                     onChange={(e) => changeStatus(o.id, e.target.value as OrderStatus)}
-                    className="rounded-md border border-[#333] bg-[#0a0a0a] px-2 py-1 text-xs text-white focus:outline-none"
+                    className="min-w-36"
                   >
                     {ORDER_STATUSES.map((s) => (
                       <option key={s} value={s}>
                         {STATUS_LABELS[s]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </td>
                 <td className="p-3">
                   {o.order_type === "delivery" ? (
-                    <select
+                    <Select
                       value={o.delivery_person_id ?? ""}
                       disabled={pending}
                       onChange={(e) => assign(o.id, e.target.value)}
-                      className="rounded-md border border-[#333] bg-[#0a0a0a] px-2 py-1 text-xs text-white focus:outline-none"
+                      className="min-w-40"
                     >
                       <option value="">Unassigned</option>
                       {deliveryPeople.map((p) => (
@@ -159,9 +162,9 @@ export function OrdersTable({
                           {p.full_name ?? "Staff"}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   ) : (
-                    <span className="text-xs text-gray-600">—</span>
+                    <span className="text-xs text-black/40 dark:text-white/40">—</span>
                   )}
                 </td>
               </tr>

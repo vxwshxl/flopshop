@@ -30,7 +30,7 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
 
   return (
     <div className="pb-24">
-      <div className="sticky top-14 z-30 border-b border-gray-100 bg-white/95 backdrop-blur">
+      <div className="sticky top-14 z-30 border-b border-black/5 bg-[#fffdf5]/95 backdrop-blur dark:border-white/10 dark:bg-stone-950/90">
         <div className="mx-auto max-w-5xl px-4 py-2">
           <CategoryFilter categories={categories} active={active} onChange={setActive} />
         </div>
@@ -38,7 +38,7 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
 
       <div className="mx-auto max-w-5xl px-4 py-4">
         {filtered.length === 0 ? (
-          <div className="py-20 text-center text-gray-400">No products in this category yet.</div>
+          <div className="py-20 text-center text-stone-400">No products in this category yet.</div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {filtered.map((p) => (
@@ -51,7 +51,7 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
       {count > 0 && (
         <Link
           href="/cart"
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-5xl items-center justify-between bg-gray-900 px-5 py-3.5 text-white shadow-2xl sm:bottom-4 sm:mx-4 sm:rounded-xl md:mx-auto"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-5xl items-center justify-between bg-stone-950 px-5 py-3.5 text-white shadow-2xl sm:bottom-4 sm:mx-4 sm:rounded-lg md:mx-auto dark:bg-lime-400 dark:text-stone-950"
         >
           <div className="flex items-center gap-2 text-sm font-medium">
             <ShoppingCart className="h-5 w-5" />

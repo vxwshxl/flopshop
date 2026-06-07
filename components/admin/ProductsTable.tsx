@@ -9,12 +9,14 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Select } from "@/components/ui/input";
 import type { Category, Product } from "@/lib/types";
 
 function stockColor(p: Product) {
-  if (p.current_stock <= 0) return "text-red-400";
-  if (p.current_stock <= p.minimum_stock) return "text-amber-400";
-  return "text-green-400";
+  if (p.current_stock <= 0) return "text-white";
+  if (p.current_stock <= p.minimum_stock) return "text-yellow-400";
+  return "text-white";
 }
 
 export function ProductsTable({
@@ -30,6 +32,7 @@ export function ProductsTable({
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("all");
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -54,12 +57,14 @@ export function ProductsTable({
     router.refresh();
   }
 
-  async function remove(p: Product) {
-    if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+  async function removeConfirmed() {
+    if (!deleteTarget) return;
+    const p = deleteTarget;
     setBusy(p.id);
     const supabase = createClient();
     const { error } = await supabase.from("products").delete().eq("id", p.id);
     setBusy(null);
+    setDeleteTarget(null);
     if (error) return toast.error(error.message);
     toast.success("Product deleted");
     router.refresh();
@@ -69,18 +74,18 @@ export function ProductsTable({
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search products…"
-            className="h-10 w-full rounded-lg border border-[#333] bg-[#1a1a1a] pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none"
+            className="h-10 w-full rounded-lg border border-black/15 bg-white pl-9 pr-3 text-sm text-black placeholder:text-black/40 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40"
           />
         </div>
-        <select
+        <Select
           value={cat}
           onChange={(e) => setCat(e.target.value)}
-          className="h-10 rounded-lg border border-[#333] bg-[#1a1a1a] px-3 text-sm text-white focus:outline-none"
+          className="w-48"
         >
           <option value="all">All categories</option>
           {categories.map((c) => (
@@ -88,7 +93,7 @@ export function ProductsTable({
               {c.icon} {c.name}
             </option>
           ))}
-        </select>
+        </Select>
         <Link href="/admin/products/new">
           <Button variant="dark">
             <Plus className="h-4 w-4" /> Add product
@@ -96,10 +101,10 @@ export function ProductsTable({
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#1a1a1a]">
+      <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#222] text-left text-xs text-gray-500">
+            <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <th className="p-3">Product</th>
               <th className="p-3">Category</th>
               <th className="p-3">Cost</th>
@@ -109,10 +114,10 @@ export function ProductsTable({
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-black/75 dark:text-white/75">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-gray-500">
+                <td colSpan={7} className="p-8 text-center text-black/50 dark:text-white/50">
                   No products found.
                 </td>
               </tr>
@@ -120,17 +125,17 @@ export function ProductsTable({
             {filtered.map((p) => {
               const category = categories.find((c) => c.id === p.category_id);
               return (
-                <tr key={p.id} className="border-b border-[#222] last:border-0 hover:bg-white/5">
+                <tr key={p.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
-                      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-[#0a0a0a]">
+                      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10">
                         {p.image_url ? (
                           <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="36px" />
                         ) : (
                           <div className="flex h-full items-center justify-center text-sm">{category?.icon ?? "📦"}</div>
                         )}
                       </div>
-                      <span className="font-medium text-white">{p.name}</span>
+                      <span className="font-medium text-black dark:text-white">{p.name}</span>
                     </div>
                   </td>
                   <td className="p-3">{category ? `${category.icon} ${category.name}` : "—"}</td>
@@ -142,7 +147,9 @@ export function ProductsTable({
                       onClick={() => toggleActive(p)}
                       disabled={busy === p.id}
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        p.is_active ? "bg-green-500/15 text-green-400" : "bg-gray-500/15 text-gray-400"
+                        p.is_active
+                          ? "border border-yellow-400 bg-yellow-400 text-black"
+                          : "border border-black/15 bg-transparent text-black/50 dark:border-white/15 dark:text-white/50"
                       }`}
                     >
                       {p.is_active ? "Active" : "Hidden"}
@@ -152,14 +159,14 @@ export function ProductsTable({
                     <div className="flex justify-end gap-1">
                       <Link
                         href={`/admin/products/${p.id}`}
-                        className="rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
+                        className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
                       >
                         <Pencil className="h-4 w-4" />
                       </Link>
                       <button
-                        onClick={() => remove(p)}
+                        onClick={() => setDeleteTarget(p)}
                         disabled={busy === p.id}
-                        className="rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-red-400"
+                        className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -171,6 +178,15 @@ export function ProductsTable({
           </tbody>
         </table>
       </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete product"
+        description={`Delete "${deleteTarget?.name ?? "this product"}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={!!deleteTarget && busy === deleteTarget.id}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={removeConfirmed}
+      />
     </div>
   );
 }

@@ -1,36 +1,33 @@
 import Image from "next/image";
+import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
-/** FlopShop logo mark (+ optional wordmark). The logo art is on a black tile. */
 export function Brand({
-  size = 36,
-  showText = true,
+  shopName = "FlopShop",
+  href = "/",
+  className,
+  markClassName,
   textClassName,
 }: {
-  size?: number;
-  showText?: boolean;
+  shopName?: string;
+  href?: string;
+  className?: string;
+  markClassName?: string;
   textClassName?: string;
 }) {
   return (
-    <span className="flex items-center gap-2">
+    <Link href={href} className={cn("flex min-w-0 items-center gap-2.5", className)}>
       <span
-        className="grid shrink-0 place-items-center overflow-hidden rounded-xl bg-black ring-1 ring-black/10"
-        style={{ width: size, height: size }}
+        className={cn(
+          "relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5",
+          markClassName
+        )}
       >
-        <Image
-          src="/FlopShop.webp"
-          alt="FlopShop"
-          width={size}
-          height={size}
-          className="h-full w-full object-cover"
-          priority
-        />
+        <Image src="/FlopShop.webp" alt="FlopShop logo" fill sizes="36px" className="object-cover" priority />
       </span>
-      {showText && (
-        <span className={cn("text-lg font-extrabold tracking-tight", textClassName)}>
-          Flop<span className="text-brand">Shop</span>
-        </span>
-      )}
-    </span>
+      <span className={cn("truncate text-lg font-extrabold tracking-normal", textClassName)}>
+        {shopName}
+      </span>
+    </Link>
   );
 }

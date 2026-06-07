@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import type { Category } from "@/lib/types";
 
@@ -29,11 +30,12 @@ export function CategoriesManager({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", icon: "📦", color: "#6366f1", sort_order: "0", is_active: true });
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [form, setForm] = useState({ name: "", icon: "📦", color: "#facc15", sort_order: "0", is_active: true });
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", icon: "📦", color: "#6366f1", sort_order: String(categories.length + 1), is_active: true });
+    setForm({ name: "", icon: "📦", color: "#facc15", sort_order: String(categories.length + 1), is_active: true });
     setOpen(true);
   }
   function openEdit(c: Category) {
@@ -72,9 +74,15 @@ export function CategoriesManager({
 
   async function remove(c: Category) {
     if ((counts[c.id] ?? 0) > 0) return toast.error("Move or delete its products first.");
-    if (!confirm(`Delete "${c.name}"?`)) return;
+    setDeleteTarget(c);
+  }
+
+  async function removeConfirmed() {
+    if (!deleteTarget) return;
+    const c = deleteTarget;
     const supabase = createClient();
     const { error } = await supabase.from("categories").delete().eq("id", c.id);
+    setDeleteTarget(null);
     if (error) return toast.error(error.message);
     toast.success("Category deleted");
     router.refresh();
@@ -88,10 +96,10 @@ export function CategoriesManager({
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[#222] bg-[#1a1a1a]">
+      <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#222] text-left text-xs text-gray-500">
+            <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <th className="p-3">Order</th>
               <th className="p-3">Category</th>
               <th className="p-3">Slug</th>
@@ -100,35 +108,38 @@ export function CategoriesManager({
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-black/75 dark:text-white/75">
             {categories.map((c) => (
-              <tr key={c.id} className="border-b border-[#222] last:border-0 hover:bg-white/5">
-                <td className="p-3 text-gray-500">
+              <tr key={c.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                <td className="p-3 text-black/50 dark:text-white/50">
                   <div className="flex items-center gap-1">
                     <GripVertical className="h-3 w-3" /> {c.sort_order}
                   </div>
                 </td>
                 <td className="p-3">
                   <span
-                    className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 font-medium text-white"
-                    style={{ backgroundColor: c.color }}
+                    className="inline-flex items-center gap-2 rounded-full border border-yellow-400 bg-yellow-400 px-2.5 py-0.5 font-medium text-black"
                   >
                     {c.icon} {c.name}
                   </span>
                 </td>
-                <td className="p-3 text-gray-500">{c.slug}</td>
+                <td className="p-3 text-black/50 dark:text-white/50">{c.slug}</td>
                 <td className="p-3">{counts[c.id] ?? 0}</td>
                 <td className="p-3">
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${c.is_active ? "bg-green-500/15 text-green-400" : "bg-gray-500/15 text-gray-400"}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${
+                    c.is_active
+                      ? "border border-yellow-400 bg-yellow-400 text-black"
+                      : "border border-black/15 text-black/50 dark:border-white/15 dark:text-white/50"
+                  }`}>
                     {c.is_active ? "Active" : "Hidden"}
                   </span>
                 </td>
                 <td className="p-3">
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white">
+                    <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button onClick={() => remove(c)} className="rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-red-400">
+                    <button onClick={() => remove(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -156,7 +167,7 @@ export function CategoriesManager({
                 type="color"
                 value={form.color}
                 onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                className="h-10 w-full rounded-lg border border-gray-300"
+                className="h-10 w-full rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black"
               />
             </div>
             <div>
@@ -164,7 +175,7 @@ export function CategoriesManager({
               <Input type="number" value={form.sort_order} onChange={(e) => setForm((f) => ({ ...f, sort_order: e.target.value }))} />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-black/75 dark:text-white/75">
             <input
               type="checkbox"
               checked={form.is_active}
@@ -182,6 +193,14 @@ export function CategoriesManager({
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete category"
+        description={`Delete "${deleteTarget?.name ?? "this category"}"?`}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={removeConfirmed}
+      />
     </div>
   );
 }

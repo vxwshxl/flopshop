@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck } from "lucide-react";
-import { useCart } from "@/lib/hooks/useCart";
 import { Brand } from "@/components/Brand";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useCart } from "@/lib/hooks/useCart";
 import type { Role } from "@/lib/types";
 
 export interface NavUser {
@@ -39,29 +39,31 @@ export function Navbar({
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-base/85 backdrop-blur-md">
-      <div className="mx-auto flex h-15 max-w-5xl items-center justify-between px-4 py-2.5">
-        <Link href="/" className="flex items-center gap-2">
-          <Brand size={34} textClassName="text-content" />
+    <header className="sticky top-0 z-40 border-b border-black/5 bg-[#fffdf5]/90 backdrop-blur dark:border-white/10 dark:bg-stone-950/88">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+        <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" />
+        <div className="ml-2 flex flex-1 items-center">
           <span
-            className={`ml-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              isOpen ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-red-500/15 text-red-500"
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              isOpen
+                ? "bg-lime-100 text-lime-800 dark:bg-lime-400/15 dark:text-lime-300"
+                : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
             }`}
           >
             {isOpen ? "OPEN" : "CLOSED"}
           </span>
-        </Link>
+        </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link
             href="/cart"
-            className="relative rounded-lg p-2 text-content hover:bg-elevated"
+            className="relative rounded-lg p-2 text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10"
             aria-label="Cart"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-ink">
+              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-lime-500 px-1 text-[10px] font-bold text-stone-950">
                 {count}
               </span>
             )}
@@ -74,7 +76,7 @@ export function Navbar({
                   e.stopPropagation();
                   setMenuOpen((v) => !v);
                 }}
-                className="grid h-9 w-9 place-items-center overflow-hidden rounded-full ring-2 ring-indigo-500/60 transition hover:ring-indigo-500"
+                className="grid h-9 w-9 place-items-center overflow-hidden rounded-full ring-2 ring-lime-500/70 transition hover:ring-lime-500"
                 aria-label="Account"
               >
                 <Avatar name={user.name} email={user.email} src={user.avatarUrl} />
@@ -83,15 +85,15 @@ export function Navbar({
               {menuOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-line bg-card shadow-xl"
+                  className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-stone-900"
                 >
-                  <div className="flex items-center gap-3 border-b border-line p-4">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-brand">
+                  <div className="flex items-center gap-3 border-b border-black/5 p-4 dark:border-white/10">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-lime-500">
                       <Avatar name={user.name} email={user.email} src={user.avatarUrl} large />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-content">Hi, {firstName}</p>
-                      <p className="truncate text-xs text-muted">{user.email}</p>
+                      <p className="truncate font-bold text-stone-950 dark:text-white">Hi, {firstName}</p>
+                      <p className="truncate text-xs text-stone-500 dark:text-stone-400">{user.email}</p>
                     </div>
                   </div>
 
@@ -106,8 +108,8 @@ export function Navbar({
                     )}
                   </div>
 
-                  <form action="/auth/signout" method="post" className="border-t border-line p-2">
-                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-500/10">
+                  <form action="/auth/signout" method="post" className="border-t border-black/5 p-2 dark:border-white/10">
+                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10">
                       <LogOut className="h-4 w-4" /> Sign out
                     </button>
                   </form>
@@ -117,7 +119,7 @@ export function Navbar({
           ) : (
             <Link
               href="/login"
-              className="rounded-xl bg-brand px-4 py-1.5 text-sm font-bold text-brand-ink hover:bg-brand-hover"
+              className="rounded-lg bg-stone-950 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 dark:bg-lime-400 dark:text-stone-950 dark:hover:bg-lime-300"
             >
               Sign in
             </Link>
@@ -145,7 +147,7 @@ function Avatar({
     return <img src={src} alt={name ?? "avatar"} referrerPolicy="no-referrer" className="h-full w-full object-cover" />;
   }
   return (
-    <span className={`grid h-full w-full place-items-center bg-brand font-bold text-brand-ink ${large ? "text-lg" : "text-sm"}`}>
+    <span className={`grid h-full w-full place-items-center bg-lime-500 font-bold text-stone-950 ${large ? "text-lg" : "text-sm"}`}>
       {initial}
     </span>
   );
@@ -155,7 +157,7 @@ function MenuLink({ href, icon, label }: { href: string; icon: React.ReactNode; 
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10"
     >
       {icon}
       {label}

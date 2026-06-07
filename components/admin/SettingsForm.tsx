@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import type { SettingsMap } from "@/lib/types";
 
-const inputDark = "border-[#333] bg-[#0a0a0a] text-white focus:border-indigo-500";
-
 export function SettingsForm({ settings }: { settings: SettingsMap }) {
   const router = useRouter();
   const [form, setForm] = useState<SettingsMap>({ ...settings });
@@ -58,8 +56,6 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
     router.refresh();
   }
 
-  const shopOpen = form.shop_is_open !== "false";
-
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <AdminCard title="Company Information">
@@ -80,25 +76,10 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
             <Field label="Delivery Fee (₹)" type="number" value={form.delivery_fee ?? "0"} onChange={set("delivery_fee")} />
             <Field label="Delivery Person Share (₹)" type="number" value={form.delivery_person_share ?? "0"} onChange={set("delivery_person_share")} />
           </div>
-          <div className="mt-4 rounded-lg bg-[#0a0a0a] p-3 text-sm text-gray-400">
+          <div className="mt-4 rounded-lg bg-stone-100 p-3 text-sm text-stone-600 dark:bg-stone-950 dark:text-stone-400">
             Split: {form.currency_symbol}{deliveryFee} total = {form.currency_symbol}{deliveryShare} delivery person +{" "}
-            <span className="text-white">{form.currency_symbol}{adminShare} admin</span> (auto-calculated)
+            <span className="text-stone-950 dark:text-white">{form.currency_symbol}{adminShare} admin</span> (auto-calculated)
           </div>
-        </AdminCard>
-
-        <AdminCard title="Shop Status">
-          <label className="flex items-center justify-between">
-            <span className="text-sm text-gray-300">
-              Shop is {shopOpen ? "open" : "closed"} for orders
-            </span>
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, shop_is_open: shopOpen ? "false" : "true" }))}
-              className={`relative h-6 w-11 rounded-full transition ${shopOpen ? "bg-green-500" : "bg-gray-600"}`}
-            >
-              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${shopOpen ? "left-[22px]" : "left-0.5"}`} />
-            </button>
-          </label>
         </AdminCard>
 
         <Button onClick={save} loading={saving} variant="dark" className="w-full">
@@ -122,8 +103,8 @@ function Field({
 }) {
   return (
     <div>
-      <Label className="text-gray-300">{label}</Label>
-      <Input type={type} value={value} onChange={onChange} className={inputDark} />
+      <Label>{label}</Label>
+      <Input type={type} value={value} onChange={onChange} />
     </div>
   );
 }

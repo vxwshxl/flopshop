@@ -3,6 +3,7 @@ import { ShoppingBag, IndianRupee, Package, AlertTriangle, Clock, Truck } from "
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, AdminCard, PageHeader } from "@/components/admin/StatCard";
+import { ShopStatusToggle } from "@/components/admin/ShopStatusToggle";
 import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -100,7 +101,11 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Last 7 days overview" />
+      <PageHeader
+        title="Dashboard"
+        subtitle="Last 7 days overview"
+        action={<div className="w-full sm:w-80"><ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} /></div>}
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard label="Orders Today" value={todaysOrders.length} icon={<ShoppingBag className="h-4 w-4" />} />
@@ -125,18 +130,18 @@ export default async function AdminDashboard() {
           title="Recent Orders"
           className="lg:col-span-2"
           action={
-            <Link href="/admin/orders" className="text-xs text-indigo-400 hover:underline">
+            <Link href="/admin/orders" className="text-xs font-semibold text-lime-700 hover:underline dark:text-lime-300">
               View all
             </Link>
           }
         >
           {recent.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">No recent orders.</p>
+            <p className="py-8 text-center text-sm text-stone-500 dark:text-stone-500">No recent orders.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500">
+                  <tr className="text-left text-xs text-stone-500 dark:text-stone-500">
                     <th className="pb-2">Order</th>
                     <th className="pb-2">Customer</th>
                     <th className="pb-2">Type</th>
@@ -144,11 +149,11 @@ export default async function AdminDashboard() {
                     <th className="pb-2">Status</th>
                   </tr>
                 </thead>
-                <tbody className="text-gray-300">
+                <tbody className="text-stone-700 dark:text-stone-300">
                   {recent.map((o) => (
-                    <tr key={o.id} className="border-t border-[#222]">
+                    <tr key={o.id} className="border-t border-black/10 dark:border-white/10">
                       <td className="py-2">
-                        <Link href={`/admin/orders/${o.id}`} className="text-indigo-400 hover:underline">
+                        <Link href={`/admin/orders/${o.id}`} className="font-semibold text-lime-700 hover:underline dark:text-lime-300">
                           {o.order_number}
                         </Link>
                       </td>
@@ -169,12 +174,12 @@ export default async function AdminDashboard() {
         <div className="space-y-4">
           <AdminCard title="Low Stock Alerts">
             {lowStock.length === 0 ? (
-              <p className="py-6 text-center text-sm text-gray-500">Everything is stocked.</p>
+              <p className="py-6 text-center text-sm text-stone-500 dark:text-stone-500">Everything is stocked.</p>
             ) : (
               <ul className="space-y-2">
                 {lowStock.slice(0, 6).map((p) => (
                   <li key={p.id} className="flex items-center justify-between text-sm">
-                    <Link href={`/admin/products/${p.id}`} className="text-gray-300 hover:text-white">
+                    <Link href={`/admin/products/${p.id}`} className="text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
                       {p.name}
                     </Link>
                     <span className="font-semibold text-red-400">{p.current_stock} left</span>
@@ -186,13 +191,13 @@ export default async function AdminDashboard() {
 
           <AdminCard title="Delivery Earnings (7d)">
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-stone-600 dark:text-stone-400">
                 <span>Delivery persons</span>
-                <span className="text-white">{formatCurrency(deliveryEarnings.person, currency)}</span>
+                <span className="text-stone-950 dark:text-white">{formatCurrency(deliveryEarnings.person, currency)}</span>
               </div>
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-stone-600 dark:text-stone-400">
                 <span>Shop (admin share)</span>
-                <span className="text-white">{formatCurrency(deliveryEarnings.admin, currency)}</span>
+                <span className="text-stone-950 dark:text-white">{formatCurrency(deliveryEarnings.admin, currency)}</span>
               </div>
             </div>
           </AdminCard>

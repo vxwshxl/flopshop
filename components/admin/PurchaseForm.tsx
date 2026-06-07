@@ -72,7 +72,7 @@ export function PurchaseForm({ products }: { products: Product[] }) {
     router.refresh();
   }
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { value: string } }) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (

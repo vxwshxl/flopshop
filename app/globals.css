@@ -1,59 +1,99 @@
 @import "tailwindcss";
 
-/* Class-based dark mode (toggle adds `.dark` to <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  --base: #f5f6f8;
-  --card: #ffffff;
-  --elevated: #eef0f3;
-  --line: #e7e9ee;
-  --content: #15171c;
-  --muted: #6b7280;
-  --brand: #f8cb46;
-  --brand-hover: #ecbb2c;
-  --brand-ink: #1b1c20;
-}
-
-.dark {
-  --base: #0a0b0d;
-  --card: #15171c;
-  --elevated: #1d2026;
-  --line: #282b32;
-  --content: #f2f3f5;
-  --muted: #9aa0aa;
-  --brand: #f8cb46;
-  --brand-hover: #ffd84d;
-  --brand-ink: #1b1c20;
-}
-
 @theme inline {
-  --color-base: var(--base);
-  --color-card: var(--card);
-  --color-elevated: var(--elevated);
-  --color-line: var(--line);
-  --color-content: var(--content);
-  --color-muted: var(--muted);
-  --color-brand: var(--brand);
-  --color-brand-hover: var(--brand-hover);
-  --color-brand-ink: var(--brand-ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-lime-50: #fefce8;
+  --color-lime-100: #fef9c3;
+  --color-lime-200: #fef08a;
+  --color-lime-300: #fde047;
+  --color-lime-400: #facc15;
+  --color-lime-500: #eab308;
+  --color-lime-600: #ca8a04;
+  --color-lime-700: #a16207;
+  --color-lime-800: #854d0e;
+  --color-lime-900: #713f12;
+  --color-stone-50: #ffffff;
+  --color-stone-100: #ffffff;
+  --color-stone-200: #ffffff;
+  --color-stone-300: #ffffff;
+  --color-stone-400: rgba(255, 255, 255, 0.6);
+  --color-stone-500: rgba(255, 255, 255, 0.5);
+  --color-stone-600: rgba(0, 0, 0, 0.65);
+  --color-stone-700: rgba(0, 0, 0, 0.75);
+  --color-stone-800: #000000;
+  --color-stone-900: #000000;
+  --color-stone-950: #000000;
+  --color-gray-50: #ffffff;
+  --color-gray-100: #ffffff;
+  --color-gray-200: rgba(0, 0, 0, 0.12);
+  --color-gray-300: rgba(0, 0, 0, 0.18);
+  --color-gray-400: rgba(0, 0, 0, 0.45);
+  --color-gray-500: rgba(0, 0, 0, 0.55);
+  --color-gray-600: rgba(0, 0, 0, 0.65);
+  --color-gray-700: rgba(0, 0, 0, 0.75);
+  --color-gray-800: #000000;
+  --color-gray-900: #000000;
+  --color-indigo-50: #fefce8;
+  --color-indigo-100: #fef9c3;
+  --color-indigo-400: #facc15;
+  --color-indigo-500: #eab308;
+  --color-indigo-600: #eab308;
+  --color-indigo-700: #ca8a04;
+  --color-green-100: #fef9c3;
+  --color-green-300: #fde047;
+  --color-green-400: #facc15;
+  --color-green-500: #eab308;
+  --color-green-700: #000000;
+  --color-green-800: #000000;
+  --color-red-50: #ffffff;
+  --color-red-100: #ffffff;
+  --color-red-300: #fde047;
+  --color-red-400: #facc15;
+  --color-red-500: #eab308;
+  --color-red-600: #000000;
+  --color-red-700: #000000;
+  --color-red-800: #000000;
+  --color-amber-100: #fef9c3;
+  --color-amber-200: #fef08a;
+  --color-amber-400: #facc15;
+  --color-amber-800: #000000;
+  --color-blue-100: #ffffff;
+  --color-blue-200: #fef08a;
+  --color-blue-800: #000000;
+  --color-sky-100: #ffffff;
+  --color-sky-200: #fef08a;
+  --color-sky-400: #facc15;
+  --color-sky-800: #000000;
+  --color-violet-100: #ffffff;
+  --color-violet-200: #fef08a;
+  --color-violet-400: #facc15;
+  --color-violet-800: #000000;
+  --color-purple-100: #ffffff;
+  --color-purple-200: #fef08a;
+  --color-purple-400: #facc15;
+  --color-purple-800: #000000;
+  --color-emerald-100: #fef9c3;
+  --color-emerald-200: #fef08a;
+  --color-emerald-400: #facc15;
+  --color-emerald-800: #000000;
 }
 
 html,
 body {
-  background: var(--base);
-  color: var(--content);
+  background: #ffffff;
+  color: #000000;
+}
+
+.dark body {
+  background: #000000;
+  color: #ffffff;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
-}
-
-body {
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
 /* Hide scrollbars on horizontal category pills */
@@ -65,7 +105,20 @@ body {
   scrollbar-width: none;
 }
 
-/* Print: only show the invoice area (always on white paper) */
+.organic-bg {
+  background: #ffffff;
+}
+
+.dark .organic-bg {
+  background: #000000;
+}
+
+::selection {
+  background: #facc15;
+  color: #000000;
+}
+
+/* Print: only show the invoice area */
 @media print {
   body * {
     visibility: hidden;

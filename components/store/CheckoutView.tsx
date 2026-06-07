@@ -76,15 +76,15 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
     setPlaced({ id: data.order.id, order_number: data.order.order_number, total: data.order.total_amount });
   }
 
-  if (!hydrated || userLoading) return <div className="p-10 text-center text-gray-400">Loading…</div>;
+  if (!hydrated || userLoading) return <div className="p-10 text-center text-stone-400">Loading...</div>;
 
   if (placed) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
         <CheckCircle2 className="mb-3 h-16 w-16 text-green-500" />
-        <h1 className="text-2xl font-bold text-gray-900">Order placed!</h1>
-        <p className="mt-1 text-gray-500">
-          Your order <span className="font-semibold text-gray-900">{placed.order_number}</span> for{" "}
+        <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">Order placed!</h1>
+        <p className="mt-1 text-stone-500 dark:text-stone-400">
+          Your order <span className="font-semibold text-stone-950 dark:text-white">{placed.order_number}</span> for{" "}
           {formatCurrency(placed.total, currency)} has been received.
         </p>
         <div className="mt-6 flex gap-3">
@@ -103,9 +103,9 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
 
   if (items.length === 0) {
     return (
-      <div className="py-24 text-center text-gray-500">
+      <div className="py-24 text-center text-stone-500 dark:text-stone-400">
         Your cart is empty.{" "}
-        <Link href="/" className="font-medium text-indigo-600 hover:underline">
+        <Link href="/" className="font-semibold text-lime-700 hover:underline dark:text-lime-300">
           Go shopping
         </Link>
       </div>
@@ -116,8 +116,8 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
   if (orderType === "delivery" && !isAuthenticated) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center">
-        <h1 className="text-xl font-bold text-gray-900">Sign in for delivery</h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">Sign in for delivery</h1>
+        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
           Delivery orders require an account so we can reach you. Pickup is available as a guest.
         </p>
         <div className="mt-6 flex justify-center">
@@ -131,11 +131,11 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
-      <h1 className="mb-4 text-xl font-bold text-gray-900">Checkout</h1>
+      <h1 className="mb-4 text-xl font-extrabold text-stone-950 dark:text-white">Checkout</h1>
       <form onSubmit={placeOrder} className="space-y-5">
-        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-gray-700">
-            {orderType === "delivery" ? "🛵 Delivery details" : "🚶 Pickup details"}
+        <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
+          <p className="mb-3 text-sm font-semibold text-stone-700 dark:text-stone-300">
+            {orderType === "delivery" ? "Delivery details" : "Pickup details"}
           </p>
           <div className="space-y-3">
             <div>
@@ -164,11 +164,11 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
                     onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
                     className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
                       form.payment_method === m
-                        ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                        : "border-gray-200 text-gray-600"
+                        ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                        : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
                     }`}
                   >
-                    {m === "cash" ? "💵 Cash" : "📱 UPI"}
+                    {m === "cash" ? "Cash" : "UPI"}
                   </button>
                 ))}
               </div>
@@ -180,27 +180,27 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="mb-2 text-sm font-semibold text-gray-700">Order summary</p>
+        <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
+          <p className="mb-2 text-sm font-semibold text-stone-700 dark:text-stone-300">Order summary</p>
           {items.map((i) => (
-            <div key={i.id} className="flex justify-between py-0.5 text-sm text-gray-600">
+            <div key={i.id} className="flex justify-between py-0.5 text-sm text-stone-600 dark:text-stone-400">
               <span>
                 {i.name} × {i.quantity}
               </span>
               <span>{formatCurrency(i.price * i.quantity, currency)}</span>
             </div>
           ))}
-          <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-sm text-gray-600">
+          <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-sm text-stone-600 dark:border-white/10 dark:text-stone-400">
             <span>Subtotal</span>
             <span>{formatCurrency(subtotal, currency)}</span>
           </div>
           {orderType === "delivery" && (
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
               <span>Delivery fee</span>
               <span>{formatCurrency(fee, currency)}</span>
             </div>
           )}
-          <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-base font-bold text-gray-900">
+          <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">
             <span>Total</span>
             <span>{formatCurrency(total, currency)}</span>
           </div>

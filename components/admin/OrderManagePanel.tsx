@@ -9,6 +9,7 @@ import {
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/input";
 import { ORDER_STATUSES, STATUS_LABELS, nextStatuses } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 
@@ -34,9 +35,9 @@ export function OrderManagePanel({
     <AdminCard title="Manage Order">
       <div className="space-y-5">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase text-gray-500">Quick actions</p>
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Quick actions</p>
           <div className="flex flex-wrap gap-2">
-            {next.length === 0 && <span className="text-sm text-gray-500">No further actions.</span>}
+            {next.length === 0 && <span className="text-sm text-black/50 dark:text-white/50">No further actions.</span>}
             {next.map((s) => (
               <Button
                 key={s}
@@ -52,33 +53,31 @@ export function OrderManagePanel({
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-medium uppercase text-gray-500">Set status</p>
-          <select
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Set status</p>
+          <Select
             value={order.status}
             disabled={pending}
             onChange={(e) =>
               run(() => setOrderStatusAction(order.id, e.target.value as OrderStatus), "Status updated")
             }
-            className="w-full rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2 text-sm text-white focus:outline-none"
           >
             {ORDER_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {order.order_type === "delivery" && (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase text-gray-500">Delivery person</p>
-            <select
+            <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Delivery person</p>
+            <Select
               value={order.delivery_person_id ?? ""}
               disabled={pending}
               onChange={(e) =>
                 run(() => assignDeliveryAction(order.id, e.target.value || null), "Assigned")
               }
-              className="w-full rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2 text-sm text-white focus:outline-none"
             >
               <option value="">Unassigned</option>
               {deliveryPeople.map((p) => (
@@ -86,12 +85,12 @@ export function OrderManagePanel({
                   {p.full_name ?? "Staff"}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
         <div>
-          <p className="mb-2 text-xs font-medium uppercase text-gray-500">Payment</p>
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment</p>
           <div className="flex gap-2">
             <Button
               size="sm"

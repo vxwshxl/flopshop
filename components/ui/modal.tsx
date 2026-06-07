@@ -28,19 +28,19 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
         className={cn(
-          "relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-line bg-card shadow-2xl",
+          "relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-black/15 bg-white shadow-xl dark:border-white/15 dark:bg-black",
           className
         )}
       >
         {title && (
-          <div className="flex items-center justify-between border-b border-line px-5 py-4">
-            <h2 className="text-lg font-semibold text-content">{title}</h2>
+          <div className="flex items-center justify-between border-b border-black/15 px-5 py-4 dark:border-white/15">
+            <h2 className="text-lg font-semibold text-black dark:text-white">{title}</h2>
             <button
               onClick={onClose}
-              className="rounded-md p-1 text-muted hover:bg-elevated hover:text-content"
+              className="rounded-md p-1 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
             >
               <X className="h-5 w-5" />
             </button>

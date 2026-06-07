@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const settings = await getSettings();
 
   return (
-    <div className="min-h-screen bg-[#111111] text-gray-100">
+    <div className="organic-bg min-h-screen text-stone-900 dark:text-stone-100">
       <Sidebar shopName={settings.shop_name} />
       <main className="md:pl-[220px]">
         <div className="mx-auto max-w-7xl p-4 md:p-8">{children}</div>
