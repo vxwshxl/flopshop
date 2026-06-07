@@ -40,17 +40,35 @@ npm run build    # production build
 
 ---
 
-## 2. Create your first admin
+## 2. Authentication — Google only
 
-Roles are stored in the DB and default to `user`. After signing up through the app,
-promote yourself in the Supabase SQL editor:
+Sign-in is **Google OAuth only**. Enable it once in Supabase:
+
+1. **Google Cloud Console** → APIs & Services → Credentials → *Create OAuth client ID*
+   → type **Web application**.
+   - Authorized JavaScript origins: `http://localhost:3000` and your prod URL.
+   - Authorized redirect URI: `https://lxpjbfeenounxnancxec.supabase.co/auth/v1/callback`
+2. Copy the **Client ID** and **Client Secret**.
+3. **Supabase** → Authentication → Providers → **Google** → enable, paste the ID/Secret, Save.
+4. **Supabase** → Authentication → URL Configuration → add `http://localhost:3000/**`
+   (and your prod URL) to the redirect allow-list.
+
+### Make yourself admin
+Roles default to `user`. Sign in with Google once (this auto-creates your `profiles`
+row via the `handle_new_user` trigger), then in the Supabase SQL editor:
 
 ```sql
-UPDATE profiles SET role = 'admin' WHERE email = 'you@example.com';
+UPDATE profiles SET role = 'admin' WHERE email = 'you@gmail.com';
 ```
 
-Then visit `/admin`. You can manage everyone else's roles from **Admin → Users**.
-Set a user to `delivery` to give them the `/delivery` panel.
+Re-navigate to `/admin`. You can manage everyone else's roles from **Admin → Users**;
+set a user to `delivery` for the `/delivery` panel.
+
+## 2a. Adding products with OpenFoodFacts
+In **Admin → Products → Add product** there's an *Import from OpenFoodFacts* box:
+search by name or paste a barcode to auto-fill the name, real product image, and
+nutrition. Customers see the full details (image, brand, nutrition, ingredients) by
+tapping a product on the storefront.
 
 ---
 
