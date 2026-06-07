@@ -27,13 +27,13 @@ function LoginForm() {
   async function signInWithGoogle() {
     setLoading(true);
     const supabase = createClient();
-    const callbackOrigin =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : window.location.origin);
+    const callbackOrigin = window.location.origin;
+    const callbackUrl = new URL("/auth/callback", callbackOrigin);
+    callbackUrl.searchParams.set("redirect", redirect);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${callbackOrigin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+        redirectTo: callbackUrl.toString(),
       },
     });
     if (error) {

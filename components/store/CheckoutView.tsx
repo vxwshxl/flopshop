@@ -81,19 +81,21 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
   if (placed) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
-        <CheckCircle2 className="mb-3 h-16 w-16 text-green-500" />
-        <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">Order placed!</h1>
-        <p className="mt-1 text-stone-500 dark:text-stone-400">
-          Your order <span className="font-semibold text-stone-950 dark:text-white">{placed.order_number}</span> for{" "}
-          {formatCurrency(placed.total, currency)} has been received.
+        <CheckCircle2 className="mb-3 h-16 w-16 text-green-500 animate-pulse" />
+        <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">Order complete</h1>
+        <p className="mt-3 text-stone-500 dark:text-stone-400">
+          Your order <span className="font-semibold text-stone-950 dark:text-white">{placed.order_number}</span> for {formatCurrency(placed.total, currency)} has been received.
         </p>
-        <div className="mt-6 flex gap-3">
+        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
+          Order will be accepted soon. If delivery accepts it, you can track the update from your orders page.
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link href="/">
-            <Button variant="outline">Back to shop</Button>
+            <Button variant="outline" className="w-full sm:w-auto">Back to shop</Button>
           </Link>
           {isAuthenticated && (
             <Link href={`/orders/${placed.id}`}>
-              <Button>View order</Button>
+              <Button className="w-full sm:w-auto">View order</Button>
             </Link>
           )}
         </div>
