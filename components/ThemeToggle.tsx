@@ -63,6 +63,8 @@ export function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
+import Script from "next/script";
+
 export function ThemeScript() {
   const code = `
     (() => {
@@ -75,5 +77,9 @@ export function ThemeScript() {
     })();
   `;
 
-  return <script dangerouslySetInnerHTML={{ __html: code }} />;
+  return (
+    <Script id="theme-script" strategy="beforeInteractive">
+      {code}
+    </Script>
+  );
 }

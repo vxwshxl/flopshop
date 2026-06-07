@@ -11,7 +11,8 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { OrderType, PaymentMethod, Product, SettingsMap } from "@/lib/types";
 
-const inputDark = "border-[#333] bg-[#0a0a0a] text-white focus:border-indigo-500";
+const inputTheme =
+  "border-black/15 bg-white text-black placeholder:text-black/40 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40";
 
 interface Line {
   product: Product;
@@ -96,22 +97,22 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
       <div className="space-y-4 lg:col-span-2">
         <AdminCard title="Add Products">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products to add…"
-              className="h-10 w-full rounded-lg border border-[#333] bg-[#0a0a0a] pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none"
+              className={`h-10 w-full rounded-lg border pl-9 pr-3 text-sm ${inputTheme}`}
             />
             {results.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-[#333] bg-[#0a0a0a] shadow-xl">
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
                 {results.map((p) => (
                   <button
                     type="button"
                     key={p.id}
                     onClick={() => add(p)}
                     disabled={p.current_stock <= 0}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/10 disabled:opacity-40"
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 disabled:opacity-40"
                   >
                     <span>{p.name}</span>
                     <span className="text-xs text-gray-500">
@@ -124,26 +125,30 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
           </div>
 
           <div className="mt-4 space-y-2">
-            {lines.length === 0 && <p className="py-6 text-center text-sm text-gray-500">No items added.</p>}
+            {lines.length === 0 && <p className="py-6 text-center text-sm text-stone-500 dark:text-stone-400">No items added.</p>}
             {lines.map((l) => (
-              <div key={l.product.id} className="flex items-center gap-3 rounded-lg bg-[#0a0a0a] p-2.5">
+              <div key={l.product.id} className="flex items-center gap-3 rounded-lg bg-stone-50 p-2.5 dark:bg-stone-900">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">{l.product.name}</p>
-                  <p className="text-xs text-gray-500">{formatCurrency(l.product.selling_price, currency)}</p>
+                  <p className="truncate text-sm font-medium text-stone-950 dark:text-white">{l.product.name}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">{formatCurrency(l.product.selling_price, currency)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setQty(l.product.id, -1)} className="grid h-7 w-7 place-items-center rounded-md bg-white/10 text-white">
+                  <button type="button" onClick={() => setQty(l.product.id, -1)} className="grid h-7 w-7 place-items-center rounded-md bg-black/5 text-stone-950 dark:bg-white/10 dark:text-white">
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className="w-5 text-center text-sm font-bold text-white">{l.quantity}</span>
-                  <button type="button" onClick={() => setQty(l.product.id, 1)} className="grid h-7 w-7 place-items-center rounded-md bg-white/10 text-white">
+                  <span className="w-5 text-center text-sm font-bold text-stone-950 dark:text-white">{l.quantity}</span>
+                  <button type="button" onClick={() => setQty(l.product.id, 1)} className="grid h-7 w-7 place-items-center rounded-md bg-black/5 text-stone-950 dark:bg-white/10 dark:text-white">
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
-                <span className="w-16 text-right text-sm text-white">
+                <span className="w-16 text-right text-sm text-stone-950 dark:text-white">
                   {formatCurrency(Number(l.product.selling_price) * l.quantity, currency)}
                 </span>
-                <button type="button" onClick={() => setLines((ls) => ls.filter((x) => x.product.id !== l.product.id))} className="text-gray-500 hover:text-red-400">
+                <button
+                  type="button"
+                  onClick={() => setLines((ls) => ls.filter((x) => x.product.id !== l.product.id))}
+                  className="text-stone-500 hover:text-red-400 dark:text-stone-400"
+                >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -154,22 +159,22 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
         <AdminCard title="Customer">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label className="text-gray-300">Name</Label>
-              <Input required value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} className={inputDark} />
+              <Label className="text-stone-700 dark:text-stone-300">Name</Label>
+              <Input required value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} className={inputTheme} />
             </div>
             <div>
-              <Label className="text-gray-300">Phone</Label>
-              <Input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} className={inputDark} />
+              <Label className="text-stone-700 dark:text-stone-300">Phone</Label>
+              <Input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} className={inputTheme} />
             </div>
             {orderType === "delivery" && (
               <div>
-                <Label className="text-gray-300">Room number</Label>
-                <Input required value={customer.room} onChange={(e) => setCustomer((c) => ({ ...c, room: e.target.value }))} className={inputDark} />
+                <Label className="text-stone-700 dark:text-stone-300">Room number</Label>
+                <Input required value={customer.room} onChange={(e) => setCustomer((c) => ({ ...c, room: e.target.value }))} className={inputTheme} />
               </div>
             )}
             <div>
-              <Label className="text-gray-300">Notes</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputDark} rows={1} />
+              <Label className="text-stone-700 dark:text-stone-300">Notes</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputTheme} rows={1} />
             </div>
           </div>
         </AdminCard>
@@ -179,15 +184,15 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
         <AdminCard title="Order Settings">
           <div className="space-y-4">
             <div>
-              <Label className="text-gray-300">Order type</Label>
-              <Select value={orderType} onChange={(e) => setOrderType(e.target.value as OrderType)} className={inputDark}>
+              <Label className="text-stone-700 dark:text-stone-300">Order type</Label>
+              <Select value={orderType} onChange={(e) => setOrderType(e.target.value as OrderType)} className={inputTheme}>
                 <option value="pickup">Pickup (Free)</option>
                 <option value="delivery">Delivery (+{formatCurrency(deliveryFee, currency)})</option>
               </Select>
             </div>
             <div>
-              <Label className="text-gray-300">Payment method</Label>
-              <Select value={payment} onChange={(e) => setPayment(e.target.value as PaymentMethod)} className={inputDark}>
+              <Label className="text-stone-700 dark:text-stone-300">Payment method</Label>
+              <Select value={payment} onChange={(e) => setPayment(e.target.value as PaymentMethod)} className={inputTheme}>
                 <option value="cash">Cash</option>
                 <option value="upi">UPI</option>
               </Select>
@@ -197,17 +202,17 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
 
         <AdminCard title="Summary">
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-stone-600 dark:text-stone-400">
               <span>Subtotal</span>
-              <span className="text-white">{formatCurrency(subtotal, currency)}</span>
+              <span className="text-stone-950 dark:text-white">{formatCurrency(subtotal, currency)}</span>
             </div>
             {orderType === "delivery" && (
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-stone-600 dark:text-stone-400">
                 <span>Delivery fee</span>
-                <span className="text-white">{formatCurrency(fee, currency)}</span>
+                <span className="text-stone-950 dark:text-white">{formatCurrency(fee, currency)}</span>
               </div>
             )}
-            <div className="flex justify-between border-t border-[#222] pt-2 text-base font-bold text-white">
+            <div className="flex justify-between border-t border-black/10 pt-2 text-base font-bold text-stone-950 dark:border-white/10 dark:text-white">
               <span>Total</span>
               <span>{formatCurrency(total, currency)}</span>
             </div>

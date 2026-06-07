@@ -6,18 +6,34 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
+function safeRedirect(raw: string | null) {
+  if (!raw) return "/";
+  try {
+    const url = new URL(raw, window.location.href);
+    if (url.origin === window.location.origin) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch {
+    // fallback to root
+  }
+  return "/";
+}
+
 function LoginForm() {
   const params = useSearchParams();
-  const redirect = params.get("redirect") ?? "/";
+  const redirect = safeRedirect(params.get("redirect"));
   const [loading, setLoading] = useState(false);
 
   async function signInWithGoogle() {
     setLoading(true);
     const supabase = createClient();
+    const callbackOrigin =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : window.location.origin);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+        redirectTo: `${callbackOrigin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
       },
     });
     if (error) {

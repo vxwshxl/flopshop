@@ -132,7 +132,7 @@ export function CartView({ settings }: { settings: SettingsMap }) {
         </div>
       </div>
 
-      <Button className="mt-5 w-full" size="lg" onClick={() => router.push("/checkout")}>
+      <Button type="button" className="mt-5 w-full" size="lg" onClick={() => router.push("/checkout")}> 
         Proceed to Checkout
       </Button>
     </div>
