@@ -70,18 +70,21 @@ export function ReportsView({
     [categories]
   );
 
-  const inRange = (d: string) => {
-    const day = d.slice(0, 10);
-    return day >= from && day <= to;
-  };
+  const inRange = useCallback(
+    (d: string) => {
+      const day = d.slice(0, 10);
+      return day >= from && day <= to;
+    },
+    [from, to]
+  );
 
   const validOrders = useMemo(
     () => orders.filter((o) => o.status !== "cancelled" && inRange(o.created_at)),
-    [orders, from, to]
+    [orders, inRange]
   );
   const rangePurchases = useMemo(
     () => purchases.filter((p) => inRange(p.purchase_date)),
-    [purchases, from, to]
+    [purchases, inRange]
   );
 
   // ---- Sales metrics ----
