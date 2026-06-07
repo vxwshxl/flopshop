@@ -1,11 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 
-/** Client-side current user + profile. */
+export interface UserInfo {
+  id: string;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+}
+
+function toInfo(user: User): UserInfo {
+  const m = user.user_metadata ?? {};
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    name: (m.full_name as string) || (m.name as string) || null,
+    avatarUrl: (m.avatar_url as string) || (m.picture as string) || null,
+  };
+}
+
+/** Client-side current auth user (Google metadata) + DB profile (for role). */
 export function useUser() {
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -15,18 +34,20 @@ export function useUser() {
 
     async function load() {
       const {
-        data: { user },
+        data: { user: authUser },
       } = await supabase.auth.getUser();
       if (!active) return;
-      if (!user) {
+      if (!authUser) {
+        setUser(null);
         setProfile(null);
         setLoading(false);
         return;
       }
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-      if (!active) return;
-      setProfile(data as Profile | null);
+      setUser(toInfo(authUser));
       setLoading(false);
+      // Profile (role etc.) is best-effort — auth state does not depend on it.
+      const { data } = await supabase.from("profiles").select("*").eq("id", authUser.id).single();
+      if (active) setProfile((data as Profile | null) ?? null);
     }
 
     load();
@@ -41,5 +62,5 @@ export function useUser() {
     };
   }, []);
 
-  return { profile, loading, isAuthenticated: !!profile };
+  return { user, profile, loading, isAuthenticated: !!user };
 }
