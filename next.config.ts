@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
       ...(supabaseHost
         ? [{ protocol: "https" as const, hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
         : []),
+      // OpenFoodFacts product images
+      { protocol: "https", hostname: "images.openfoodfacts.org", pathname: "/**" },
+      { protocol: "https", hostname: "static.openfoodfacts.org", pathname: "/**" },
+      { protocol: "https", hostname: "world.openfoodfacts.org", pathname: "/**" },
     ],
   },
 };

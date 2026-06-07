@@ -66,6 +66,7 @@ CREATE TABLE products (
   current_stock INTEGER DEFAULT 0,
   minimum_stock INTEGER DEFAULT 5,
   image_url TEXT,
+  details JSONB,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

@@ -120,12 +120,9 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
         <p className="mt-2 text-sm text-gray-500">
           Delivery orders require an account so we can reach you. Pickup is available as a guest.
         </p>
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex justify-center">
           <Link href="/login?redirect=/checkout">
-            <Button>Sign in</Button>
-          </Link>
-          <Link href="/signup?redirect=/checkout">
-            <Button variant="outline">Sign up</Button>
+            <Button size="lg">Continue with Google</Button>
           </Link>
         </div>
       </div>

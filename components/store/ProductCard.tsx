@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { Minus, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { ProductDetailModal } from "./ProductDetailModal";
 import type { Product } from "@/lib/types";
 
 export function ProductCard({ product, currency = "₹" }: { product: Product; currency?: string }) {
@@ -12,19 +14,25 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
   const addItem = useCart((s) => s.addItem);
   const increment = useCart((s) => s.increment);
   const decrement = useCart((s) => s.decrement);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const outOfStock = product.current_stock <= 0;
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md">
-      <div className="relative aspect-square w-full bg-gray-50">
+      <button
+        type="button"
+        onClick={() => setDetailOpen(true)}
+        className="relative aspect-square w-full cursor-pointer bg-gray-50 text-left"
+        aria-label={`View ${product.name} details`}
+      >
         {product.image_url ? (
           <Image
             src={product.image_url}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, 200px"
-            className="object-cover"
+            className="object-contain p-2"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-4xl">
@@ -38,10 +46,23 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
             </span>
           </div>
         )}
-      </div>
+      </button>
+
+      <ProductDetailModal
+        product={product}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        currency={currency}
+      />
 
       <div className="flex flex-1 flex-col p-3">
-        <p className="line-clamp-2 text-sm font-medium text-gray-900">{product.name}</p>
+        <button
+          type="button"
+          onClick={() => setDetailOpen(true)}
+          className="line-clamp-2 text-left text-sm font-medium text-gray-900 hover:text-indigo-600"
+        >
+          {product.name}
+        </button>
         {product.description && (
           <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">{product.description}</p>
         )}

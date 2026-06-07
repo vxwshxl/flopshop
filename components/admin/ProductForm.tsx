@@ -3,13 +3,24 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { Upload, Search, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea, Select } from "@/components/ui/input";
 import { AdminCard } from "@/components/admin/StatCard";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, ProductDetails } from "@/lib/types";
+
+interface OffResult {
+  code: string;
+  name: string;
+  brand: string;
+  quantity: string;
+  categories: string;
+  ingredients: string;
+  image: string | null;
+  nutrition: ProductDetails["nutrition"];
+}
 
 const inputDark =
   "border-[#333] bg-[#0a0a0a] text-white placeholder:text-gray-600 focus:border-indigo-500";
@@ -37,6 +48,53 @@ export function ProductForm({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState(product?.image_url ?? "");
   const [saving, setSaving] = useState(false);
+  const [details, setDetails] = useState<ProductDetails | null>(product?.details ?? null);
+
+  // OpenFoodFacts import
+  const [offQuery, setOffQuery] = useState("");
+  const [offResults, setOffResults] = useState<OffResult[]>([]);
+  const [offLoading, setOffLoading] = useState(false);
+
+  async function searchOff(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!offQuery.trim()) return;
+    setOffLoading(true);
+    try {
+      const res = await fetch(`/api/off/search?q=${encodeURIComponent(offQuery.trim())}`);
+      const data = await res.json();
+      setOffResults(data.results ?? []);
+      if (!data.results?.length) toast("No matches on OpenFoodFacts", { icon: "🔍" });
+    } catch {
+      toast.error("Lookup failed");
+    } finally {
+      setOffLoading(false);
+    }
+  }
+
+  function applyOff(r: OffResult) {
+    setForm((f) => ({
+      ...f,
+      name: r.name || f.name,
+      description: [r.brand, r.quantity].filter(Boolean).join(" · ") || f.description,
+    }));
+    if (r.image) {
+      setImageUrl(r.image);
+      setPreview(r.image);
+      setFile(null); // use the OFF hosted image directly
+    }
+    setDetails({
+      source: "openfoodfacts",
+      off_code: r.code,
+      brand: r.brand,
+      quantity: r.quantity,
+      ingredients: r.ingredients,
+      categories: r.categories,
+      nutrition: r.nutrition,
+    });
+    setOffResults([]);
+    setOffQuery("");
+    toast.success("Imported from OpenFoodFacts");
+  }
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -76,6 +134,7 @@ export function ProductForm({
         current_stock: parseInt(form.current_stock) || 0,
         minimum_stock: parseInt(form.minimum_stock) || 0,
         image_url: finalImageUrl || null,
+        details,
         is_active: form.is_active,
         updated_at: new Date().toISOString(),
       };
@@ -98,6 +157,53 @@ export function ProductForm({
   return (
     <form onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
+        <AdminCard title="Import from OpenFoodFacts">
+          <p className="mb-2 text-xs text-gray-500">
+            Search by product name or paste a barcode to auto-fill name, image & nutrition.
+          </p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              <input
+                value={offQuery}
+                onChange={(e) => setOffQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchOff())}
+                placeholder="e.g. Maggi noodles  or  8901058000139"
+                className="h-10 w-full rounded-lg border border-[#333] bg-[#0a0a0a] pl-9 pr-3 text-sm text-white placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+            <Button type="button" variant="dark" loading={offLoading} onClick={() => searchOff()}>
+              <Sparkles className="h-4 w-4" /> Search
+            </Button>
+          </div>
+
+          {offResults.length > 0 && (
+            <div className="mt-3 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+              {offResults.map((r) => (
+                <button
+                  type="button"
+                  key={r.code}
+                  onClick={() => applyOff(r)}
+                  className="flex items-center gap-3 rounded-lg border border-[#333] bg-[#0a0a0a] p-2 text-left hover:border-indigo-500"
+                >
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-black">
+                    {r.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={r.image} alt={r.name} className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">{r.name}</p>
+                    <p className="truncate text-xs text-gray-500">
+                      {[r.brand, r.quantity].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </AdminCard>
+
         <AdminCard title="Details">
           <div className="space-y-4">
             <div>

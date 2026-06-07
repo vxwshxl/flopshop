@@ -51,10 +51,29 @@ export interface Product {
   current_stock: number;
   minimum_stock: number;
   image_url: string | null;
+  details: ProductDetails | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
   category?: Category | null;
+}
+
+/** Extra info imported from OpenFoodFacts. */
+export interface ProductDetails {
+  source?: string;
+  off_code?: string;
+  brand?: string;
+  quantity?: string;
+  ingredients?: string;
+  categories?: string;
+  nutrition?: {
+    energy_kcal?: number | null;
+    fat?: number | null;
+    carbs?: number | null;
+    sugars?: number | null;
+    protein?: number | null;
+    salt?: number | null;
+  };
 }
 
 export interface OrderItem {
