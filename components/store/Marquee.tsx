@@ -1,8 +1,8 @@
 const ITEMS = [
-  "First order? 10% off",
   "Wear your cravings",
   "Snacks to your room",
   "Pickup is free",
+  "Midnight cravings, delivered",
 ];
 
 export function Marquee() {

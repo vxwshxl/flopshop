@@ -1,47 +1,59 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Brand } from "@/components/Brand";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy — FlopShop",
-};
+export const metadata: Metadata = { title: "Privacy Policy" };
 
 export default function PrivacyPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-16">
-      <div className="rounded-3xl border border-black/10 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-stone-950">
-        <h1 className="mb-4 text-3xl font-extrabold text-stone-950 dark:text-white">Privacy Policy</h1>
-        <p className="mb-6 text-stone-600 dark:text-stone-400">
-          Your privacy matters to us. FlopShop only collects the information needed to process orders and provide a smooth checkout experience.
-        </p>
-        <div className="space-y-4 text-stone-700 dark:text-stone-200">
+    <div className="min-h-screen bg-black">
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <Link href="/" className="inline-block">
+          <Brand textClassName="text-xl" />
+        </Link>
+
+        <h1 className="mt-10 text-3xl font-extrabold text-white">Privacy Policy</h1>
+        <p className="mt-2 text-sm text-white/40">Last updated {new Date().getFullYear()}</p>
+
+        <div className="mt-8 space-y-6 text-sm leading-relaxed text-white/70">
           <section>
-            <h2 className="mb-2 text-xl font-semibold">Information we collect</h2>
+            <h2 className="mb-1 text-base font-semibold text-white">Information we collect</h2>
             <p>
-              We collect customer name, phone number, room number (for delivery), and order details to fulfill your request. Authentication data is managed by Google and Supabase.
+              When you sign in with Google we store your name, email and profile photo. When you place an
+              order we store your name, phone, room number and order details so we can prepare and deliver it.
             </p>
           </section>
           <section>
-            <h2 className="mb-2 text-xl font-semibold">How we use it</h2>
+            <h2 className="mb-1 text-base font-semibold text-white">How we use it</h2>
             <p>
-              Information is used to create and deliver orders, provide account access, and communicate order status. We do not sell your personal data.
+              Your information is used only to process orders, arrange pickup or delivery, and show you your
+              order history. We never sell your personal data.
             </p>
           </section>
           <section>
-            <h2 className="mb-2 text-xl font-semibold">Third-party services</h2>
-            <p>
-              We use Google for authentication and Supabase for backend services. Please refer to their privacy policies for details on how they handle user data.
-            </p>
+            <h2 className="mb-1 text-base font-semibold text-white">Third-party services</h2>
+            <p>Authentication is handled by Google; data is stored with Supabase.</p>
           </section>
           <section>
-            <h2 className="mb-2 text-xl font-semibold">Questions?</h2>
+            <h2 className="mb-1 text-base font-semibold text-white">Contact</h2>
             <p>
-              If you have questions about this policy, please contact the app owner or use the site’s support channels.
+              Questions? Message us on WhatsApp at{" "}
+              <a
+                href="https://wa.me/918133860088"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lime-400 hover:underline"
+              >
+                +91 81338 60088
+              </a>
+              .
             </p>
           </section>
         </div>
-        <p className="mt-8 text-sm text-stone-500 dark:text-stone-500">
-          Back to <Link href="/" className="underline hover:text-stone-900 dark:hover:text-white">FlopShop</Link>.
-        </p>
+
+        <Link href="/" className="mt-10 inline-block text-sm text-white/50 hover:text-white">
+          ← Back to shop
+        </Link>
       </div>
     </div>
   );

@@ -7,12 +7,18 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FlopShop — Your Hostel Snack Shop",
+  metadataBase: new URL("https://flopshop.vercel.app"),
+  title: {
+    default: "FlopShop — Your Hostel Snack Shop",
+    template: "%s · FlopShop",
+  },
   description: "Order snacks, drinks and noodles for pickup or delivery to your hostel room.",
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/FlopShop.webp",
+  applicationName: "FlopShop",
+  openGraph: {
+    title: "FlopShop — Your Hostel Snack Shop",
+    description: "Midnight cravings, delivered to your hostel room.",
+    images: ["/FlopShop.webp"],
+    type: "website",
   },
 };
 

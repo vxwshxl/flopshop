@@ -17,6 +17,7 @@ import {
 import { Download } from "lucide-react";
 import { StatCard, AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
 import type { Category, Product, Purchase, SettingsMap } from "@/lib/types";
 
@@ -188,9 +189,9 @@ export function ReportsView({
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 rounded-lg border border-[#333] bg-[#1a1a1a] px-2 text-sm text-white" />
-          <span className="text-gray-500">→</span>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 rounded-lg border border-[#333] bg-[#1a1a1a] px-2 text-sm text-white" />
+          <DatePicker value={from} onChange={setFrom} className="w-40" />
+          <span className="text-white/40">→</span>
+          <DatePicker value={to} onChange={setTo} className="w-40" />
         </div>
       </div>
 

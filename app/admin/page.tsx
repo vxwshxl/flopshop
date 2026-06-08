@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShoppingBag, IndianRupee, Package, AlertTriangle, Clock, Truck } from "lucide-react";
+import { ShoppingBag, IndianRupee, Package, AlertTriangle, Clock, Truck, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, AdminCard, PageHeader } from "@/components/admin/StatCard";
@@ -33,7 +33,7 @@ export default async function AdminDashboard() {
   since.setDate(since.getDate() - 6);
   since.setHours(0, 0, 0, 0);
 
-  const [{ data: ordersRaw }, { data: products }, { data: categories }] = await Promise.all([
+  const [{ data: ordersRaw }, { data: products }, { data: categories }, { data: profiles }] = await Promise.all([
     supabase
       .from("orders")
       .select(
@@ -43,6 +43,7 @@ export default async function AdminDashboard() {
       .order("created_at", { ascending: false }),
     supabase.from("products").select("*").eq("is_active", true),
     supabase.from("categories").select("*"),
+    supabase.from("profiles").select("id, is_active"),
   ]);
 
   const orders = (ordersRaw as unknown as DashOrder[]) ?? [];
@@ -56,6 +57,9 @@ export default async function AdminDashboard() {
 
   const todaysOrders = orders.filter((o) => isToday(o.created_at) && notCancelled(o));
   const revenueToday = todaysOrders.reduce((s, o) => s + Number(o.total_amount), 0);
+  const profileList = (profiles as { id: string; is_active: boolean }[]) ?? [];
+  const totalUsers = profileList.length;
+  const activeUsers = profileList.filter((p) => p.is_active).length;
   const lowStock = productList.filter((p) => p.current_stock <= p.minimum_stock);
   const pendingCount = orders.filter((o) => o.status === "pending").length;
   const activeDeliveries = orders.filter((o) => o.status === "out_for_delivery").length;
@@ -114,6 +118,43 @@ export default async function AdminDashboard() {
         <StatCard label="Low Stock" value={lowStock.length} icon={<AlertTriangle className="h-4 w-4" />} hint={lowStock.length ? "Needs restock" : "All good"} />
         <StatCard label="Pending Orders" value={pendingCount} icon={<Clock className="h-4 w-4" />} />
         <StatCard label="Out for Delivery" value={activeDeliveries} icon={<Truck className="h-4 w-4" />} />
+      </div>
+
+      {/* Users tracking card */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <div className="glass rounded-2xl p-5 lg:col-span-1">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-white/50">Users</p>
+              <p className="mt-1 text-3xl font-extrabold text-white">{totalUsers}</p>
+            </div>
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/5 text-white/70">
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-white/50">Active</p>
+              <p className="mt-1 text-3xl font-extrabold text-white">{activeUsers}</p>
+            </div>
+          </div>
+          <div className="mt-4 border-t border-white/10 pt-3 text-center text-sm text-white/40">
+            Registered Profiles
+          </div>
+        </div>
+
+        <StatCard
+          className="lg:col-span-1"
+          label="New This Week"
+          value={todaysOrders.length}
+          hint="orders placed today"
+          icon={<ShoppingBag className="h-4 w-4" />}
+        />
+        <StatCard
+          className="lg:col-span-1"
+          label="Inactive Users"
+          value={totalUsers - activeUsers}
+          hint="deactivated accounts"
+          icon={<Users className="h-4 w-4" />}
+        />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">

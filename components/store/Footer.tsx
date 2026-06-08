@@ -11,12 +11,12 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-export function Footer({ shopName = "FlopShop" }: { shopName?: string }) {
+export function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="border-t border-white/10 bg-black">
-      <div className="mx-auto max-w-6xl px-4 pt-16 sm:px-6">
-        {/* Bottom utility row */}
+    <footer className="mt-10 border-t border-white/10 bg-black">
+      <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
+        {/* utility row */}
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           <p className="order-3 text-xs text-white/40 sm:order-1">© {year} FlopShop.</p>
 
@@ -25,23 +25,42 @@ export function Footer({ shopName = "FlopShop" }: { shopName?: string }) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Chat on WhatsApp"
-            className="order-1 grid h-11 w-11 place-items-center rounded-full bg-white/5 text-white transition hover:bg-lime-400 hover:text-black sm:order-2"
+            className="order-1 grid h-11 w-11 cursor-pointer place-items-center rounded-full bg-white/5 text-white transition hover:bg-lime-400 hover:text-black sm:order-2"
           >
             <WhatsAppIcon className="h-5 w-5" />
           </a>
 
-          <Link href="/privacy" className="order-2 text-xs text-white/40 transition hover:text-white sm:order-3">
+          <Link
+            href="/privacy"
+            className="order-2 cursor-pointer text-xs text-white/40 transition hover:text-white sm:order-3"
+          >
             Privacy Policy
           </Link>
         </div>
 
-        {/* Giant brand wordmark */}
-        <div className="select-none pt-10 text-center leading-[0.8]">
-          <span className="inline-block align-top text-[22vw] font-black tracking-tighter">
-            <span className="text-lime-400">Flop</span>
-            <span className="text-white">Shop</span>
-            <sup className="ml-1 align-top text-[4vw] font-bold text-white/60">™</sup>
-          </span>
+        {/* Giant brand wordmark — SVG scales to fill the width on any screen */}
+        <div className="pt-8">
+          <svg
+            viewBox="0 0 1000 250"
+            width="100%"
+            className="block select-none"
+            role="img"
+            aria-label="FlopShop"
+          >
+            <text
+              x="0"
+              y="192"
+              textLength="1000"
+              lengthAdjust="spacingAndGlyphs"
+              fontFamily="var(--font-geist-sans), system-ui, sans-serif"
+              fontWeight="900"
+              fontSize="232"
+            >
+              <tspan fill="#f5c518">Flop</tspan>
+              <tspan fill="#ffffff">Shop</tspan>
+              <tspan fill="#ffffff" fillOpacity="0.55" fontSize="64" dy="-118">™</tspan>
+            </text>
+          </svg>
         </div>
       </div>
     </footer>

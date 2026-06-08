@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { AdminCard } from "@/components/admin/StatCard";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
 import type { Product } from "@/lib/types";
@@ -103,7 +104,7 @@ export function PurchaseForm({ products }: { products: Product[] }) {
           </div>
           <div>
             <Label className="text-gray-300">Purchase date</Label>
-            <Input type="date" value={form.purchase_date} onChange={set("purchase_date")} className={inputDark} />
+            <DatePicker value={form.purchase_date} onChange={(v) => setForm((f) => ({ ...f, purchase_date: v }))} />
           </div>
           <div className="sm:col-span-2">
             <Label className="text-gray-300">Notes</Label>

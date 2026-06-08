@@ -36,7 +36,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <Marquee />
       <Navbar shopName={settings.shop_name} isOpen={isOpen} user={navUser} role={role} />
       <div className="flex-1">{children}</div>
-      <Footer shopName={settings.shop_name} />
+      <Footer />
     </div>
   );
 }

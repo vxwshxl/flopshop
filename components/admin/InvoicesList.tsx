@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
 
@@ -37,12 +38,7 @@ export function InvoicesList({ orders, currency }: { orders: Row[]; currency: st
             className="h-10 w-full rounded-lg border border-[#333] bg-[#1a1a1a] pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none"
           />
         </div>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-10 rounded-lg border border-[#333] bg-[#1a1a1a] px-3 text-sm text-white focus:outline-none"
-        />
+        <DatePicker value={date} onChange={setDate} className="w-44" placeholder="Filter by date" />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#1a1a1a]">
