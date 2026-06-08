@@ -39,6 +39,18 @@ CREATE TABLE suppliers (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CUSTOMERS (walk-in, no login) ----------------------------
+CREATE TABLE customers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT,
+  room_number TEXT,
+  hostel_block TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Auto-create profile on signup.
 -- NOTE: schema-qualified + fixed search_path so it works when fired by the
 -- auth service (whose search_path does not include public).
@@ -329,6 +341,9 @@ CREATE POLICY "Admin manages hostels" ON hostels FOR ALL USING (is_admin());
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read suppliers" ON suppliers FOR SELECT USING (true);
 CREATE POLICY "Admin manages suppliers" ON suppliers FOR ALL USING (is_admin());
+
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manages customers" ON customers FOR ALL USING (is_admin());
 
 -- Settings
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);

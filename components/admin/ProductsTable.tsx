@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { imagePositionStyle } from "@/lib/utils/image";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
@@ -99,6 +100,7 @@ export function ProductsTable({
       ),
     [products, query, cat]
   );
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
 
   async function toggleActive(p: Product) {
     setBusy(p.id);
@@ -178,7 +180,7 @@ export function ProductsTable({
                 </td>
               </tr>
             )}
-            {filtered.map((p) => {
+            {pageItems.map((p) => {
               const category = categories.find((c) => c.id === p.category_id);
               return (
                 <tr key={p.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
@@ -246,6 +248,7 @@ export function ProductsTable({
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete product"

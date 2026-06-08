@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { Modal } from "@/components/ui/modal";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 
 export type DeliveryPartnerRow = {
@@ -35,6 +36,7 @@ export function DeliveryPartnersTable({
   currency: string;
 }) {
   const [selected, setSelected] = useState<DeliveryPartnerRow | null>(null);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(partners);
 
   if (partners.length === 0) {
     return <p className="py-8 text-center text-sm text-stone-500">No delivery partners yet.</p>;
@@ -54,7 +56,7 @@ export function DeliveryPartnersTable({
             </tr>
           </thead>
           <tbody className="text-stone-300">
-            {partners.map((p) => (
+            {pageItems.map((p) => (
               <tr
                 key={p.id}
                 className="cursor-pointer border-t border-white/10 transition-colors hover:bg-white/5"

@@ -9,7 +9,7 @@ import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils/formatters";
-import type { OrderType, PaymentMethod, Product, SettingsMap } from "@/lib/types";
+import type { Customer, OrderType, PaymentMethod, Product, SettingsMap } from "@/lib/types";
 
 const inputTheme =
   "border-black/15 bg-white text-black placeholder:text-black/40 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40";
@@ -19,7 +19,15 @@ interface Line {
   quantity: number;
 }
 
-export function ManualOrderForm({ products, settings }: { products: Product[]; settings: SettingsMap }) {
+export function ManualOrderForm({
+  products,
+  customers,
+  settings,
+}: {
+  products: Product[];
+  customers: Customer[];
+  settings: SettingsMap;
+}) {
   const router = useRouter();
   const currency = settings.currency_symbol ?? "₹";
   const deliveryFee = Number(settings.delivery_fee ?? 10);
@@ -27,7 +35,19 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
   const [lines, setLines] = useState<Line[]>([]);
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("pickup");
+  // "" = new walk-in (type the details); otherwise a saved customer's id.
+  const [customerId, setCustomerId] = useState("");
   const [customer, setCustomer] = useState({ name: "", phone: "", room: "" });
+
+  function selectCustomer(id: string) {
+    setCustomerId(id);
+    if (!id) {
+      setCustomer({ name: "", phone: "", room: "" });
+      return;
+    }
+    const c = customers.find((x) => x.id === id);
+    if (c) setCustomer({ name: c.name, phone: c.phone ?? "", room: c.room_number ?? "" });
+  }
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -89,11 +109,12 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
     if (!res.ok || !res.order) return toast.error(res.error ?? "Failed to create order.");
     setLines([]);
     setQuery("");
+    setCustomerId("");
     setCustomer({ name: "", phone: "", room: "" });
     setPayment("cash");
     setNotes("");
     setOrderType("pickup");
-    toast.success(`Order ${res.order.order_number} created`);
+    toast.success(`Order ${res.order.order_number} completed`);
     router.push(`/admin/orders/${res.order.id}`);
     router.refresh();
   }
@@ -164,21 +185,44 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
 
         <AdminCard title="Customer">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label className="text-stone-700 dark:text-stone-300">Name</Label>
-              <Input required value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} className={inputTheme} />
+            <div className="sm:col-span-2">
+              <Label className="text-stone-700 dark:text-stone-300">Customer</Label>
+              <Select value={customerId} onChange={(e) => selectCustomer(e.target.value)} className={inputTheme}>
+                <option value="">+ New walk-in customer</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.phone ? ` · ${c.phone}` : ""}
+                  </option>
+                ))}
+              </Select>
             </div>
-            <div>
-              <Label className="text-stone-700 dark:text-stone-300">Phone</Label>
-              <Input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} className={inputTheme} />
-            </div>
+
+            {customerId === "" ? (
+              <>
+                <div>
+                  <Label className="text-stone-700 dark:text-stone-300">Name</Label>
+                  <Input required value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} className={inputTheme} />
+                </div>
+                <div>
+                  <Label className="text-stone-700 dark:text-stone-300">Phone</Label>
+                  <Input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} className={inputTheme} />
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-2 rounded-lg border border-black/10 bg-stone-50 p-3 text-sm dark:border-white/10 dark:bg-stone-900">
+                <p className="font-medium text-stone-950 dark:text-white">{customer.name}</p>
+                <p className="text-stone-500 dark:text-stone-400">{customer.phone || "No phone"}</p>
+              </div>
+            )}
+
             {orderType === "delivery" && (
               <div>
                 <Label className="text-stone-700 dark:text-stone-300">Room number</Label>
                 <Input required value={customer.room} onChange={(e) => setCustomer((c) => ({ ...c, room: e.target.value }))} className={inputTheme} />
               </div>
             )}
-            <div>
+            <div className={orderType === "delivery" ? "" : "sm:col-span-2"}>
               <Label className="text-stone-700 dark:text-stone-300">Notes</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputTheme} rows={1} />
             </div>
@@ -226,7 +270,7 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
         </AdminCard>
 
         <Button type="submit" loading={saving} variant="dark" className="w-full">
-          Create & confirm order
+          Complete Order
         </Button>
       </div>
     </form>

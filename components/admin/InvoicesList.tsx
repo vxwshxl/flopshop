@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
 
@@ -25,6 +26,7 @@ export function InvoicesList({ orders, currency }: { orders: Row[]; currency: st
       }),
     [orders, query, date]
   );
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
 
   return (
     <div>
@@ -61,7 +63,7 @@ export function InvoicesList({ orders, currency }: { orders: Row[]; currency: st
                 </td>
               </tr>
             )}
-            {filtered.map((o) => (
+            {pageItems.map((o) => (
               <tr key={o.id} className="border-b border-[#222] last:border-0 hover:bg-white/5">
                 <td className="p-3">
                   <Link href={`/admin/invoices/${o.id}`} className="font-medium text-indigo-400 hover:underline">
@@ -88,6 +90,7 @@ export function InvoicesList({ orders, currency }: { orders: Row[]; currency: st
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
     </div>
   );
 }

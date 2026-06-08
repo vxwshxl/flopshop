@@ -29,6 +29,18 @@ export interface Supplier {
   updated_at: string;
 }
 
+/** Walk-in customer (not a login account) — used to pre-fill manual orders. */
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  room_number: string | null;
+  hostel_block: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string | null;

@@ -9,6 +9,7 @@ import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import type { Supplier } from "@/lib/types";
 
 export function SuppliersManager({ suppliers: initialSuppliers }: { suppliers: Supplier[] }) {
@@ -19,6 +20,7 @@ export function SuppliersManager({ suppliers: initialSuppliers }: { suppliers: S
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const router = useRouter();
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(suppliers);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -109,7 +111,7 @@ export function SuppliersManager({ suppliers: initialSuppliers }: { suppliers: S
                   </td>
                 </tr>
               )}
-              {suppliers.map((s) => (
+              {pageItems.map((s) => (
                 <tr key={s.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                   <td className="p-3">
                     <span className="font-medium text-white">{s.name}</span>
@@ -156,6 +158,7 @@ export function SuppliersManager({ suppliers: initialSuppliers }: { suppliers: S
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </AdminCard>
 
       <Modal open={showAddModal} onClose={() => { setShowAddModal(false); setEditing(null); }} title={editing ? "Edit supplier" : "Add supplier"}>

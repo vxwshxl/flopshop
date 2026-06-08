@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import toast from "react-hot-toast";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/input";
@@ -37,6 +39,7 @@ export function UsersTable({
       ),
     [users, query]
   );
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
 
   async function changeRole(u: Profile, role: Role) {
     setBusy(u.id);
@@ -95,7 +98,7 @@ export function UsersTable({
             </tr>
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
-            {filtered.map((u) => (
+            {pageItems.map((u) => (
               <tr key={u.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                 <td className="p-3 font-medium text-black dark:text-white">{u.full_name ?? "—"}</td>
                 <td className="p-3 text-black/60 dark:text-white/60">{u.email}</td>
@@ -139,6 +142,7 @@ export function UsersTable({
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
 
       <Modal open={!!historyFor} onClose={() => setHistoryFor(null)} title={`${historyFor?.full_name ?? "User"} — Orders`}>
         {history === null ? (
@@ -148,7 +152,11 @@ export function UsersTable({
         ) : (
           <div className="space-y-2">
             {history.map((o) => (
-              <div key={o.id} className="flex items-center justify-between rounded-lg border border-black/10 p-2.5 text-sm dark:border-white/10">
+              <Link
+                key={o.id}
+                href={`/admin/orders/${o.id}`}
+                className="flex items-center justify-between rounded-lg border border-black/10 p-2.5 text-sm transition hover:border-yellow-400 hover:bg-yellow-400/10 dark:border-white/10"
+              >
                 <div>
                   <p className="font-medium text-black dark:text-white">{o.order_number}</p>
                   <p className="text-xs text-black/50 dark:text-white/50">
@@ -156,7 +164,7 @@ export function UsersTable({
                   </p>
                 </div>
                 <span className="font-semibold text-black dark:text-white">{formatCurrency(o.total_amount, currency)}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}

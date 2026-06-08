@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import type { Category } from "@/lib/types";
 
 function slugify(s: string) {
@@ -32,6 +33,7 @@ export function CategoriesManager({
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [form, setForm] = useState({ name: "", icon: "📦", color: "#facc15", sort_order: "0", is_active: true });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(categories);
 
   function openNew() {
     setEditing(null);
@@ -109,7 +111,7 @@ export function CategoriesManager({
             </tr>
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
-            {categories.map((c) => (
+            {pageItems.map((c) => (
               <tr key={c.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                 <td className="p-3 text-black/50 dark:text-white/50">
                   <div className="flex items-center gap-1">
@@ -149,6 +151,7 @@ export function CategoriesManager({
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit Category" : "New Category"}>
         <form onSubmit={save} className="space-y-4">

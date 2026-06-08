@@ -147,5 +147,13 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
 export async function createManualOrderAction(input: Omit<CreateOrderInput, "confirm" | "is_manual">) {
   const actor = await requireRole(["admin"]);
   if (!actor) return { ok: false, error: "Not authorized." };
-  return createOrder({ ...input, is_manual: true, confirm: true });
+
+  // Walk-in orders are handed over on the spot: create confirmed + paid, then
+  // mark completed so it lands fully done (no OTP — manual orders skip it).
+  const res = await createOrder({ ...input, is_manual: true, confirm: true });
+  if (!res.ok || !res.order) return res;
+
+  await updateOrderStatus(res.order.id, "delivered");
+  revalidatePath("/admin/orders");
+  return { ...res, order: { ...res.order, status: "delivered" as OrderStatus } };
 }

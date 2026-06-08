@@ -9,6 +9,7 @@ import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import type { Hostel } from "@/lib/types";
 
 export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] }) {
@@ -18,6 +19,7 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(hostels);
   const router = useRouter();
 
   async function handleAdd(e: React.FormEvent) {
@@ -102,7 +104,7 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
               </tr>
             </thead>
             <tbody className="text-black/75 dark:text-white/75">
-              {hostels.map((h) => (
+              {pageItems.map((h) => (
                 <tr key={h.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                   <td className="p-3">
                     <span className="font-medium text-white">{h.name}</span>
@@ -145,6 +147,7 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </AdminCard>
 
       <Modal open={showAddModal} onClose={() => { setShowAddModal(false); setEditing(null); }} title={editing ? "Edit hostel" : "Add hostel"}>

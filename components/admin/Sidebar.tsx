@@ -19,6 +19,7 @@ import {
   X,
   Store,
   Building2,
+  Contact,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { cn } from "@/lib/utils/cn";
@@ -68,6 +69,7 @@ const sections: { title: string; items: NavItem[] }[] = [
     title: "Manage",
     items: [
       { href: "/admin/users", label: "Users", icon: Users },
+      { href: "/admin/customers", label: "Customers", icon: Contact },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ],
   },

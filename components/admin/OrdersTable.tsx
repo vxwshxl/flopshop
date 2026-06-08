@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { setOrderStatusAction, assignDeliveryAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Select } from "@/components/ui/input";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
@@ -53,6 +54,7 @@ export function OrdersTable({
       ),
     [orders, tab, query]
   );
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
 
   function changeStatus(id: string, status: OrderStatus) {
     const prev = overrides[id];
@@ -141,7 +143,7 @@ export function OrdersTable({
                 </td>
               </tr>
             )}
-            {filtered.map((o) => (
+            {pageItems.map((o) => (
               <tr key={o.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                 <td className="p-3">
                   <Link href={`/admin/orders/${o.id}`} className="font-medium text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
@@ -206,6 +208,7 @@ export function OrdersTable({
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
     </div>
   );
 }
