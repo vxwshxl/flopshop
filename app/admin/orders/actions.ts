@@ -17,7 +17,12 @@ async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | 
   return roles.includes(role) ? { id: user.id, role } : null;
 }
 
-export async function setOrderStatusAction(orderId: string, status: OrderStatus, otp_code?: string) {
+export async function setOrderStatusAction(
+  orderId: string,
+  status: OrderStatus,
+  otp_code?: string,
+  cancel_reason?: string | null
+) {
   const actor = await requireRole(["admin", "delivery"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
@@ -53,7 +58,11 @@ export async function setOrderStatusAction(orderId: string, status: OrderStatus,
     }
   }
 
-  const result = await updateOrderStatus(orderId, status);
+  if (status === "cancelled" && !cancel_reason?.trim()) {
+    return { ok: false, error: "Enter a cancellation reason." };
+  }
+
+  const result = await updateOrderStatus(orderId, status, cancel_reason);
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/delivery");

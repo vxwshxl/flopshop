@@ -1,6 +1,7 @@
 import { Navbar, type NavUser } from "@/components/store/Navbar";
 import { Marquee } from "@/components/store/Marquee";
 import { Footer } from "@/components/store/Footer";
+import { ProfileCompletionPrompt } from "@/components/store/ProfileCompletionPrompt";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import type { Role } from "@/lib/types";
@@ -35,6 +36,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     <div className="flex min-h-screen flex-col bg-black">
       <Marquee />
       <Navbar shopName={settings.shop_name} isOpen={isOpen} user={navUser} role={role} />
+      <ProfileCompletionPrompt />
       <div className="flex-1">{children}</div>
       <Footer />
     </div>

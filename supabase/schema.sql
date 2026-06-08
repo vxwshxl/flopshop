@@ -82,6 +82,7 @@ CREATE TABLE orders (
   customer_room TEXT,
   order_type TEXT NOT NULL CHECK (order_type IN ('pickup', 'delivery')),
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled')),
+  cancel_reason TEXT,
   subtotal DECIMAL(10,2) NOT NULL,
   delivery_fee DECIMAL(10,2) DEFAULT 0,
   delivery_person_earning DECIMAL(10,2) DEFAULT 0,

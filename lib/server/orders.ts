@@ -142,7 +142,8 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
  */
 export async function updateOrderStatus(
   orderId: string,
-  newStatus: OrderStatus
+  newStatus: OrderStatus,
+  cancel_reason?: string | null
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = createAdminClient();
 
@@ -174,9 +175,19 @@ export async function updateOrderStatus(
     }
   }
 
+  const updatePayload: Record<string, unknown> = {
+    status: newStatus,
+    updated_at: new Date().toISOString(),
+  };
+  if (newStatus === "cancelled") {
+    updatePayload.cancel_reason = cancel_reason || null;
+  } else {
+    updatePayload.cancel_reason = null;
+  }
+
   const { error: updErr } = await supabase
     .from("orders")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq("id", orderId);
 
   if (updErr) return { ok: false, error: updErr.message };

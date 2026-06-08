@@ -53,6 +53,9 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               <Field label="Type" value={order.order_type} />
               <Field label="Payment" value={`${order.payment_method} · ${order.payment_status}`} />
               <Field label="Source" value={order.is_manual ? "Walk-in (manual)" : "Online"} />
+              {order.status === "cancelled" && order.cancel_reason && (
+                <Field label="Cancelled because" value={order.cancel_reason} />
+              )}
             </div>
             {order.notes && (
               <p className="mt-3 rounded-lg bg-[#0a0a0a] p-3 text-sm text-gray-400">📝 {order.notes}</p>

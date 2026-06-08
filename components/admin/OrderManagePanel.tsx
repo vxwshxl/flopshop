@@ -24,7 +24,9 @@ export function OrderManagePanel({
 }) {
   const [pending, startTransition] = useTransition();
   const [showOtpModal, setShowOtpModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [otp, setOtp] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
   const router = useRouter();
 
@@ -50,6 +52,12 @@ export function OrderManagePanel({
       setShowOtpModal(true);
       return;
     }
+    if (status === "cancelled") {
+      setStatusTarget(status);
+      setCancelReason("");
+      setShowCancelModal(true);
+      return;
+    }
     run(() => setOrderStatusAction(order.id, status), `Marked ${statusLabel(status, order.order_type)}`);
   }
 
@@ -65,6 +73,31 @@ export function OrderManagePanel({
         toast.success(`Marked ${statusLabel(statusTarget, order.order_type)}`);
         setShowOtpModal(false);
         setOtp("");
+        setStatusTarget(null);
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+  }
+
+  async function confirmCancel() {
+    if (!statusTarget) return;
+    if (!cancelReason.trim()) {
+      toast.error("Please provide a cancellation reason.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await setOrderStatusAction(order.id, statusTarget, undefined, cancelReason.trim());
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed");
+          return;
+        }
+        toast.success(`Order cancelled`);
+        setShowCancelModal(false);
+        setCancelReason("");
         setStatusTarget(null);
         router.refresh();
       } catch {
@@ -184,6 +217,27 @@ export function OrderManagePanel({
           </Button>
           <Button disabled={pending || otp.trim().length !== 4} onClick={confirmOtpUpdate}>
             Confirm OTP
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancellation reason">
+        <p className="mb-4 text-sm text-gray-300">
+          Tell the customer why this order cannot be fulfilled. This reason is saved with the cancelled order.
+        </p>
+        <label className="mb-2 block text-sm font-medium text-white">Reason</label>
+        <Input
+          value={cancelReason}
+          onChange={(event) => setCancelReason(event.target.value)}
+          placeholder="e.g. item out of stock"
+          className="mb-4 w-full"
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setShowCancelModal(false)} disabled={pending}>
+            Back
+          </Button>
+          <Button disabled={pending || !cancelReason.trim()} onClick={confirmCancel}>
+            Cancel order
           </Button>
         </div>
       </Modal>

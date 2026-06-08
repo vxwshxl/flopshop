@@ -107,6 +107,7 @@ export interface Order {
   notes: string | null;
   is_manual: boolean;
   invoice_number: string | null;
+  cancel_reason: string | null;
   created_at: string;
   updated_at: string;
   order_items?: OrderItem[];

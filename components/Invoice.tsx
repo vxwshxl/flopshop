@@ -29,6 +29,12 @@ export function Invoice({ order, settings, showOtp = false }: { order: Order; se
         <p className="text-gray-700">{order.customer_name}</p>
         {order.customer_phone && <p className="text-gray-600">{order.customer_phone}</p>}
         {order.customer_room && <p className="text-gray-600">Room {order.customer_room}</p>}
+        {order.status === "cancelled" && order.cancel_reason && (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-900">
+            <span className="font-semibold">Cancellation reason: </span>
+            {order.cancel_reason}
+          </p>
+        )}
       </div>
 
       <table className="w-full border-b border-gray-100 py-2 text-sm">
