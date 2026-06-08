@@ -19,11 +19,11 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
   const outOfStock = product.current_stock <= 0;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-stone-900">
+    <div className="glass flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5 hover:shadow-lg">
       <button
         type="button"
         onClick={() => setDetailOpen(true)}
-        className="relative aspect-square w-full cursor-pointer bg-stone-50 text-left dark:bg-stone-800/70"
+        className="relative aspect-square w-full cursor-pointer bg-white/50 text-left dark:bg-white/5"
         aria-label={`View ${product.name} details`}
       >
         {product.image_url ? (
@@ -74,7 +74,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
           {outOfStock ? (
             <button
               disabled
-              className="cursor-not-allowed rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-300 dark:border-stone-700 dark:text-stone-600"
+              className="cursor-not-allowed rounded-full border border-stone-200 px-4 py-1.5 text-xs font-bold text-stone-300 dark:border-stone-700 dark:text-stone-600"
             >
               ADD
             </button>
@@ -84,23 +84,23 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
                 addItem(product);
                 toast.success(`${product.name} added`);
               }}
-              className="rounded-lg border border-lime-500 px-4 py-1.5 text-xs font-extrabold text-lime-700 hover:bg-lime-50 dark:text-lime-300 dark:hover:bg-lime-400/10"
+              className="rounded-full bg-lime-400 px-5 py-1.5 text-xs font-extrabold text-stone-900 shadow-sm ring-1 ring-black/5 transition hover:bg-lime-300 active:scale-95"
             >
               ADD
             </button>
           ) : (
-            <div className="flex items-center gap-2 rounded-lg bg-lime-500 text-stone-950">
+            <div className="glass-lens flex items-center gap-1 rounded-full text-stone-900 dark:text-white">
               <button
                 onClick={() => decrement(product.id)}
-                className="grid h-8 w-8 place-items-center rounded-l-lg hover:bg-lime-400"
+                className="grid h-8 w-8 place-items-center rounded-full transition hover:text-lime-700 dark:hover:text-lime-300"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
-              <span className="min-w-4 text-center text-sm font-bold">{qty}</span>
+              <span className="min-w-5 text-center text-sm font-extrabold">{qty}</span>
               <button
                 onClick={() => increment(product.id)}
                 disabled={qty >= product.current_stock}
-                className="grid h-8 w-8 place-items-center rounded-r-lg hover:bg-lime-400 disabled:opacity-40"
+                className="grid h-8 w-8 place-items-center rounded-full transition hover:text-lime-700 disabled:opacity-40 dark:hover:text-lime-300"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

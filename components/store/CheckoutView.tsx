@@ -80,24 +80,36 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
 
   if (placed) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center">
-        <CheckCircle2 className="mb-3 h-16 w-16 text-green-500 animate-pulse" />
-        <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">Order complete</h1>
-        <p className="mt-3 text-stone-500 dark:text-stone-400">
-          Your order <span className="font-semibold text-stone-950 dark:text-white">{placed.order_number}</span> for {formatCurrency(placed.total, currency)} has been received.
-        </p>
-        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
-          Order will be accepted soon. If delivery accepts it, you can track the update from your orders page.
-        </p>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Link href="/">
-            <Button variant="outline" className="w-full sm:w-auto">Back to shop</Button>
-          </Link>
-          {isAuthenticated && (
-            <Link href={`/orders/${placed.id}`}>
-              <Button className="w-full sm:w-auto">View order</Button>
+      <div className="mx-auto max-w-md px-4 py-14">
+        <div className="glass flex flex-col items-center rounded-3xl px-6 py-12 text-center">
+          <div className="relative mb-5 grid h-24 w-24 place-items-center">
+            <span className="absolute inset-0 rounded-full bg-green-500/30 animate-ring" />
+            <span className="absolute inset-0 rounded-full bg-green-500/20 animate-ring [animation-delay:.4s]" />
+            <span className="animate-pop-in grid h-20 w-20 place-items-center rounded-full bg-green-500 text-white shadow-lg shadow-green-500/30">
+              <CheckCircle2 className="h-11 w-11" strokeWidth={2.5} />
+            </span>
+          </div>
+          <h1 className="text-2xl font-extrabold text-stone-900 dark:text-white">Order placed! 🎉</h1>
+          <p className="mt-2 text-stone-600 dark:text-stone-300">
+            Order <span className="font-bold text-stone-900 dark:text-white">{placed.order_number}</span> ·{" "}
+            {formatCurrency(placed.total, currency)}
+          </p>
+          <div className="mt-4 rounded-2xl bg-yellow-400/15 px-4 py-3 text-sm font-medium text-stone-700 dark:text-stone-200">
+            ⏳ Your order will be accepted soon.
+            {orderType === "delivery"
+              ? " Once a delivery partner accepts it, you'll see the live status on your orders page."
+              : " You can track the status anytime on your orders page."}
+          </div>
+          <div className="mt-6 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link href="/" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full">Back to shop</Button>
             </Link>
-          )}
+            {isAuthenticated && (
+              <Link href={`/orders/${placed.id}`} className="w-full sm:w-auto">
+                <Button className="w-full">Track order</Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );

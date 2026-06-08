@@ -126,7 +126,7 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between border-b border-black/10 bg-[#fffdf5]/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-stone-950/90 md:hidden">
+      <div className="glass-line flex items-center justify-between border-b bg-white/60 px-4 py-3 backdrop-blur-xl dark:bg-stone-950/50 md:hidden">
         <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" markClassName="h-8 w-8" />
         <button onClick={() => setOpen(true)} className="text-stone-950 dark:text-white">
           <Menu className="h-6 w-6" />
@@ -134,7 +134,7 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-[220px] border-r border-black/10 bg-[#fffdf5]/95 backdrop-blur dark:border-white/10 dark:bg-stone-950/90 md:block">
+      <aside className="glass-line fixed inset-y-0 left-0 hidden w-[220px] border-r bg-white/55 backdrop-blur-xl dark:bg-stone-950/45 md:block">
         {nav}
       </aside>
 
@@ -142,7 +142,7 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[260px] bg-[#fffdf5] dark:bg-stone-950">
+          <aside className="glass-strong absolute inset-y-0 left-0 w-[260px]">
             <button onClick={() => setOpen(false)} className="absolute right-3 top-4 text-stone-500 dark:text-stone-400">
               <X className="h-5 w-5" />
             </button>

@@ -30,8 +30,8 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
 
   return (
     <div className="pb-24">
-      <div className="sticky top-14 z-30 border-b border-black/5 bg-[#fffdf5]/95 backdrop-blur dark:border-white/10 dark:bg-stone-950/90">
-        <div className="mx-auto max-w-5xl px-4 py-2">
+      <div className="sticky top-16 z-30 py-3">
+        <div className="mx-auto flex max-w-5xl justify-center px-4">
           <CategoryFilter categories={categories} active={active} onChange={setActive} />
         </div>
       </div>
@@ -49,16 +49,18 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
       </div>
 
       {count > 0 && (
-        <Link
-          href="/cart"
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-5xl items-center justify-between bg-stone-950 px-5 py-3.5 text-white shadow-2xl sm:bottom-4 sm:mx-4 sm:rounded-lg md:mx-auto dark:bg-lime-400 dark:text-stone-950"
-        >
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <ShoppingCart className="h-5 w-5" />
-            {count} item{count > 1 ? "s" : ""} • {formatCurrency(subtotal, currency)}
-          </div>
-          <span className="flex items-center gap-1 text-sm font-bold">Checkout →</span>
-        </Link>
+        <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-3 sm:pb-4">
+          <Link
+            href="/cart"
+            className="mx-auto flex max-w-lg items-center justify-between rounded-2xl bg-lime-400 px-5 py-3.5 text-stone-950 shadow-[0_18px_40px_-12px_rgba(248,203,70,0.7)] ring-1 ring-black/5 transition hover:bg-lime-300"
+          >
+            <div className="flex items-center gap-2 text-sm font-bold">
+              <ShoppingCart className="h-5 w-5" />
+              {count} item{count > 1 ? "s" : ""} • {formatCurrency(subtotal, currency)}
+            </div>
+            <span className="flex items-center gap-1 text-sm font-extrabold">Checkout →</span>
+          </Link>
+        </div>
       )}
     </div>
   );

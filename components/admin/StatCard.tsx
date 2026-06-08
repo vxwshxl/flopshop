@@ -14,9 +14,9 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900", className)}>
+    <div className={cn("glass rounded-2xl p-4", className)}>
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-stone-500">{label}</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-stone-400">{label}</p>
         {icon && <span className="text-stone-500">{icon}</span>}
       </div>
       <p className="mt-2 text-2xl font-extrabold text-stone-950 dark:text-white">{value}</p>
@@ -37,10 +37,10 @@ export function AdminCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div className={cn("rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-stone-900", className)}>
+    <div className={cn("glass rounded-2xl", className)}>
       {(title || action) && (
-        <div className="flex items-center justify-between border-b border-black/10 px-4 py-3 dark:border-white/10">
-          {title && <h3 className="text-sm font-bold text-stone-950 dark:text-white">{title}</h3>}
+        <div className="glass-line flex items-center justify-between border-b px-4 py-3">
+          {title && <h3 className="text-sm font-bold text-stone-900 dark:text-white">{title}</h3>}
           {action}
         </div>
       )}

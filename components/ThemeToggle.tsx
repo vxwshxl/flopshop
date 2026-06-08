@@ -52,7 +52,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         setIsDark(applyTheme(nextMode));
       }}
       className={cn(
-        "grid h-9 w-9 place-items-center rounded-lg border border-black/15 bg-white text-black shadow-sm transition hover:bg-yellow-400 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-yellow-400 dark:hover:text-black",
+        "glass-lens grid h-9 w-9 place-items-center rounded-full text-stone-700 transition hover:text-stone-950 active:scale-95 dark:text-stone-200 dark:hover:text-white",
         className
       )}
       aria-label={`Switch to ${nextMode} mode`}

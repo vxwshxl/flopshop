@@ -39,7 +39,7 @@ export function Navbar({
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-[#fffdf5]/90 backdrop-blur dark:border-white/10 dark:bg-stone-950/88">
+    <header className="glass-line sticky top-0 z-40 border-b bg-white/55 backdrop-blur-xl backdrop-saturate-150 dark:bg-stone-950/45">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" />
         <div className="ml-2 flex flex-1 items-center">
@@ -58,12 +58,12 @@ export function Navbar({
           <ThemeToggle />
           <Link
             href="/cart"
-            className="relative rounded-lg p-2 text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10"
+            className="glass-lens relative grid h-9 w-9 place-items-center rounded-full text-stone-700 transition hover:text-stone-950 active:scale-95 dark:text-stone-200 dark:hover:text-white"
             aria-label="Cart"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-lime-500 px-1 text-[10px] font-bold text-stone-950">
+              <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-lime-400 px-1 text-[10px] font-extrabold text-stone-950 ring-2 ring-white/70 dark:ring-stone-950/70">
                 {count}
               </span>
             )}
@@ -85,7 +85,7 @@ export function Navbar({
               {menuOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-black/10 bg-white shadow-xl dark:border-white/10 dark:bg-stone-900"
+                  className="glass-strong absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl"
                 >
                   <div className="flex items-center gap-3 border-b border-black/5 p-4 dark:border-white/10">
                     <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-lime-500">
