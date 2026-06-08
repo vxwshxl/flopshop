@@ -27,7 +27,6 @@ export default async function HomePage() {
       <RealtimeRefresh table="products" channel="store:products" />
       <RealtimeRefresh table="categories" channel="store:categories" />
       <RealtimeRefresh table="settings" channel="store:settings" />
-      <ProfileCompletionPrompt hostels={hostels} />
       <ShopClosedBanner />
       <div className="mx-auto max-w-5xl px-4 pt-5">
         <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">{settings.shop_tagline}</h1>

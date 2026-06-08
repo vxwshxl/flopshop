@@ -33,9 +33,7 @@ export function Navbar({
   const firstName = user?.name?.split(" ")[0] ?? "there";
 
   async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    // Hard navigation so server components re-render in the signed-out state.
+    await fetch("/auth/signout", { method: "POST" });
     window.location.href = "/";
   }
 
