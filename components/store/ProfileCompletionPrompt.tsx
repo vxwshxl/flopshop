@@ -63,7 +63,9 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
       } else {
         toast.success("Profile completed.");
         setOpen(false);
-        router.refresh();
+        setTimeout(() => {
+          router.refresh();
+        }, 50);
       }
     } catch (err: any) {
       toast.error(err?.message || "An unexpected error occurred");

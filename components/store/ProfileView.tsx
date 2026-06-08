@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -41,7 +41,9 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
         toast.error(error.message);
       } else {
         toast.success("Profile saved");
-        router.refresh();
+        setTimeout(() => {
+          router.refresh();
+        }, 50);
       }
     } catch (err: any) {
       toast.error(err?.message || "An unexpected error occurred");
