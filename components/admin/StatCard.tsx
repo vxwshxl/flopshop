@@ -54,15 +54,19 @@ export function PageHeader({
   subtitle,
   action,
 }: {
-  title: string;
+  title: string | React.ReactNode;
   subtitle?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">{title}</h1>
-        {subtitle && <div className="text-sm text-stone-500 dark:text-stone-400">{subtitle}</div>}
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-nowrap shrink-0">
+        {typeof title === "string" ? (
+          <h1 className="truncate text-xl sm:text-2xl font-extrabold text-stone-950 dark:text-white">{title}</h1>
+        ) : (
+          title
+        )}
+        {subtitle && <div className="shrink-0 text-sm text-stone-500 dark:text-stone-400">{subtitle}</div>}
       </div>
       {action}
     </div>

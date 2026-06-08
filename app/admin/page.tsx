@@ -152,8 +152,8 @@ export default async function AdminDashboard({
   return (
     <div>
       <PageHeader
-        title="Dashboard"
-        subtitle={<div className="mt-1"><DashboardRangeSelect value={range} /></div>}
+        title={<h1 className="text-2xl font-extrabold text-stone-950 dark:text-white mr-2">Dashboard</h1>}
+        subtitle={<DashboardRangeSelect value={range} />}
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="w-full sm:w-80"><ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} /></div>

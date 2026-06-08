@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full bg-black font-sans text-white">
         {children}
         <Toaster
-          position="top-center"
+          position="bottom-center"
           toastOptions={{
             duration: 3000,
             style: { fontSize: "14px", background: "#111", color: "#fff", border: "1px solid #262626" },

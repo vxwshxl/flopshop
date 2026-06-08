@@ -10,11 +10,15 @@ const HEARTBEAT_MS = 60_000; // 1 minute
  * Online/offline toggle for delivery partners.
  * When online, sends a heartbeat every 60 s so the admin knows they're active.
  */
-export function OnlineToggle({ initialOnline }: { initialOnline: boolean }) {
+export function OnlineToggle({ initialOnline, shopIsOpen }: { initialOnline: boolean; shopIsOpen: boolean }) {
   const [online, setOnline] = useState(initialOnline);
   const [pending, setPending] = useState(false);
 
   const toggle = useCallback(async () => {
+    if (!shopIsOpen) {
+      toast.error("The shop is currently closed.");
+      return;
+    }
     const next = !online;
     setPending(true);
     try {
@@ -30,7 +34,17 @@ export function OnlineToggle({ initialOnline }: { initialOnline: boolean }) {
     } finally {
       setPending(false);
     }
-  }, [online]);
+  }, [online, shopIsOpen]);
+
+  // Force offline if shop closes while we are online
+  useEffect(() => {
+    if (!shopIsOpen && online) {
+      setOnlineStatusAction(false).then(() => {
+        setOnline(false);
+        toast.error("The shop is currently closed.");
+      });
+    }
+  }, [shopIsOpen, online]);
 
   // Heartbeat while online
   useEffect(() => {

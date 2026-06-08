@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck } from "lucide-react";
+import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck, Menu } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { useCart } from "@/lib/hooks/useCart";
 import { useSettings } from "@/lib/hooks/useSettings";
@@ -19,10 +19,14 @@ export function Navbar({
   shopName = "FlopShop",
   user = null,
   role = null,
+  showMobileMenu = false,
+  isAdminMode = false,
 }: {
   shopName?: string;
   user?: NavUser | null;
   role?: Role | null;
+  showMobileMenu?: boolean;
+  isAdminMode?: boolean;
 }) {
   const items = useCart((s) => s.items);
   const hydrated = useCart((s) => s.hydrated);
@@ -47,9 +51,17 @@ export function Navbar({
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
+          {showMobileMenu && !isAdminMode && (
+            <button
+              onClick={() => document.dispatchEvent(new CustomEvent("toggleSidebar"))}
+              className="text-white md:hidden"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          )}
           <Brand shopName={shopName} textClassName="text-white" />
           <span
-            className={`hidden rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide sm:inline ${
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide ${
               isOpen ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
             }`}
           >
@@ -58,18 +70,20 @@ export function Navbar({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <Link
-            href="/cart"
-            className="relative grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
-            aria-label="Cart"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            {count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-lime-400 px-1 text-[10px] font-extrabold text-black ring-2 ring-black">
-                {count}
-              </span>
-            )}
-          </Link>
+          {!isAdminMode && (
+            <Link
+              href="/cart"
+              className="relative grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+              aria-label="Cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {count > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-lime-400 px-1 text-[10px] font-extrabold text-black ring-2 ring-black">
+                  {count}
+                </span>
+              )}
+            </Link>
+          )}
 
           {user ? (
             <div className="relative">
@@ -128,6 +142,15 @@ export function Navbar({
             >
               Sign in
             </Link>
+          )}
+
+          {showMobileMenu && isAdminMode && (
+            <button
+              onClick={() => document.dispatchEvent(new CustomEvent("toggleSidebar"))}
+              className="ml-1 text-white md:hidden"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
           )}
         </div>
       </div>

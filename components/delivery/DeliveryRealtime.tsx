@@ -15,8 +15,8 @@ export function DeliveryRealtime() {
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel("delivery:orders")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+      .channel("delivery:dashboard")
+      .on("postgres_changes", { event: "*", schema: "public" }, () => {
         router.refresh();
       })
       .subscribe();

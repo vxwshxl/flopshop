@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -82,12 +82,17 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
 
+
+
+  useEffect(() => {
+    const handleToggle = () => setOpen((prev) => !prev);
+    document.addEventListener("toggleSidebar", handleToggle);
+    return () => document.removeEventListener("toggleSidebar", handleToggle);
+  }, []);
+
   const nav = (
     <nav className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-4 py-5">
-        <Brand shopName={shopName} textClassName="text-white" markClassName="h-8 w-8" />
-      </div>
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
+      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
         {sections.map((section) => (
           <div key={section.title}>
             <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-500">
@@ -135,16 +140,8 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="glass-line flex items-center justify-between border-b bg-white/60 px-4 py-3 backdrop-blur-xl dark:bg-stone-950/50 md:hidden">
-        <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" markClassName="h-8 w-8" />
-        <button onClick={() => setOpen(true)} className="text-stone-950 dark:text-white">
-          <Menu className="h-6 w-6" />
-        </button>
-      </div>
-
       {/* Desktop sidebar */}
-      <aside className="glass-line fixed inset-y-0 left-0 hidden w-[220px] border-r bg-white/55 backdrop-blur-xl dark:bg-stone-950/45 md:block">
+      <aside className="glass-line fixed bottom-0 left-0 top-16 hidden w-[220px] border-r bg-white/55 backdrop-blur-xl dark:bg-stone-950/45 md:block">
         {nav}
       </aside>
 

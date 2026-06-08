@@ -3,6 +3,7 @@ import { getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { DeliveryCard } from "@/components/delivery/DeliveryCard";
 import { AvailableDeliveryCard } from "@/components/delivery/AvailableDeliveryCard";
 import { DeliveryRealtime } from "@/components/delivery/DeliveryRealtime";
+import { DeliveryNav } from "@/components/delivery/DeliveryNav";
 import { OnlineToggle } from "@/components/delivery/OnlineToggle";
 import { formatCurrency, getISTTimeBounds } from "@/lib/utils/formatters";
 import { Truck, IndianRupee, Package } from "lucide-react";
@@ -65,18 +66,20 @@ export default async function DeliveryDashboard({
     <div>
       <DeliveryRealtime />
 
-      {/* Header with greeting + online toggle */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white">
-            Hi, {profile?.full_name?.split(" ")[0] ?? "there"} 👋
-          </h1>
-          <p className="text-sm text-stone-500">Here are your deliveries.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <DashboardRangeSelect value={range} />
-          <OnlineToggle initialOnline={profile?.is_online ?? false} />
-        </div>
+      <DeliveryNav />
+
+      {/* Header with greeting */}
+      <div className="mb-4">
+        <h1 className="text-2xl font-extrabold text-white">
+          Hi, {profile?.full_name?.split(" ")[0] ?? "there"} 👋
+        </h1>
+        <p className="text-sm text-stone-500">Here are your deliveries.</p>
+      </div>
+
+      {/* Controls row */}
+      <div className="flex items-center justify-between">
+        <DashboardRangeSelect value={range} />
+        <OnlineToggle initialOnline={profile?.is_online ?? false} shopIsOpen={settings.is_open} />
       </div>
 
       {/* Stats row */}

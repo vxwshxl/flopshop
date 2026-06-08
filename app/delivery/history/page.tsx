@@ -6,6 +6,8 @@ import type { Order } from "@/lib/types";
 
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 
+import { DeliveryNav } from "@/components/delivery/DeliveryNav";
+
 export const dynamic = "force-dynamic";
 
 export default async function DeliveryHistory() {
@@ -37,8 +39,11 @@ export default async function DeliveryHistory() {
   return (
     <div>
       <RealtimeRefresh table="orders" channel="delivery:history" />
-      <h1 className="text-2xl font-extrabold text-white">Delivery History</h1>
-      <p className="text-sm text-stone-500">{list.length} completed deliveries</p>
+      <DeliveryNav />
+      <div className="mb-4">
+        <h1 className="text-2xl font-extrabold text-white">Delivery History</h1>
+        <p className="text-sm text-stone-500">{list.length} completed deliveries</p>
+      </div>
 
       <div className="mt-5 grid grid-cols-3 gap-3">
         <Stat label="This week" value={formatCurrency(weekEarnings, currency)} />
