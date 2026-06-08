@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   PlusCircle,
   Truck,
+  Bike,
   Package,
   Tags,
   FileText,
@@ -38,6 +39,7 @@ const sections: { title: string; items: NavItem[] }[] = [
       { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
       { href: "/admin/orders/new", label: "Manual Order", icon: PlusCircle },
       { href: "/admin/purchases", label: "Purchases", icon: Truck },
+      { href: "/admin/delivery", label: "Delivery", icon: Bike },
     ],
   },
   {

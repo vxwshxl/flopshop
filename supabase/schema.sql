@@ -13,6 +13,8 @@ CREATE TABLE profiles (
   hostel_block TEXT,
   role TEXT DEFAULT 'user' CHECK (role IN ('user', 'delivery', 'admin')),
   is_active BOOLEAN DEFAULT true,
+  is_online BOOLEAN DEFAULT false,
+  last_active_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

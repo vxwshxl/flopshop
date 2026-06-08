@@ -42,6 +42,26 @@ body {
   color: #000000;
 }
 
+/* ============ Custom scrollbar (thin, yellow-themed) ============ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 197, 24, 0.35) transparent;
+}
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(245, 197, 24, 0.35);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 197, 24, 0.55);
+}
+
 /* ============ Surfaces (flat, dark — Waura style) ============ */
 .glass {
   background: rgba(255, 255, 255, 0.035);

@@ -3,8 +3,9 @@ import { getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { DeliveryCard } from "@/components/delivery/DeliveryCard";
 import { AvailableDeliveryCard } from "@/components/delivery/AvailableDeliveryCard";
 import { DeliveryRealtime } from "@/components/delivery/DeliveryRealtime";
+import { OnlineToggle } from "@/components/delivery/OnlineToggle";
 import { formatCurrency } from "@/lib/utils/formatters";
-import { Truck } from "lucide-react";
+import { Truck, IndianRupee, Package } from "lucide-react";
 import type { Order } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -52,28 +53,45 @@ export default async function DeliveryDashboard() {
   return (
     <div>
       <DeliveryRealtime />
-      <h1 className="text-2xl font-bold text-white">Hi, {profile?.full_name ?? "there"} 👋</h1>
-      <p className="text-sm text-gray-400">Here are your deliveries.</p>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-white/10 bg-[#1a1d23] p-4">
-          <p className="text-xs uppercase text-gray-500">Active deliveries</p>
-          <p className="mt-1 text-2xl font-bold text-white">{active.length}</p>
+      {/* Header with greeting + online toggle */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-white">
+            Hi, {profile?.full_name ?? "there"} 👋
+          </h1>
+          <p className="text-sm text-stone-500">Here are your deliveries.</p>
         </div>
-        <div className="rounded-xl border border-white/10 bg-[#1a1d23] p-4">
-          <p className="text-xs uppercase text-gray-500">Today&apos;s earnings</p>
-          <p className="mt-1 text-2xl font-bold text-green-400">{formatCurrency(earningsToday, currency)}</p>
-          <p className="text-xs text-gray-500">{deliveredToday.length} delivered today</p>
+        <OnlineToggle initialOnline={profile?.is_online ?? false} />
+      </div>
+
+      {/* Stats row */}
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="glass rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Active deliveries</p>
+            <Package className="h-4 w-4 text-stone-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-white">{active.length}</p>
+        </div>
+        <div className="glass rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Today&apos;s earnings</p>
+            <IndianRupee className="h-4 w-4 text-stone-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-lime-400">{formatCurrency(earningsToday, currency)}</p>
+          <p className="mt-1 text-xs text-stone-500">{deliveredToday.length} delivered today</p>
         </div>
       </div>
 
+      {/* Available orders */}
       <section className="mt-7">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Available orders</h2>
-          <span className="text-sm text-gray-400">{available.length} ready to claim</span>
+          <h2 className="text-lg font-bold text-white">Available orders</h2>
+          <span className="text-sm text-stone-500">{available.length} ready to claim</span>
         </div>
         {available.length === 0 ? (
-          <div className="rounded-xl border border-white/10 bg-[#1a1d23] py-12 text-center text-gray-500">
+          <div className="glass flex flex-col items-center rounded-2xl py-12 text-center text-stone-500">
             <Truck className="mx-auto mb-2 h-10 w-10" />
             No available orders to claim.
           </div>
@@ -86,13 +104,14 @@ export default async function DeliveryDashboard() {
         )}
       </section>
 
+      {/* My active orders */}
       <section className="mt-7">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">My active orders</h2>
-          <span className="text-sm text-gray-400">{active.length} assigned orders</span>
+          <h2 className="text-lg font-bold text-white">My active orders</h2>
+          <span className="text-sm text-stone-500">{active.length} assigned orders</span>
         </div>
         {active.length === 0 ? (
-          <div className="flex flex-col items-center rounded-xl border border-white/10 bg-[#1a1d23] py-12 text-center text-gray-500">
+          <div className="glass flex flex-col items-center rounded-2xl py-12 text-center text-stone-500">
             <Truck className="mb-2 h-10 w-10" />
             No active deliveries right now.
           </div>

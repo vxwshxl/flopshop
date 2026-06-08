@@ -30,6 +30,8 @@ export interface Profile {
   hostel_block: string | null;
   role: Role;
   is_active: boolean;
+  is_online: boolean;
+  last_active_at: string | null;
   created_at: string;
   updated_at: string;
 }

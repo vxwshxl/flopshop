@@ -31,23 +31,23 @@ export function AvailableDeliveryCard({ order, currency }: { order: Order; curre
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[#1a1d23] p-4">
+    <div className="glass rounded-2xl p-4 transition-all hover:border-lime-400/30">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-semibold text-white">{order.order_number}</p>
-          <p className="text-xs text-gray-500">{formatTime(order.created_at)}</p>
+          <p className="text-xs text-stone-500">{formatTime(order.created_at)}</p>
         </div>
         <OrderStatusBadge status={order.status} />
       </div>
 
-      <div className="mt-3 space-y-1.5 text-sm text-gray-300">
+      <div className="mt-3 space-y-1.5 text-sm text-stone-400">
         <p className="font-medium text-white">{order.customer_name}</p>
         <p className="flex items-center gap-2">
-          <Truck className="h-4 w-4 text-indigo-400" />
+          <Truck className="h-4 w-4 text-lime-400/70" />
           Room {order.customer_room ?? "—"}
         </p>
         <p className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-indigo-400" />
+          <Package className="h-4 w-4 text-lime-400/70" />
           {order.order_items?.length ?? 0} item{(order.order_items?.length ?? 0) > 1 ? "s" : ""} · {formatCurrency(order.total_amount, currency)}
         </p>
       </div>

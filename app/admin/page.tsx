@@ -5,6 +5,8 @@ import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, AdminCard, PageHeader } from "@/components/admin/StatCard";
 import { ShopStatusToggle } from "@/components/admin/ShopStatusToggle";
 import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
+import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
+import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Category, OrderStatus, Product } from "@/lib/types";
@@ -24,13 +26,23 @@ interface DashOrder {
   order_items: { quantity: number; total_price: number; product: { category_id: string | null } | null }[];
 }
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
   const supabase = await createClient();
   const settings = await getSettings();
   const currency = settings.currency_symbol;
 
+  const sp = await searchParams;
+  const rangeKey = sp.range ?? "";
+  const range: DashboardRange = rangeKey in DASHBOARD_RANGES ? (rangeKey as DashboardRange) : "today";
+  const { label: rangeLabel, days: rangeDays } = DASHBOARD_RANGES[range];
+
+  const now = new Date();
   const since = new Date();
-  since.setDate(since.getDate() - 6);
+  since.setDate(since.getDate() - (rangeDays - 1));
   since.setHours(0, 0, 0, 0);
 
   const [{ data: ordersRaw }, { data: products }, { data: categories }, { data: profiles }] = await Promise.all([
@@ -51,41 +63,54 @@ export default async function AdminDashboard() {
   const cats = (categories as Category[]) ?? [];
   const catName = new Map(cats.map((c) => [c.id, `${c.icon} ${c.name}`]));
 
-  const todayStr = new Date().toDateString();
-  const isToday = (d: string) => new Date(d).toDateString() === todayStr;
   const notCancelled = (o: DashOrder) => o.status !== "cancelled";
 
-  const todaysOrders = orders.filter((o) => isToday(o.created_at) && notCancelled(o));
-  const revenueToday = todaysOrders.reduce((s, o) => s + Number(o.total_amount), 0);
+  // All stats below are scoped to the selected range.
+  const rangeOrders = orders.filter(notCancelled);
+  const rangeRevenue = rangeOrders.reduce((s, o) => s + Number(o.total_amount), 0);
   const profileList = (profiles as { id: string; is_active: boolean }[]) ?? [];
   const totalUsers = profileList.length;
   const activeUsers = profileList.filter((p) => p.is_active).length;
   const lowStock = productList.filter((p) => p.current_stock <= p.minimum_stock);
   const pendingCount = orders.filter((o) => o.status === "pending").length;
   const activeDeliveries = orders.filter((o) => o.status === "out_for_delivery").length;
-  const deliveryEarnings = orders
-    .filter(notCancelled)
-    .reduce(
-      (acc, o) => {
-        acc.person += Number(o.delivery_person_earning);
-        acc.admin += Number(o.admin_delivery_earning);
-        return acc;
-      },
-      { person: 0, admin: 0 }
-    );
+  const deliveryEarnings = rangeOrders.reduce(
+    (acc, o) => {
+      acc.person += Number(o.delivery_person_earning);
+      acc.admin += Number(o.admin_delivery_earning);
+      return acc;
+    },
+    { person: 0, admin: 0 }
+  );
 
-  // 7-day revenue series
+  // Revenue series across the range — daily buckets for short ranges, monthly
+  // for long ones so the chart stays readable.
   const days: { date: string; revenue: number; orders: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toDateString();
-    const dayOrders = orders.filter((o) => notCancelled(o) && new Date(o.created_at).toDateString() === key);
-    days.push({
-      date: d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
-      revenue: dayOrders.reduce((s, o) => s + Number(o.total_amount), 0),
-      orders: dayOrders.length,
-    });
+  if (rangeDays > 31) {
+    const cursor = new Date(since.getFullYear(), since.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 1);
+    while (cursor <= end) {
+      const monthOrders = rangeOrders.filter((o) => {
+        const od = new Date(o.created_at);
+        return od.getFullYear() === cursor.getFullYear() && od.getMonth() === cursor.getMonth();
+      });
+      days.push({
+        date: cursor.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+        revenue: monthOrders.reduce((s, o) => s + Number(o.total_amount), 0),
+        orders: monthOrders.length,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  } else {
+    for (let d = new Date(since); d <= now; d.setDate(d.getDate() + 1)) {
+      const key = d.toDateString();
+      const dayOrders = rangeOrders.filter((o) => new Date(o.created_at).toDateString() === key);
+      days.push({
+        date: new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
+        revenue: dayOrders.reduce((s, o) => s + Number(o.total_amount), 0),
+        orders: dayOrders.length,
+      });
+    }
   }
 
   // Category breakdown
@@ -107,13 +132,18 @@ export default async function AdminDashboard() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Last 7 days overview"
-        action={<div className="w-full sm:w-80"><ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} /></div>}
+        subtitle={`${rangeLabel} overview`}
+        action={
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <DashboardRangeSelect value={range} />
+            <div className="w-full sm:w-80"><ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} /></div>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatCard label="Orders Today" value={todaysOrders.length} icon={<ShoppingBag className="h-4 w-4" />} />
-        <StatCard label="Revenue Today" value={formatCurrency(revenueToday, currency)} icon={<IndianRupee className="h-4 w-4" />} />
+        <StatCard label="Orders" value={rangeOrders.length} icon={<ShoppingBag className="h-4 w-4" />} />
+        <StatCard label="Revenue" value={formatCurrency(rangeRevenue, currency)} icon={<IndianRupee className="h-4 w-4" />} />
         <StatCard label="Active Products" value={productList.length} icon={<Package className="h-4 w-4" />} />
         <StatCard label="Low Stock" value={lowStock.length} icon={<AlertTriangle className="h-4 w-4" />} hint={lowStock.length ? "Needs restock" : "All good"} />
         <StatCard label="Pending Orders" value={pendingCount} icon={<Clock className="h-4 w-4" />} />
@@ -143,9 +173,9 @@ export default async function AdminDashboard() {
 
         <StatCard
           className="lg:col-span-1"
-          label="New This Week"
-          value={todaysOrders.length}
-          hint="orders placed today"
+          label="Orders in range"
+          value={rangeOrders.length}
+          hint={rangeLabel.toLowerCase()}
           icon={<ShoppingBag className="h-4 w-4" />}
         />
         <StatCard
@@ -158,7 +188,7 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <AdminCard title="Revenue (7 days)" className="lg:col-span-2">
+        <AdminCard title={`Revenue · ${rangeLabel}`} className="lg:col-span-2">
           <RevenueChart data={days} />
         </AdminCard>
         <AdminCard title="Sales by Category">
@@ -230,7 +260,7 @@ export default async function AdminDashboard() {
             )}
           </AdminCard>
 
-          <AdminCard title="Delivery Earnings (7d)">
+          <AdminCard title={`Delivery Earnings · ${rangeLabel}`}>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-stone-600 dark:text-stone-400">
                 <span>Delivery persons</span>
