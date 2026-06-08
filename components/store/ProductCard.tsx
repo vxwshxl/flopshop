@@ -4,7 +4,8 @@ import { useState } from "react";
 import Image from "next/image";
 import { Minus, Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { useCart } from "@/lib/hooks/useCart";
+import { useCart } from "@/lib/hooks/useCart"; // Ensure this import is organized
+import { useSettings } from "@/lib/hooks/useSettings";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { ProductDetailModal } from "./ProductDetailModal";
 import type { Product } from "@/lib/types";
@@ -14,6 +15,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
   const addItem = useCart((s) => s.addItem);
   const increment = useCart((s) => s.increment);
   const decrement = useCart((s) => s.decrement);
+  const { isOpen } = useSettings();
   const [detailOpen, setDetailOpen] = useState(false);
 
   const outOfStock = product.current_stock <= 0;
@@ -81,10 +83,13 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
           ) : qty === 0 ? (
             <button
               onClick={() => {
+                if (!isOpen) return toast.error("The shop is currently closed.");
                 addItem(product);
                 toast.success(`${product.name} added`);
               }}
-              className="rounded-full bg-lime-400 px-5 py-1.5 text-xs font-extrabold text-stone-900 shadow-sm ring-1 ring-black/5 transition hover:bg-lime-300 active:scale-95"
+              className={`rounded-full px-5 py-1.5 text-xs font-extrabold shadow-sm ring-1 ring-black/5 transition active:scale-95 ${
+                isOpen ? "bg-lime-400 text-stone-900 hover:bg-lime-300" : "bg-white/5 text-white/30 cursor-not-allowed"
+              }`}
             >
               ADD
             </button>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Minus, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { Modal } from "@/components/ui/modal";
+import { useSettings } from "@/lib/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -24,6 +25,7 @@ export function ProductDetailModal({
   const addItem = useCart((s) => s.addItem);
   const increment = useCart((s) => s.increment);
   const decrement = useCart((s) => s.decrement);
+  const { isOpen } = useSettings();
 
   const d = product.details;
   const outOfStock = product.current_stock <= 0;
@@ -78,9 +80,11 @@ export function ProductDetailModal({
             className="w-full"
             size="lg"
             onClick={() => {
+              if (!isOpen) return toast.error("The shop is currently closed.");
               addItem(product);
               toast.success(`${product.name} added`);
             }}
+            disabled={!isOpen}
           >
             Add to cart · {formatCurrency(product.selling_price, currency)}
           </Button>

@@ -13,6 +13,7 @@ import type { Hostel } from "@/lib/types";
 
 export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] }) {
   const [hostels, setHostels] = useState(initialHostels);
+  const [editing, setEditing] = useState<Hostel | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
@@ -56,6 +57,27 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
     router.refresh();
   }
 
+  function openEdit(h: Hostel) {
+    setEditing(h);
+    setNewName(h.name);
+    setShowAddModal(true);
+  }
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setAdding(true);
+    const { updateHostelAction } = await import("@/app/admin/hostels/actions");
+    const res = await updateHostelAction(editing.id, newName.trim(), editing.is_active);
+    setAdding(false);
+    if (!res.ok) return toast.error(res.error ?? "Failed to update hostel.");
+    toast.success("Hostel updated.");
+    setHostels(hostels.map((h) => (h.id === editing.id ? res.hostel! : h)));
+    setShowAddModal(false);
+    setEditing(null);
+    router.refresh();
+  }
+
   return (
     <div>
       <PageHeader
@@ -69,34 +91,64 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
       />
 
       <AdminCard>
-        <div className="space-y-2">
-          {hostels.length === 0 ? (
-            <p className="text-sm text-gray-400">No hostels yet.</p>
-          ) : (
-            hostels.map((h) => (
-              <div
-                key={h.id}
-                className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-900/50 p-3"
-              >
-                <div>
-                  <p className="font-medium text-white">{h.name}</p>
-                  <p className="text-xs text-gray-500">{new Date(h.created_at).toLocaleDateString()}</p>
-                </div>
-                <button
-                  onClick={() => handleDelete(h.id)}
-                  disabled={deleting === h.id}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-red-500/20 hover:text-red-400 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))
-          )}
+        <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
+                <th className="p-3">Hostel</th>
+                <th className="p-3">Created</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-black/75 dark:text-white/75">
+              {hostels.map((h) => (
+                <tr key={h.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                  <td className="p-3">
+                    <span className="font-medium text-white">{h.name}</span>
+                  </td>
+                  <td className="p-3 text-black/50 dark:text-white/50">{new Date(h.created_at).toLocaleDateString()}</td>
+                  <td className="p-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${
+                      h.is_active
+                        ? "border border-yellow-400 bg-yellow-400 text-black"
+                        : "border border-black/15 text-black/50 dark:border-white/15 dark:text-white/50"
+                    }`}>
+                      {h.is_active ? "Active" : "Hidden"}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => openEdit(h)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
+                        Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const { updateHostelAction } = await import("@/app/admin/hostels/actions");
+                          const res = await updateHostelAction(h.id, h.name, !h.is_active);
+                          if (!res.ok) return toast.error(res.error ?? "Failed to toggle");
+                          setHostels(hostels.map((x) => (x.id === h.id ? res.hostel! : x)));
+                          toast.success("Updated");
+                          router.refresh();
+                        }}
+                        className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
+                      >
+                        {h.is_active ? "Disable" : "Enable"}
+                      </button>
+                      <button onClick={() => handleDelete(h.id)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </AdminCard>
 
-      <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="Add hostel">
-        <form onSubmit={handleAdd} className="space-y-4">
+      <Modal open={showAddModal} onClose={() => { setShowAddModal(false); setEditing(null); }} title={editing ? "Edit hostel" : "Add hostel"}>
+        <form onSubmit={editing ? handleSaveEdit : handleAdd} className="space-y-4">
           <div>
             <Label htmlFor="hostel-name">Hostel name</Label>
             <Input
@@ -108,11 +160,11 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+            <Button type="button" variant="outline" onClick={() => { setShowAddModal(false); setEditing(null); }}>
               Cancel
             </Button>
             <Button type="submit" loading={adding}>
-              Add
+              {editing ? "Save" : "Add"}
             </Button>
           </div>
         </form>

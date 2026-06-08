@@ -225,6 +225,11 @@ CREATE POLICY "Order items inherit order access" ON order_items FOR ALL USING (
 -- Purchases
 CREATE POLICY "Admin manages purchases" ON purchases FOR ALL USING (is_admin());
 
+-- Hostels
+ALTER TABLE hostels ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read hostels" ON hostels FOR SELECT USING (true);
+CREATE POLICY "Admin manages hostels" ON hostels FOR ALL USING (is_admin());
+
 -- Settings
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 CREATE POLICY "Admin manages settings" ON settings FOR ALL USING (is_admin());

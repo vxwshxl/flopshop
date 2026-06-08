@@ -37,6 +37,14 @@ export async function createHostelAction(name: string) {
 export async function deleteHostelAction(id: string) {
   const admin = createAdminClient();
 
+  // Prevent deleting a hostel that is referenced by any profile (hostel_block)
+  const { data: hostel } = await admin.from("hostels").select("id,name").eq("id", id).single();
+  if (hostel) {
+    const { count, error: countErr } = await admin.from("profiles").select("id", { count: "exact", head: true }).eq("hostel_block", hostel.name);
+    if (countErr) return { ok: false, error: countErr.message };
+    if ((count ?? 0) > 0) return { ok: false, error: "Cannot delete hostel while users are assigned to it." };
+  }
+
   const { error } = await admin.from("hostels").delete().eq("id", id);
 
   if (error) {
@@ -45,4 +53,14 @@ export async function deleteHostelAction(id: string) {
 
   revalidatePath("/admin/hostels");
   return { ok: true };
+}
+
+export async function updateHostelAction(id: string, name: string, is_active: boolean) {
+  const admin = createAdminClient();
+  if (!name?.trim()) return { ok: false, error: "Hostel name is required." };
+
+  const { data, error } = await admin.from("hostels").update({ name: name.trim(), is_active }).eq("id", id).select().single();
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/hostels");
+  return { ok: true, hostel: data as Hostel };
 }

@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/utils/formatters";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import type { PaymentMethod, SettingsMap } from "@/lib/types";
+import { useSettings } from "@/lib/hooks/useSettings";
 
 export function CheckoutView({ settings }: { settings: SettingsMap }) {
   const { profile, isAuthenticated, loading: userLoading } = useUser();
@@ -20,6 +21,7 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
 
   const currency = settings.currency_symbol ?? "₹";
   const shopOpen = settings.shop_is_open !== "false";
+  const { isOpen } = useSettings();
   const deliveryFee = Number(settings.delivery_fee ?? 10);
 
   const [form, setForm] = useState({
@@ -54,7 +56,8 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
-    if (!shopOpen) return toast.error("The shop is currently closed.");
+    const liveOpen = typeof isOpen === "boolean" ? isOpen : shopOpen;
+    if (!liveOpen) return toast.error("The shop is currently closed.");
     setSubmitting(true);
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -234,8 +237,8 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
           </div>
         </div>
 
-        <Button type="submit" size="lg" loading={submitting} disabled={!shopOpen} className="w-full">
-          {shopOpen ? `Place order · ${formatCurrency(total, currency)}` : "Shop is closed"}
+        <Button type="submit" size="lg" loading={submitting} disabled={!(typeof isOpen === "boolean" ? isOpen : shopOpen)} className="w-full">
+          {(typeof isOpen === "boolean" ? isOpen : shopOpen) ? `Place order · ${formatCurrency(total, currency)}` : "Shop is closed"}
         </Button>
       </form>
     </div>

@@ -8,6 +8,8 @@ import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Button } from "@/components/ui/button";
 import type { SettingsMap } from "@/lib/types";
+import toast from "react-hot-toast";
+import { useSettings } from "@/lib/hooks/useSettings";
 
 export function CartView({ settings }: { settings: SettingsMap }) {
   const router = useRouter();
@@ -23,6 +25,7 @@ export function CartView({ settings }: { settings: SettingsMap }) {
   const deliveryFee = Number(settings.delivery_fee ?? 10);
   const deliveryShare = Number(settings.delivery_person_share ?? 8);
   const adminShare = Number(settings.admin_delivery_share ?? 2);
+  const { isOpen } = useSettings();
 
   if (!hydrated) return <div className="p-10 text-center text-stone-400">Loading cart...</div>;
 
@@ -66,8 +69,11 @@ export function CartView({ settings }: { settings: SettingsMap }) {
               </button>
               <span className="min-w-4 text-center text-sm font-bold">{item.quantity}</span>
               <button
-                onClick={() => increment(item.id)}
-                disabled={item.quantity >= item.current_stock}
+                onClick={() => {
+                  if (!isOpen) return toast.error("The shop is currently closed.");
+                  increment(item.id);
+                }}
+                disabled={item.quantity >= item.current_stock || !isOpen}
                 className="grid h-7 w-7 place-items-center disabled:opacity-40"
               >
                 <Plus className="h-3 w-3" />
@@ -132,8 +138,8 @@ export function CartView({ settings }: { settings: SettingsMap }) {
         </div>
       </div>
 
-      <Button type="button" className="mt-5 w-full" size="lg" onClick={() => router.push("/checkout")}> 
-        Proceed to Checkout
+      <Button type="button" className="mt-5 w-full" size="lg" onClick={() => router.push("/checkout")} disabled={!isOpen}>
+        {isOpen ? "Proceed to Checkout" : "Shop is closed"}
       </Button>
     </div>
   );

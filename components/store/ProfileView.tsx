@@ -21,9 +21,17 @@ export function ProfileView({ profile }: { profile: Profile }) {
 
   useEffect(() => {
     async function loadHostels() {
-      const supabase = createClient();
-      const { data } = await supabase.from("hostels").select("*").eq("is_active", true);
-      setHostels((data as Hostel[]) ?? []);
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.from("hostels").select("*").eq("is_active", true).order("name");
+        if (error) {
+          console.error("Error loading hostels:", error);
+          return;
+        }
+        setHostels((data as Hostel[]) ?? []);
+      } catch (e) {
+        console.error("Failed to load hostels:", e);
+      }
     }
     loadHostels();
   }, []);
