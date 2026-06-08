@@ -36,6 +36,7 @@ export function Select({ className, value = "", onChange, disabled, children }: 
   const [open, setOpen] = React.useState(false);
   const [rect, setRect] = React.useState<{ left: number; top: number; width: number } | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
   const options = React.Children.toArray(children)
     .filter(React.isValidElement)
@@ -57,7 +58,13 @@ export function Select({ className, value = "", onChange, disabled, children }: 
     place();
     const onScroll = () => place();
     const onPointer = (e: MouseEvent) => {
-      if (!triggerRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node | null;
+      if (
+        !triggerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     };
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
@@ -86,6 +93,7 @@ export function Select({ className, value = "", onChange, disabled, children }: 
         rect &&
         createPortal(
           <div
+            ref={menuRef}
             style={{ position: "fixed", left: rect.left, top: rect.top, width: rect.width, zIndex: 1000 }}
             className="max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-[#0c0c0c] p-1 text-sm text-white shadow-2xl"
           >

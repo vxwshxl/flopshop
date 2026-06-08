@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/input";
+import { setUserRoleAction, toggleUserActiveAction } from "@/app/admin/users/actions";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import type { Order, Profile, Role } from "@/lib/types";
 
@@ -39,20 +39,18 @@ export function UsersTable({
 
   async function changeRole(u: Profile, role: Role) {
     setBusy(u.id);
-    const supabase = createClient();
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", u.id);
+    const res = await setUserRoleAction(u.id, role);
     setBusy(null);
-    if (error) return toast.error(error.message);
+    if (!res.ok) return toast.error(res.error ?? "Failed to update role.");
     toast.success(`${u.full_name ?? "User"} is now ${role}`);
     router.refresh();
   }
 
   async function toggleActive(u: Profile) {
     setBusy(u.id);
-    const supabase = createClient();
-    const { error } = await supabase.from("profiles").update({ is_active: !u.is_active }).eq("id", u.id);
+    const res = await toggleUserActiveAction(u.id, u.is_active ?? false);
     setBusy(null);
-    if (error) return toast.error(error.message);
+    if (!res.ok) return toast.error(res.error ?? "Failed to update status.");
     toast.success(u.is_active ? "User deactivated" : "User activated");
     router.refresh();
   }

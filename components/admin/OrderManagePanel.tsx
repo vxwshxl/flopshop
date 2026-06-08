@@ -32,7 +32,10 @@ export function OrderManagePanel({
     startTransition(async () => {
       try {
         const res = await fn();
-        if (!res.ok) return toast.error(res.error ?? "Failed");
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed");
+          return;
+        }
         toast.success(ok);
         router.refresh();
       } catch {
@@ -55,7 +58,10 @@ export function OrderManagePanel({
     startTransition(async () => {
       try {
         const res = await setOrderStatusAction(order.id, statusTarget, otp);
-        if (!res.ok) return toast.error(res.error ?? "Failed");
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed");
+          return;
+        }
         toast.success(`Marked ${statusLabel(statusTarget, order.order_type)}`);
         setShowOtpModal(false);
         setOtp("");
