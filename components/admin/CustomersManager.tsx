@@ -11,14 +11,14 @@ import {
 } from "@/app/admin/customers/actions";
 import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
-import type { Customer } from "@/lib/types";
+import type { Customer, Hostel } from "@/lib/types";
 
 const empty = { name: "", phone: "", email: "", room_number: "", hostel_block: "" };
 
-export function CustomersManager({ customers: initial }: { customers: Customer[] }) {
+export function CustomersManager({ customers: initial, hostels }: { customers: Customer[]; hostels: Hostel[] }) {
   const [customers, setCustomers] = useState(initial);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -163,7 +163,18 @@ export function CustomersManager({ customers: initial }: { customers: Customer[]
             </div>
             <div>
               <Label htmlFor="cust-hostel">Hostel (optional)</Label>
-              <Input id="cust-hostel" value={form.hostel_block} onChange={set("hostel_block")} />
+              <Select
+                id="cust-hostel"
+                value={form.hostel_block}
+                onChange={(e) => setForm((f) => ({ ...f, hostel_block: e.target.value }))}
+              >
+                <option value="">None</option>
+                {hostels.map((h) => (
+                  <option key={h.id} value={h.name}>
+                    {h.name}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
           <div>
