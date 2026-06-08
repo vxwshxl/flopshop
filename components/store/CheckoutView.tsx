@@ -84,7 +84,9 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
     });
   }
 
-  if (!hydrated || userLoading) return <div className="p-10 text-center text-stone-400">Loading...</div>;
+  // Only the cart needs to be hydrated before we can render. User/profile load
+  // is best-effort (it just prefills the form), so don't block checkout on it.
+  if (!hydrated) return <div className="p-10 text-center text-stone-400">Loading...</div>;
 
   if (placed) {
     return (
@@ -143,8 +145,9 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
     );
   }
 
-  // Delivery requires auth.
-  if (orderType === "delivery" && !isAuthenticated) {
+  // Delivery requires auth. Only show the sign-in gate once we actually know
+  // the user is signed out (not while the auth check is still in flight).
+  if (orderType === "delivery" && !isAuthenticated && !userLoading) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center">
         <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">Sign in for delivery</h1>

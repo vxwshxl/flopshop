@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--max-http-header-size=65536 next dev",
     "build": "next build",
+    "clean": "rm -rf dist build .next node_modules/.cache",
     "start": "NODE_OPTIONS=--max-http-header-size=65536 next start",
     "lint": "eslint"
   },

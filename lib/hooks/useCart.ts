@@ -102,8 +102,14 @@ export const useCart = create<CartState>()(
     }),
     {
       name: "flopshop-cart",
-      onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+      // Only persist the actual cart — never the transient `hydrated` flag,
+      // or a persisted `false` would clobber it on rehydrate.
+      partialize: (s) => ({ items: s.items, orderType: s.orderType }),
+      // Flip `hydrated` via a real store update (not a silent mutation) so
+      // every subscriber re-renders. queueMicrotask defers past store creation
+      // so `useCart` is assigned before we reference it.
+      onRehydrateStorage: () => () => {
+        queueMicrotask(() => useCart.setState({ hydrated: true }));
       },
     }
   )

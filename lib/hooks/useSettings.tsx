@@ -32,13 +32,21 @@ export function SettingsProvider({
     const supabase = createClient();
     let mounted = true;
 
-    // Re-fetch on mount in case the SSR snapshot is already stale.
-    supabase
-      .from("settings")
-      .select("key,value")
-      .then(({ data }: { data: { key: string; value: string }[] | null }) => {
-        if (mounted && data) setSettings((s) => ({ ...s, ...settingsToMap(data) }));
-      });
+    const refresh = () => {
+      supabase
+        .from("settings")
+        .select("key,value")
+        .then(({ data }: { data: { key: string; value: string }[] | null }) => {
+          if (mounted && data) setSettings((s) => ({ ...s, ...settingsToMap(data) }));
+        });
+    };
+
+    // Re-fetch on mount, and whenever the tab regains focus — this keeps shop
+    // status fresh even if realtime isn't delivering (e.g. the settings table
+    // isn't in the supabase_realtime publication yet).
+    refresh();
+    const onVisible = () => document.visibilityState === "visible" && refresh();
+    document.addEventListener("visibilitychange", onVisible);
 
     // One channel for the whole app. `.on()` is attached before `.subscribe()`,
     // and the channel is torn down on unmount so HMR/StrictMode can't leak it.
@@ -58,6 +66,7 @@ export function SettingsProvider({
 
     return () => {
       mounted = false;
+      document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(channel);
     };
   }, []);
