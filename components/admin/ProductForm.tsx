@@ -261,7 +261,7 @@ export function ProductForm({
             {preview ? (
               <ImageAdjuster src={preview} value={imgPos} onChange={setImgPos} />
             ) : (
-              <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-[#333] bg-[#0a0a0a] text-4xl">
+              <div className="flex aspect-[4/5] w-full items-center justify-center rounded-xl border border-[#333] bg-[#0a0a0a] text-4xl">
                 📦
               </div>
             )}

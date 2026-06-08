@@ -33,7 +33,7 @@ export function ProductDetailModal({
 
   return (
     <Modal open={open} onClose={onClose} className="max-w-md">
-      <div className="relative mx-auto mb-4 aspect-square w-full max-w-[260px] overflow-hidden rounded-lg bg-stone-50 dark:bg-stone-800">
+      <div className="relative mx-auto mb-4 aspect-[4/5] w-full max-w-[260px] overflow-hidden rounded-lg bg-stone-50 dark:bg-stone-800">
         {product.image_url ? (
           <Image src={product.image_url} alt={product.name} fill style={imagePositionStyle(product.details)} sizes="260px" />
         ) : (

@@ -26,7 +26,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
       <button
         type="button"
         onClick={() => setDetailOpen(true)}
-        className="relative aspect-square w-full cursor-pointer overflow-hidden bg-white/50 text-left dark:bg-white/5"
+        className="relative aspect-[4/5] w-full cursor-pointer overflow-hidden bg-white/50 text-left dark:bg-white/5"
         aria-label={`View ${product.name} details`}
       >
         {product.image_url ? (

@@ -186,9 +186,9 @@ export function ProductsTable({
                 <tr key={p.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
-                      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10">
+                      <div className="relative h-10 w-8 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10">
                         {p.image_url ? (
-                          <Image src={p.image_url} alt={p.name} fill style={imagePositionStyle(p.details)} sizes="36px" />
+                          <Image src={p.image_url} alt={p.name} fill style={imagePositionStyle(p.details)} sizes="32px" />
                         ) : (
                           <div className="flex h-full items-center justify-center text-sm">{category?.icon ?? "📦"}</div>
                         )}

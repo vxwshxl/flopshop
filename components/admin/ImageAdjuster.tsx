@@ -9,7 +9,7 @@ export type ImagePosition = { x: number; y: number; scale: number };
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
 /**
- * Square image framing tool: drag to pan, slider to zoom (crop), rule-of-thirds
+ * 4:5 image framing tool: drag to pan, slider to zoom (crop), rule-of-thirds
  * grid overlay, and quick-center buttons. Emits an object-position + scale that
  * the storefront applies via `imagePositionStyle`.
  */
@@ -59,7 +59,7 @@ export function ImageAdjuster({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="relative aspect-square w-full cursor-grab touch-none overflow-hidden rounded-xl border border-[#333] bg-[#0a0a0a] active:cursor-grabbing"
+        className="relative aspect-[4/5] w-full cursor-grab touch-none overflow-hidden rounded-xl border border-[#333] bg-[#0a0a0a] active:cursor-grabbing"
       >
         <Image
           src={src}
