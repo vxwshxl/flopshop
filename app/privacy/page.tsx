@@ -13,9 +13,15 @@ export default function PrivacyPage() {
         </Link>
 
         <h1 className="mt-10 text-3xl font-extrabold text-white">Privacy Policy</h1>
-        <p className="mt-2 text-sm text-white/40">Last updated {new Date().getFullYear()}</p>
+        <p className="mt-2 text-sm text-white/40">Last updated June 2026</p>
 
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-white/70">
+          <section>
+            <h2 className="mb-1 text-base font-semibold text-white">Liability Disclaimer</h2>
+            <p>
+              We are not liable for any issues, damages, or claims arising from the use of our service. Everything is done strictly under the explicit permission of the user. By using our service, you acknowledge and agree to these terms.
+            </p>
+          </section>
           <section>
             <h2 className="mb-1 text-base font-semibold text-white">Information we collect</h2>
             <p>

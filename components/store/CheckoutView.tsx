@@ -38,12 +38,17 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
     if (profile) {
       // Prefill once the async-loaded profile is available.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm((f) => ({
-        ...f,
-        customer_name: f.customer_name || profile.full_name || "",
-        customer_phone: f.customer_phone || profile.phone || "",
-        customer_room: f.customer_room || profile.room_number || "",
-      }));
+      setForm((f) => {
+        const fullRoom = profile.hostel_block && profile.room_number 
+          ? `${profile.hostel_block}, Rm ${profile.room_number}` 
+          : profile.room_number || "";
+        return {
+          ...f,
+          customer_name: f.customer_name || profile.full_name || "",
+          customer_phone: f.customer_phone || profile.phone || "",
+          customer_room: f.customer_room || fullRoom,
+        };
+      });
     }
   }, [profile]);
 
@@ -183,8 +188,8 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
               </div>
               {orderType === "delivery" && (
                 <div>
-                  <Label htmlFor="room">Room number</Label>
-                  <Input id="room" required value={form.customer_room} onChange={set("customer_room")} />
+                  <Label htmlFor="checkout-room">Hostel & Room</Label>
+                  <Input id="checkout-room" required value={form.customer_room} onChange={set("customer_room")} />
                 </div>
               )}
             </div>
