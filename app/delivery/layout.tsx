@@ -11,14 +11,14 @@ export default async function DeliveryLayout({ children }: { children: React.Rea
   const settings = await getSettings();
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-stone-100">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#09090b]/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-black text-stone-100">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
           <Link href="/delivery" className="flex items-center gap-2 font-bold text-white">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-lime-400 text-sm text-black">🛵</span>
             {settings.shop_name}
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex items-center gap-1 text-sm overflow-x-auto no-scrollbar whitespace-nowrap pl-2">
             <Link
               href="/delivery"
               className="rounded-lg px-3 py-1.5 text-stone-400 transition hover:bg-lime-400/10 hover:text-lime-300"

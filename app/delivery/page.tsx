@@ -69,7 +69,7 @@ export default async function DeliveryDashboard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-white">
-            Hi, {profile?.full_name ?? "there"} 👋
+            Hi, {profile?.full_name?.split(" ")[0] ?? "there"} 👋
           </h1>
           <p className="text-sm text-stone-500">Here are your deliveries.</p>
         </div>
