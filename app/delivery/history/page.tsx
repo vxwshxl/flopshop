@@ -4,6 +4,8 @@ import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
 
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+
 export const dynamic = "force-dynamic";
 
 export default async function DeliveryHistory() {
@@ -34,6 +36,7 @@ export default async function DeliveryHistory() {
 
   return (
     <div>
+      <RealtimeRefresh table="orders" channel="delivery:history" />
       <h1 className="text-2xl font-extrabold text-white">Delivery History</h1>
       <p className="text-sm text-stone-500">{list.length} completed deliveries</p>
 

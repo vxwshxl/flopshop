@@ -3,6 +3,7 @@ import { getSettings, getActiveHostels } from "@/lib/supabase/queries";
 import { StoreGrid } from "@/components/store/StoreGrid";
 import { ProfileCompletionPrompt } from "@/components/store/ProfileCompletionPrompt";
 import { ShopClosedBanner } from "@/components/store/ShopClosedBanner";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category, Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,9 @@ export default async function HomePage() {
 
   return (
     <main>
+      <RealtimeRefresh table="products" channel="store:products" />
+      <RealtimeRefresh table="categories" channel="store:categories" />
+      <RealtimeRefresh table="settings" channel="store:settings" />
       <ProfileCompletionPrompt hostels={hostels} />
       <ShopClosedBanner />
       <div className="mx-auto max-w-5xl px-4 pt-5">

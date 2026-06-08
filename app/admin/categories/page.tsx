@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/admin/StatCard";
 import { CategoriesManager } from "@/components/admin/CategoriesManager";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function AdminCategoriesPage() {
 
   return (
     <div>
+      <RealtimeRefresh table="categories" channel="admin:categories" />
       <PageHeader title="Categories" subtitle={`${categories?.length ?? 0} categories`} />
       <CategoriesManager categories={(categories as Category[]) ?? []} counts={counts} />
     </div>

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { ProductsTable } from "@/components/admin/ProductsTable";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category, Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export default async function AdminProductsPage() {
 
   return (
     <div>
+      <RealtimeRefresh table="products" channel="admin:products" />
+      <RealtimeRefresh table="categories" channel="admin:categories" />
       <PageHeader title="Products" subtitle={`${products?.length ?? 0} products`} />
       <ProductsTable
         products={(products as Product[]) ?? []}

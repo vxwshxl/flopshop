@@ -132,10 +132,9 @@ export default async function AdminDashboard({
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle={`${rangeLabel} overview`}
+        subtitle={<div className="mt-1"><DashboardRangeSelect value={range} /></div>}
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <DashboardRangeSelect value={range} />
             <div className="w-full sm:w-80"><ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} /></div>
           </div>
         }

@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Purchase } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function PurchasesPage() {
 
   return (
     <div>
+      <RealtimeRefresh table="purchases" channel="admin:purchases" />
       <PageHeader
         title="Purchases"
         subtitle={`${list.length} purchases · ${formatCurrency(totalSpent, currency)} spent`}

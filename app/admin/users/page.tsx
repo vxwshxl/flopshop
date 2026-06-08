@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { UsersTable } from "@/components/admin/UsersTable";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function UsersPage() {
 
   return (
     <div>
+      <RealtimeRefresh table="profiles" channel="admin:profiles" />
       <PageHeader title="Users" subtitle={`${users?.length ?? 0} users`} />
       <UsersTable
         users={(users as Profile[]) ?? []}

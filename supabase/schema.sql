@@ -175,6 +175,90 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.checkout_order(
+  p_order JSONB,
+  p_items JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_item JSONB;
+  v_product_id UUID;
+  v_quantity INTEGER;
+  v_new_stock INTEGER;
+  v_order_id UUID;
+  v_status TEXT;
+  v_is_confirm BOOLEAN;
+BEGIN
+  v_status := p_order->>'status';
+  v_is_confirm := (v_status = 'confirmed');
+
+  IF v_is_confirm THEN
+    -- Validate and deduct stock for all items
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+      v_product_id := (v_item->>'product_id')::UUID;
+      v_quantity := (v_item->>'quantity')::INTEGER;
+
+      UPDATE public.products
+      SET current_stock = current_stock - v_quantity,
+          updated_at = NOW()
+      WHERE id = v_product_id
+      RETURNING current_stock INTO v_new_stock;
+
+      IF v_new_stock < 0 THEN
+        RAISE EXCEPTION 'Insufficient stock for product ID %', v_product_id;
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- Insert order
+  INSERT INTO public.orders (
+    order_number, invoice_number, user_id, customer_name, customer_phone, customer_room,
+    order_type, status, subtotal, delivery_fee, delivery_person_earning, admin_delivery_earning,
+    total_amount, payment_method, notes, is_manual, otp_code
+  ) VALUES (
+    p_order->>'order_number',
+    p_order->>'invoice_number',
+    NULLIF(p_order->>'user_id', '')::UUID,
+    p_order->>'customer_name',
+    NULLIF(p_order->>'customer_phone', ''),
+    NULLIF(p_order->>'customer_room', ''),
+    p_order->>'order_type',
+    p_order->>'status',
+    (p_order->>'subtotal')::DECIMAL,
+    (p_order->>'delivery_fee')::DECIMAL,
+    (p_order->>'delivery_person_earning')::DECIMAL,
+    (p_order->>'admin_delivery_earning')::DECIMAL,
+    (p_order->>'total_amount')::DECIMAL,
+    p_order->>'payment_method',
+    NULLIF(p_order->>'notes', ''),
+    (p_order->>'is_manual')::BOOLEAN,
+    p_order->>'otp_code'
+  ) RETURNING id INTO v_order_id;
+
+  -- Insert items
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    INSERT INTO public.order_items (
+      order_id, product_id, product_name, quantity, unit_price, total_price
+    ) VALUES (
+      v_order_id,
+      (v_item->>'product_id')::UUID,
+      v_item->>'product_name',
+      (v_item->>'quantity')::INTEGER,
+      (v_item->>'unit_price')::DECIMAL,
+      (v_item->>'total_price')::DECIMAL
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object('ok', true, 'order_id', v_order_id);
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
@@ -244,6 +328,10 @@ CREATE POLICY "Admin manages settings" ON settings FOR ALL USING (is_admin());
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE settings;
 ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE products;
+ALTER PUBLICATION supabase_realtime ADD TABLE categories;
+ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE purchases;
 
 -- ============================================================
 -- STORAGE: product images bucket (run after creating schema)

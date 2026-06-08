@@ -92,49 +92,48 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const status: OrderStatus = input.confirm ? "confirmed" : "pending";
   const otp_code = generateOtp();
 
-  const { data: order, error: orderErr } = await supabase
+  const orderPayload = {
+    order_number,
+    invoice_number,
+    user_id: input.user_id ?? null,
+    customer_name: input.customer_name.trim(),
+    customer_phone: input.customer_phone || null,
+    customer_room: input.customer_room || null,
+    order_type: input.order_type,
+    status,
+    subtotal,
+    delivery_fee: split.delivery_fee,
+    delivery_person_earning: split.delivery_person_earning,
+    admin_delivery_earning: split.admin_delivery_earning,
+    total_amount,
+    payment_method: input.payment_method ?? "cash",
+    notes: input.notes || null,
+    is_manual: input.is_manual ?? false,
+    otp_code,
+  };
+
+  const { data: result, error: rpcErr } = await supabase.rpc("checkout_order", {
+    p_order: orderPayload,
+    p_items: lineItems,
+  });
+
+  if (rpcErr) return { ok: false, error: rpcErr.message };
+  const payload = result as { ok: boolean; error?: string; order_id?: string };
+  if (!payload.ok) {
+    if (payload.error?.includes("Insufficient stock")) {
+      return { ok: false, error: "Not enough stock for one or more items." };
+    }
+    return { ok: false, error: payload.error ?? "Failed to create order." };
+  }
+
+  // To return the full order object for the client, we fetch it back since the RPC just returns the ID
+  const { data: finalOrder } = await supabase
     .from("orders")
-    .insert({
-      order_number,
-      invoice_number,
-      user_id: input.user_id ?? null,
-      customer_name: input.customer_name.trim(),
-      customer_phone: input.customer_phone || null,
-      customer_room: input.customer_room || null,
-      order_type: input.order_type,
-      status,
-      subtotal,
-      delivery_fee: split.delivery_fee,
-      delivery_person_earning: split.delivery_person_earning,
-      admin_delivery_earning: split.admin_delivery_earning,
-      total_amount,
-      payment_method: input.payment_method ?? "cash",
-      notes: input.notes || null,
-      is_manual: input.is_manual ?? false,
-      otp_code,
-    })
-    .select()
+    .select("*, order_items(*)")
+    .eq("id", payload.order_id)
     .single();
 
-  if (orderErr || !order) return { ok: false, error: orderErr?.message ?? "Failed to create order." };
-
-  const { error: itemsErr } = await supabase
-    .from("order_items")
-    .insert(lineItems.map((li) => ({ ...li, order_id: order.id })));
-
-  if (itemsErr) {
-    await supabase.from("orders").delete().eq("id", order.id);
-    return { ok: false, error: itemsErr.message };
-  }
-
-  // Deduct stock if the order is created confirmed.
-  if (input.confirm) {
-    for (const li of lineItems) {
-      await supabase.rpc("adjust_stock", { p_product_id: li.product_id, p_delta: -li.quantity });
-    }
-  }
-
-  return { ok: true, order: { ...(order as Order), order_items: lineItems as Order["order_items"] } };
+  return { ok: true, order: finalOrder as Order };
 }
 
 /**
