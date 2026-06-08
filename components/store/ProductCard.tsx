@@ -89,10 +89,10 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
               ADD
             </button>
           ) : (
-            <div className="glass-lens flex items-center gap-1 rounded-full text-stone-900 dark:text-white">
+            <div className="glass-lens flex items-center gap-1 rounded-full text-stone-900">
               <button
                 onClick={() => decrement(product.id)}
-                className="grid h-8 w-8 place-items-center rounded-full transition hover:text-lime-700 dark:hover:text-lime-300"
+                className="grid h-8 w-8 place-items-center rounded-full transition hover:text-lime-700"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -100,7 +100,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
               <button
                 onClick={() => increment(product.id)}
                 disabled={qty >= product.current_stock}
-                className="grid h-8 w-8 place-items-center rounded-full transition hover:text-lime-700 disabled:opacity-40 dark:hover:text-lime-300"
+                className="grid h-8 w-8 place-items-center rounded-full transition hover:text-lime-700 disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

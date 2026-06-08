@@ -41,11 +41,14 @@ export function Footer() {
         {/* Giant brand wordmark — SVG scales to fill the width on any device.
             Uses CSS w-full + h-auto (not width="100%") to avoid the iOS Safari
             bug where the viewBox aspect ratio is ignored. */}
-        <div className="pt-8">
+        <div className="overflow-hidden pt-8">
           <svg
             viewBox="0 0 1024 252"
             preserveAspectRatio="xMidYMid meet"
-            className="block h-auto w-full select-none"
+            width="1024"
+            height="252"
+            className="block h-auto w-full max-w-full select-none"
+            style={{ aspectRatio: "1024 / 252" }}
             role="img"
             aria-label="FlopShop"
           >
