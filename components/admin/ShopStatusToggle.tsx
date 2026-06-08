@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Store } from "lucide-react";
 import toast from "react-hot-toast";
@@ -10,6 +10,10 @@ export function ShopStatusToggle({ initialOpen }: { initialOpen: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(initialOpen);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setOpen(initialOpen);
+  }, [initialOpen]);
 
   async function toggle() {
     const next = !open;
