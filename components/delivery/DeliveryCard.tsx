@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, Phone, Package } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction } from "@/app/admin/orders/actions";
@@ -11,12 +12,18 @@ import type { Order } from "@/lib/types";
 
 export function DeliveryCard({ order, currency }: { order: Order; currency: string }) {
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function update(status: "out_for_delivery" | "delivered") {
     startTransition(async () => {
-      const res = await setOrderStatusAction(order.id, status);
-      if (!res.ok) toast.error(res.error ?? "Failed");
-      else toast.success(status === "delivered" ? "Marked delivered 🎉" : "Out for delivery");
+      try {
+        const res = await setOrderStatusAction(order.id, status);
+        if (!res.ok) return toast.error(res.error ?? "Failed");
+        toast.success(status === "delivered" ? "Marked delivered 🎉" : "Out for delivery");
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
     });
   }
 

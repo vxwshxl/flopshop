@@ -46,6 +46,20 @@ export function nextStatuses(current: OrderStatus, type: OrderType): OrderStatus
   return forward;
 }
 
+/** Statuses an admin may set directly. For delivery orders, dispatch and
+ *  completion are reserved for the assigned delivery partner. */
+export function adminSettableStatuses(type: OrderType): OrderStatus[] {
+  return type === "delivery"
+    ? ORDER_STATUSES.filter((s) => s !== "out_for_delivery" && s !== "delivered")
+    : ORDER_STATUSES;
+}
+
+/** Label for a status that reads correctly for pickup ("Completed") vs delivery. */
+export function statusLabel(status: OrderStatus, type: OrderType): string {
+  if (status === "delivered" && type !== "delivery") return "Completed";
+  return STATUS_LABELS[status];
+}
+
 /** Computes the delivery fee split from dynamic settings. */
 export function deliverySplit(settings: SettingsMap, orderType: OrderType) {
   if (orderType !== "delivery") {

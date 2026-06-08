@@ -21,17 +21,31 @@ export async function setOrderStatusAction(orderId: string, status: OrderStatus)
   const actor = await requireRole(["admin", "delivery"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
-  // Delivery persons may only mark their assigned orders delivered / out_for_delivery.
+  // Read the order (service role) to enforce type/ownership rules.
+  const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select("order_type, delivery_person_id")
+    .eq("id", orderId)
+    .single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  const isDelivery = order.order_type === "delivery";
+  // Dispatch + completion of a delivery order belong to the assigned partner.
+  const isDispatchOrComplete = status === "out_for_delivery" || status === "delivered";
+
   if (actor.role === "delivery") {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("orders")
-      .select("delivery_person_id")
-      .eq("id", orderId)
-      .single();
-    if (data?.delivery_person_id !== actor.id) return { ok: false, error: "Not your order." };
-    if (status !== "delivered" && status !== "out_for_delivery")
-      return { ok: false, error: "Not allowed." };
+    // Delivery partners only touch delivery orders assigned to them, and only dispatch / complete.
+    if (!isDelivery || order.delivery_person_id !== actor.id)
+      return { ok: false, error: "Not your order." };
+    if (!isDispatchOrComplete) return { ok: false, error: "Not allowed." };
+  } else if (isDelivery && isDispatchOrComplete) {
+    // Admin can confirm / prepare / assign / cancel a delivery order, but only the
+    // assigned delivery partner can dispatch it or mark it delivered.
+    return {
+      ok: false,
+      error: "Only the assigned delivery partner can mark a delivery order delivered.",
+    };
   }
 
   const result = await updateOrderStatus(orderId, status);

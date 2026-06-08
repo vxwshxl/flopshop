@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
   setOrderStatusAction,
@@ -10,7 +11,7 @@ import {
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
-import { ORDER_STATUSES, STATUS_LABELS, nextStatuses } from "@/lib/utils/orderHelpers";
+import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 
 export function OrderManagePanel({
@@ -21,15 +22,28 @@ export function OrderManagePanel({
   deliveryPeople: Pick<Profile, "id" | "full_name">[];
 }) {
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
     startTransition(async () => {
-      const res = await fn();
-      if (!res.ok) toast.error(res.error ?? "Failed");
-      else toast.success(ok);
+      try {
+        const res = await fn();
+        if (!res.ok) return toast.error(res.error ?? "Failed");
+        toast.success(ok);
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
     });
 
-  const next = nextStatuses(order.status, order.order_type);
+  const isDelivery = order.order_type === "delivery";
+  // Admin can't dispatch/complete a delivery order — that's the delivery partner's job.
+  const next = nextStatuses(order.status, order.order_type).filter(
+    (s) => !(isDelivery && (s === "out_for_delivery" || s === "delivered"))
+  );
+  const settable = adminSettableStatuses(order.order_type);
+  // Keep the current status visible in the dropdown even if admin can't set it.
+  const statusOptions = settable.includes(order.status) ? settable : [order.status, ...settable];
 
   return (
     <AdminCard title="Manage Order">
@@ -44,12 +58,22 @@ export function OrderManagePanel({
                 size="sm"
                 variant={s === "cancelled" ? "danger" : "dark"}
                 disabled={pending}
-                onClick={() => run(() => setOrderStatusAction(order.id, s), `Marked ${STATUS_LABELS[s]}`)}
+                onClick={() =>
+                  run(
+                    () => setOrderStatusAction(order.id, s),
+                    `Marked ${statusLabel(s, order.order_type)}`
+                  )
+                }
               >
-                {s === "cancelled" ? "Cancel order" : `Mark ${STATUS_LABELS[s]}`}
+                {s === "cancelled" ? "Cancel order" : `Mark ${statusLabel(s, order.order_type)}`}
               </Button>
             ))}
           </div>
+          {isDelivery && (
+            <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+              Dispatch &amp; delivery completion are done by the assigned delivery partner.
+            </p>
+          )}
         </div>
 
         <div>
@@ -61,9 +85,9 @@ export function OrderManagePanel({
               run(() => setOrderStatusAction(order.id, e.target.value as OrderStatus), "Status updated")
             }
           >
-            {ORDER_STATUSES.map((s) => (
+            {statusOptions.map((s) => (
               <option key={s} value={s}>
-                {STATUS_LABELS[s]}
+                {statusLabel(s, order.order_type)}
               </option>
             ))}
           </Select>

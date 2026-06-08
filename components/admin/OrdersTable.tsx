@@ -2,13 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction, assignDeliveryAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Select } from "@/components/ui/input";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
-import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/utils/orderHelpers";
+import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 
 type Row = Order & {
@@ -30,6 +31,11 @@ export function OrdersTable({
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  // Optimistic status per row so the table reflects the change immediately
+  // (and survives a flaky revalidation) until fresh server data arrives.
+  const [overrides, setOverrides] = useState<Record<string, OrderStatus>>({});
+  const statusOf = (o: Row) => overrides[o.id] ?? o.status;
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: orders.length };
@@ -49,10 +55,28 @@ export function OrdersTable({
   );
 
   function changeStatus(id: string, status: OrderStatus) {
+    const prev = overrides[id];
+    const revert = () =>
+      setOverrides((m) => {
+        const n = { ...m };
+        if (prev) n[id] = prev;
+        else delete n[id];
+        return n;
+      });
+    setOverrides((m) => ({ ...m, [id]: status }));
     startTransition(async () => {
-      const res = await setOrderStatusAction(id, status);
-      if (!res.ok) toast.error(res.error ?? "Failed");
-      else toast.success("Status updated");
+      try {
+        const res = await setOrderStatusAction(id, status);
+        if (!res.ok) {
+          revert();
+          return toast.error(res.error ?? "Failed");
+        }
+        toast.success("Status updated");
+        router.refresh();
+      } catch {
+        revert();
+        toast.error("Something went wrong. Please try again.");
+      }
     });
   }
 
@@ -131,19 +155,22 @@ export function OrdersTable({
                 <td className="p-3">{o.order_items?.length ?? 0}</td>
                 <td className="p-3">{formatCurrency(o.total_amount, currency)}</td>
                 <td className="p-3">
-                  <OrderStatusBadge status={o.status} />
+                  <OrderStatusBadge status={statusOf(o)} />
                 </td>
                 <td className="p-3 whitespace-nowrap text-xs text-black/50 dark:text-white/50">{formatDateTime(o.created_at)}</td>
                 <td className="p-3">
                   <Select
-                    value={o.status}
+                    value={statusOf(o)}
                     disabled={pending}
                     onChange={(e) => changeStatus(o.id, e.target.value as OrderStatus)}
                     className="min-w-36"
                   >
-                    {ORDER_STATUSES.map((s) => (
+                    {(adminSettableStatuses(o.order_type).includes(statusOf(o))
+                      ? adminSettableStatuses(o.order_type)
+                      : [statusOf(o), ...adminSettableStatuses(o.order_type)]
+                    ).map((s) => (
                       <option key={s} value={s}>
-                        {STATUS_LABELS[s]}
+                        {statusLabel(s, o.order_type)}
                       </option>
                     ))}
                   </Select>

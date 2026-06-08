@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const WHATSAPP_URL =
@@ -42,12 +43,24 @@ export function Footer() {
             Uses CSS w-full + h-auto (not width="100%") to avoid the iOS Safari
             bug where the viewBox aspect ratio is ignored. */}
         <div className="overflow-hidden pt-8">
+          {/* Mobile: logo mark (the giant wordmark overflows narrow viewports) */}
+          <div className="flex justify-center sm:hidden">
+            <Image
+              src="/FlopShop.webp"
+              alt="FlopShop"
+              width={96}
+              height={96}
+              className="h-24 w-24 select-none rounded-2xl ring-1 ring-white/10"
+            />
+          </div>
+
+          {/* Desktop: giant wordmark */}
           <svg
             viewBox="0 0 1024 252"
             preserveAspectRatio="xMidYMid meet"
             width="1024"
             height="252"
-            className="block h-auto w-full max-w-full select-none"
+            className="hidden h-auto w-full max-w-full select-none sm:block"
             style={{ aspectRatio: "1024 / 252" }}
             role="img"
             aria-label="FlopShop"
