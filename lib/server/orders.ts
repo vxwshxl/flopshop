@@ -90,8 +90,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const order_number = generateOrderNumber();
   const invoice_number = generateInvoiceNumber(count ?? 0);
   const status: OrderStatus = input.confirm ? "confirmed" : "pending";
-  // Manual / walk-in orders are handed over in person, so they never need an OTP.
-  const otp_code = input.is_manual ? null : generateOtp();
+  // Every order gets an OTP (the column is NOT NULL). Manual / walk-in orders
+  // simply never require it at completion — that's gated on `is_manual`.
+  const otp_code = generateOtp();
 
   const orderPayload = {
     order_number,

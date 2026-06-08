@@ -30,6 +30,15 @@ CREATE TABLE hostels (
 
 INSERT INTO hostels (name) VALUES ('Heyansh House');
 
+-- SUPPLIERS ------------------------------------------------
+CREATE TABLE suppliers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Auto-create profile on signup.
 -- NOTE: schema-qualified + fixed search_path so it works when fired by the
 -- auth service (whose search_path does not include public).
@@ -316,6 +325,10 @@ CREATE POLICY "Admin manages purchases" ON purchases FOR ALL USING (is_admin());
 ALTER TABLE hostels ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read hostels" ON hostels FOR SELECT USING (true);
 CREATE POLICY "Admin manages hostels" ON hostels FOR ALL USING (is_admin());
+
+ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read suppliers" ON suppliers FOR SELECT USING (true);
+CREATE POLICY "Admin manages suppliers" ON suppliers FOR ALL USING (is_admin());
 
 -- Settings
 CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);

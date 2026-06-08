@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -9,11 +10,11 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { AdminCard } from "@/components/admin/StatCard";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
-import type { Product } from "@/lib/types";
+import type { Product, Supplier } from "@/lib/types";
 
 const inputDark = "border-[#333] bg-[#0a0a0a] text-white focus:border-indigo-500";
 
-export function PurchaseForm({ products }: { products: Product[] }) {
+export function PurchaseForm({ products, suppliers }: { products: Product[]; suppliers: Supplier[] }) {
   const router = useRouter();
   const [form, setForm] = useState({
     product_id: products[0]?.id ?? "",
@@ -100,7 +101,24 @@ export function PurchaseForm({ products }: { products: Product[] }) {
           </div>
           <div>
             <Label className="text-gray-300">Supplier</Label>
-            <Input value={form.supplier} onChange={set("supplier")} className={inputDark} />
+            {suppliers.length > 0 ? (
+              <Select value={form.supplier} onChange={set("supplier")} className={inputDark}>
+                <option value="">— Select supplier —</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <p className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2 text-xs text-gray-500">
+                No suppliers yet. Add them under{" "}
+                <Link href="/admin/suppliers" className="text-indigo-400 underline">
+                  Suppliers
+                </Link>
+                .
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-gray-300">Purchase date</Label>

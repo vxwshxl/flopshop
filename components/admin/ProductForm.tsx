@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Upload, Search, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
@@ -9,6 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea, Select } from "@/components/ui/input";
 import { AdminCard } from "@/components/admin/StatCard";
+import { ImageAdjuster, type ImagePosition } from "@/components/admin/ImageAdjuster";
+import { DEFAULT_IMAGE_POSITION } from "@/lib/utils/image";
 import type { Category, Product, ProductDetails } from "@/lib/types";
 
 interface OffResult {
@@ -49,6 +50,9 @@ export function ProductForm({
   const [preview, setPreview] = useState(product?.image_url ?? "");
   const [saving, setSaving] = useState(false);
   const [details, setDetails] = useState<ProductDetails | null>(product?.details ?? null);
+  const [imgPos, setImgPos] = useState<ImagePosition>(
+    product?.details?.image_position ?? DEFAULT_IMAGE_POSITION
+  );
 
   // OpenFoodFacts import
   const [offQuery, setOffQuery] = useState("");
@@ -81,6 +85,7 @@ export function ProductForm({
       setImageUrl(r.image);
       setPreview(r.image);
       setFile(null); // use the OFF hosted image directly
+      setImgPos(DEFAULT_IMAGE_POSITION); // fresh image → reset framing
     }
     setDetails({
       source: "openfoodfacts",
@@ -104,6 +109,7 @@ export function ProductForm({
     if (!f) return;
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    setImgPos(DEFAULT_IMAGE_POSITION); // fresh image → reset framing
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -134,7 +140,7 @@ export function ProductForm({
         current_stock: parseInt(form.current_stock) || 0,
         minimum_stock: parseInt(form.minimum_stock) || 0,
         image_url: finalImageUrl || null,
-        details,
+        details: { ...(details ?? {}), image_position: imgPos },
         is_active: form.is_active,
         updated_at: new Date().toISOString(),
       };
@@ -251,15 +257,15 @@ export function ProductForm({
 
       <div className="space-y-4">
         <AdminCard title="Image">
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative h-40 w-40 overflow-hidden rounded-xl border border-[#333] bg-[#0a0a0a]">
-              {preview ? (
-                <Image src={preview} alt="preview" fill className="object-cover" sizes="160px" />
-              ) : (
-                <div className="flex h-full items-center justify-center text-4xl">📦</div>
-              )}
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#333] px-3 py-2 text-sm text-gray-300 hover:bg-white/5">
+          <div className="flex flex-col gap-3">
+            {preview ? (
+              <ImageAdjuster src={preview} value={imgPos} onChange={setImgPos} />
+            ) : (
+              <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-[#333] bg-[#0a0a0a] text-4xl">
+                📦
+              </div>
+            )}
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#333] px-3 py-2 text-sm text-gray-300 hover:bg-white/5">
               <Upload className="h-4 w-4" /> Upload image
               <input type="file" accept="image/*" onChange={onFile} className="hidden" />
             </label>

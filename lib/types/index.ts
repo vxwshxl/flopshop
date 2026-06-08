@@ -21,6 +21,14 @@ export interface Hostel {
   updated_at: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string | null;
@@ -72,6 +80,8 @@ export interface ProductDetails {
   quantity?: string;
   ingredients?: string;
   categories?: string;
+  /** How the image is framed inside its square: object-position x/y (0–100%) and zoom. */
+  image_position?: { x: number; y: number; scale: number };
   nutrition?: {
     energy_kcal?: number | null;
     fat?: number | null;

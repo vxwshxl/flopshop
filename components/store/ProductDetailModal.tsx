@@ -8,6 +8,7 @@ import { useSettings } from "@/lib/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { imagePositionStyle } from "@/lib/utils/image";
 import type { Product } from "@/lib/types";
 
 export function ProductDetailModal({
@@ -34,7 +35,7 @@ export function ProductDetailModal({
     <Modal open={open} onClose={onClose} className="max-w-md">
       <div className="relative mx-auto mb-4 aspect-square w-full max-w-[260px] overflow-hidden rounded-lg bg-stone-50 dark:bg-stone-800">
         {product.image_url ? (
-          <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="260px" />
+          <Image src={product.image_url} alt={product.name} fill style={imagePositionStyle(product.details)} sizes="260px" />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl">
             {product.category?.icon ?? "🍫"}

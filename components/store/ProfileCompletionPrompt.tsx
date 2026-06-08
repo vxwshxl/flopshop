@@ -22,15 +22,20 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
 
   useEffect(() => {
     if (loading || !isAuthenticated) return;
+    // The profile is fetched a beat after `loading` flips to false, so a null
+    // profile here just means "not loaded yet" — don't prompt until it arrives,
+    // otherwise the modal opens against complete profiles and never closes.
+    if (!profile) return;
 
-    const missing = profile ? isMissingProfile(profile) : true;
-    if (missing) {
+    if (isMissingProfile(profile)) {
       setForm({
-        phone: profile?.phone ?? "",
-        room_number: profile?.room_number ?? "",
-        hostel_block: profile?.hostel_block ?? "",
+        phone: profile.phone ?? "",
+        room_number: profile.room_number ?? "",
+        hostel_block: profile.hostel_block ?? "",
       });
       setOpen(true);
+    } else {
+      setOpen(false);
     }
   }, [profile, isAuthenticated, loading]);
 

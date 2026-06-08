@@ -8,6 +8,7 @@ import { Pencil, Trash2, Plus, Search, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { imagePositionStyle } from "@/lib/utils/image";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
@@ -185,7 +186,7 @@ export function ProductsTable({
                     <div className="flex items-center gap-3">
                       <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10">
                         {p.image_url ? (
-                          <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="36px" />
+                          <Image src={p.image_url} alt={p.name} fill style={imagePositionStyle(p.details)} sizes="36px" />
                         ) : (
                           <div className="flex h-full items-center justify-center text-sm">{category?.icon ?? "📦"}</div>
                         )}

@@ -217,10 +217,13 @@ export function OrderManagePanel({
         <label className="mb-2 block text-sm font-medium text-white">Order OTP</label>
         <Input
           value={otp}
-          onChange={(event) => setOtp(event.target.value)}
+          onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 4))}
           placeholder="1234"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="one-time-code"
           maxLength={4}
-          className="mb-4 w-full"
+          className="mb-4 w-full tracking-[0.4em]"
         />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setShowOtpModal(false)} disabled={pending}>

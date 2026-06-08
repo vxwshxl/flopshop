@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { useCart } from "@/lib/hooks/useCart"; // Ensure this import is organized
 import { useSettings } from "@/lib/hooks/useSettings";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { imagePositionStyle } from "@/lib/utils/image";
 import { ProductDetailModal } from "./ProductDetailModal";
 import type { Product } from "@/lib/types";
 
@@ -25,7 +26,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
       <button
         type="button"
         onClick={() => setDetailOpen(true)}
-        className="relative aspect-square w-full cursor-pointer bg-white/50 text-left dark:bg-white/5"
+        className="relative aspect-square w-full cursor-pointer overflow-hidden bg-white/50 text-left dark:bg-white/5"
         aria-label={`View ${product.name} details`}
       >
         {product.image_url ? (
@@ -34,7 +35,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, 200px"
-            className="object-cover"
+            style={imagePositionStyle(product.details)}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-4xl">
