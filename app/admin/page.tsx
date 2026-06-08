@@ -151,14 +151,16 @@ export default async function AdminDashboard({
 
   return (
     <div>
+      <div className="mb-4 flex justify-end">
+        <div className="w-full sm:w-80">
+          <ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} />
+        </div>
+      </div>
+
       <PageHeader
         title={<h1 className="text-2xl font-extrabold text-stone-950 dark:text-white mr-2">Dashboard</h1>}
         subtitle={<DashboardRangeSelect value={range} />}
-        action={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <div className="w-full sm:w-80"><ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} /></div>
-          </div>
-        }
+        mobileJustifyBetween={true}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">

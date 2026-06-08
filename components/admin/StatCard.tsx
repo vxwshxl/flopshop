@@ -53,14 +53,16 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  mobileJustifyBetween = false,
 }: {
   title: string | React.ReactNode;
   subtitle?: React.ReactNode;
   action?: React.ReactNode;
+  mobileJustifyBetween?: boolean;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2 sm:gap-3 flex-nowrap shrink-0">
+      <div className={`flex items-center gap-2 sm:gap-3 flex-nowrap shrink-0 ${mobileJustifyBetween ? "w-full justify-between sm:w-auto sm:justify-start" : ""}`}>
         {typeof title === "string" ? (
           <h1 className="truncate text-xl sm:text-2xl font-extrabold text-stone-950 dark:text-white">{title}</h1>
         ) : (
