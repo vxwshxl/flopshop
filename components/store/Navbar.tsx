@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck } from "lucide-react";
 import { Brand } from "@/components/Brand";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCart } from "@/lib/hooks/useCart";
 import type { Role } from "@/lib/types";
 
@@ -39,31 +38,28 @@ export function Navbar({
   }, [menuOpen]);
 
   return (
-    <header className="glass-line sticky top-0 z-40 border-b bg-white/55 backdrop-blur-xl backdrop-saturate-150 dark:bg-stone-950/45">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" />
-        <div className="ml-2 flex flex-1 items-center">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-3">
+          <Brand shopName={shopName} textClassName="text-white" />
           <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              isOpen
-                ? "bg-lime-100 text-lime-800 dark:bg-lime-400/15 dark:text-lime-300"
-                : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
+            className={`hidden rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide sm:inline ${
+              isOpen ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
             }`}
           >
             {isOpen ? "OPEN" : "CLOSED"}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
+        <div className="flex items-center gap-1.5">
           <Link
             href="/cart"
-            className="glass-lens relative grid h-9 w-9 place-items-center rounded-full text-stone-700 transition hover:text-stone-950 active:scale-95 dark:text-stone-200 dark:hover:text-white"
+            className="relative grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
             aria-label="Cart"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-lime-400 px-1 text-[10px] font-extrabold text-stone-950 ring-2 ring-white/70 dark:ring-stone-950/70">
+              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-lime-400 px-1 text-[10px] font-extrabold text-black ring-2 ring-black">
                 {count}
               </span>
             )}
@@ -76,7 +72,7 @@ export function Navbar({
                   e.stopPropagation();
                   setMenuOpen((v) => !v);
                 }}
-                className="grid h-9 w-9 place-items-center overflow-hidden rounded-full ring-2 ring-lime-500/70 transition hover:ring-lime-500"
+                className="grid h-9 w-9 place-items-center overflow-hidden rounded-full ring-2 ring-lime-400/70 transition hover:ring-lime-400"
                 aria-label="Account"
               >
                 <Avatar name={user.name} email={user.email} src={user.avatarUrl} />
@@ -87,13 +83,13 @@ export function Navbar({
                   onClick={(e) => e.stopPropagation()}
                   className="glass-strong absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl"
                 >
-                  <div className="flex items-center gap-3 border-b border-black/5 p-4 dark:border-white/10">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-lime-500">
+                  <div className="flex items-center gap-3 border-b border-white/10 p-4">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-lime-400">
                       <Avatar name={user.name} email={user.email} src={user.avatarUrl} large />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-stone-950 dark:text-white">Hi, {firstName}</p>
-                      <p className="truncate text-xs text-stone-500 dark:text-stone-400">{user.email}</p>
+                      <p className="truncate font-bold text-white">Hi, {firstName}</p>
+                      <p className="truncate text-xs text-white/50">{user.email}</p>
                     </div>
                   </div>
 
@@ -108,8 +104,8 @@ export function Navbar({
                     )}
                   </div>
 
-                  <form action="/auth/signout" method="post" className="border-t border-black/5 p-2 dark:border-white/10">
-                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10">
+                  <form action="/auth/signout" method="post" className="border-t border-white/10 p-2">
+                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-400 hover:bg-white/5">
                       <LogOut className="h-4 w-4" /> Sign out
                     </button>
                   </form>
@@ -119,7 +115,7 @@ export function Navbar({
           ) : (
             <Link
               href="/login"
-              className="rounded-lg bg-stone-950 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 dark:bg-lime-400 dark:text-stone-950 dark:hover:bg-lime-300"
+              className="rounded-full bg-lime-400 px-4 py-1.5 text-sm font-bold text-black transition hover:bg-lime-300"
             >
               Sign in
             </Link>
@@ -147,7 +143,7 @@ function Avatar({
     return <img src={src} alt={name ?? "avatar"} referrerPolicy="no-referrer" className="h-full w-full object-cover" />;
   }
   return (
-    <span className={`grid h-full w-full place-items-center bg-lime-500 font-bold text-stone-950 ${large ? "text-lg" : "text-sm"}`}>
+    <span className={`grid h-full w-full place-items-center bg-lime-400 font-bold text-black ${large ? "text-lg" : "text-sm"}`}>
       {initial}
     </span>
   );
@@ -157,7 +153,7 @@ function MenuLink({ href, icon, label }: { href: string; icon: React.ReactNode; 
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10"
+      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white"
     >
       {icon}
       {label}

@@ -48,7 +48,7 @@ export function ToggleGroup({
     <div
       ref={containerRef}
       className={cn(
-        "no-scrollbar glass relative flex w-max max-w-full gap-1 overflow-x-auto rounded-full p-1",
+        "no-scrollbar relative flex w-max max-w-full gap-2 overflow-x-auto p-1",
         className
       )}
     >
@@ -70,10 +70,10 @@ export function ToggleGroup({
             type="button"
             onClick={() => onChange(o.value)}
             className={cn(
-              "relative z-10 flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200",
+              "relative z-10 flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors duration-200",
               active
-                ? "text-stone-900 dark:text-white"
-                : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-white"
+                ? "border-transparent text-black"
+                : "border-white/25 text-white/70 hover:border-white/50 hover:text-white"
             )}
           >
             {o.label}

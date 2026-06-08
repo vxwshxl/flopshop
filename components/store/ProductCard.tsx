@@ -59,7 +59,7 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
         <button
           type="button"
           onClick={() => setDetailOpen(true)}
-          className="line-clamp-2 text-left text-sm font-semibold text-stone-950 hover:text-lime-700 dark:text-white dark:hover:text-lime-300"
+          className="line-clamp-2 text-left text-xs font-semibold uppercase tracking-wide text-white transition hover:text-lime-400"
         >
           {product.name}
         </button>

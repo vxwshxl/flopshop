@@ -1,63 +1,36 @@
 @import "tailwindcss";
 
-/* Class-based dark mode (toggle adds `.dark` to <html>) */
+/* Class-based dark variant (the app is forced dark via <html class="dark">) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Brand = FlopShop yellow. The `lime-*` ramp is remapped to a warm amber so
-     every brand accent stays consistent. Other Tailwind colors keep real values
-     so dark-mode contrast and status colors work. */
+  /* Brand = FlopShop yellow. The `lime-*` ramp is remapped to a warm yellow so
+     every brand accent stays consistent. */
   --color-lime-50: #fffbeb;
   --color-lime-100: #fef3c7;
   --color-lime-200: #fde68a;
   --color-lime-300: #fcd34d;
-  --color-lime-400: #f8cb46;
-  --color-lime-500: #f5bd1f;
-  --color-lime-600: #d99e09;
-  --color-lime-700: #a16207;
+  --color-lime-400: #f5c518;
+  --color-lime-500: #f5c518;
+  --color-lime-600: #d9a90b;
+  --color-lime-700: #b8890a;
   --color-lime-800: #854d0e;
   --color-lime-900: #713f12;
 }
 
-:root {
-  --fg: #15161a;
-}
-.dark {
-  --fg: #f4f4f5;
-}
-
 html,
 body {
-  color: var(--fg);
   min-height: 100%;
+  background: #000000;
+  color: #ffffff;
 }
 
-/* Rich, fixed mesh-gradient backdrop. Glass surfaces refract THIS, so it must
-   be colourful and spread across the whole viewport (not just the corners). */
 body {
-  background-color: #e7e9f2;
-  background-image:
-    radial-gradient(38rem 38rem at 8% -4%, rgba(99, 102, 241, 0.28), transparent 58%),
-    radial-gradient(34rem 34rem at 96% 4%, rgba(248, 203, 70, 0.3), transparent 56%),
-    radial-gradient(40rem 40rem at 70% 38%, rgba(236, 72, 153, 0.16), transparent 56%),
-    radial-gradient(34rem 34rem at 18% 78%, rgba(45, 212, 191, 0.18), transparent 55%),
-    radial-gradient(40rem 40rem at 92% 96%, rgba(168, 85, 247, 0.18), transparent 58%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-.dark body {
-  background-color: #08080b;
-  background-image:
-    radial-gradient(38rem 38rem at 8% -4%, rgba(99, 102, 241, 0.3), transparent 56%),
-    radial-gradient(34rem 34rem at 96% 4%, rgba(248, 203, 70, 0.16), transparent 55%),
-    radial-gradient(40rem 40rem at 70% 38%, rgba(236, 72, 153, 0.16), transparent 55%),
-    radial-gradient(34rem 34rem at 18% 78%, rgba(45, 212, 191, 0.14), transparent 55%),
-    radial-gradient(40rem 40rem at 92% 96%, rgba(168, 85, 247, 0.2), transparent 58%);
 }
 
 * {
@@ -65,69 +38,27 @@ body {
 }
 
 ::selection {
-  background: #f8cb46;
-  color: #15161a;
+  background: #f5c518;
+  color: #000000;
 }
 
-/* ============ LIQUID GLASS ============ */
-/* Frosted panel with an edge highlight (top sheen) + soft drop shadow. */
+/* ============ Surfaces (flat, dark — Waura style) ============ */
 .glass {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.4));
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    0 10px 30px -10px rgba(20, 22, 40, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.dark .glass {
-  background: linear-gradient(135deg, rgba(44, 44, 54, 0.62), rgba(22, 22, 28, 0.42));
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 12px 36px -12px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-}
-
-/* More opaque glass for dropdowns / modals / sidebars (better legibility). */
 .glass-strong {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.66));
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow:
-    0 24px 60px -18px rgba(20, 22, 40, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: #0c0c0c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.8);
 }
-.dark .glass-strong {
-  background: linear-gradient(135deg, rgba(34, 34, 42, 0.86), rgba(18, 18, 23, 0.74));
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow:
-    0 28px 70px -22px rgba(0, 0, 0, 0.72),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-/* A sliding "lens" pill (used by the toggle group) — brighter, glossier glass. */
+/* Bright "lens" pill used for the active toggle + product stepper */
 .glass-lens {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.78));
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow:
-    0 6px 16px -4px rgba(20, 22, 40, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.6);
 }
-.dark .glass-lens {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow:
-    0 6px 18px -4px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
 .glass-line {
-  border-color: rgba(0, 0, 0, 0.08);
-}
-.dark .glass-line {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -138,6 +69,17 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ============ Marquee announcement bar ============ */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 22s linear infinite;
 }
 
 /* Order-complete animation */

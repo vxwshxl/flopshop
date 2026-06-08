@@ -19,7 +19,6 @@ import {
   Store,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils/cn";
 
 interface NavItem {
@@ -73,9 +72,8 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
 
   const nav = (
     <nav className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 px-4 py-5">
-        <Brand shopName={shopName} textClassName="text-stone-950 dark:text-white" markClassName="h-8 w-8" />
-        <ThemeToggle />
+      <div className="flex items-center gap-2 px-4 py-5">
+        <Brand shopName={shopName} textClassName="text-white" markClassName="h-8 w-8" />
       </div>
       <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
         {sections.map((section) => (
