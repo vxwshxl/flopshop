@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { Invoice } from "@/components/Invoice";
 import { PrintButton } from "@/components/PrintButton";
+import { PrintPortal } from "@/components/PrintPortal";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/utils/orderHelpers";
 import type { Order } from "@/lib/types";
@@ -75,6 +76,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           showOtp={isOwner && order.status !== "delivered" && order.status !== "cancelled"}
         />
       </div>
+
+      <PrintPortal>
+        <Invoice
+          order={order}
+          settings={settings}
+          showOtp={isOwner && order.status !== "delivered" && order.status !== "cancelled"}
+        />
+      </PrintPortal>
     </div>
   );
 }

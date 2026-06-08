@@ -34,7 +34,9 @@ type CustomSelectProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onChange"> 
 /** Custom select with a portalled menu so it's never clipped by table overflow. */
 export function Select({ className, value = "", onChange, disabled, children }: CustomSelectProps) {
   const [open, setOpen] = React.useState(false);
-  const [rect, setRect] = React.useState<{ left: number; top: number; width: number } | null>(null);
+  const [rect, setRect] = React.useState<
+    { left: number; width: number; top?: number; bottom?: number } | null
+  >(null);
   const [search, setSearch] = React.useState("");
   const searchTimeout = React.useRef<number | null>(null);
   const lastSearchKey = React.useRef<string | null>(null);
@@ -57,12 +59,24 @@ export function Select({ className, value = "", onChange, disabled, children }: 
     options.find((option) => option.value === value) ??
     (value ? { value, label: value } : options[0]);
 
+  const optionCount = options.length;
   const place = React.useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setRect({ left: r.left, top: r.bottom + 4, width: r.width });
-  }, []);
+    // Prefer opening below, but flip above when there isn't enough room and
+    // there's more space up top — so the menu is never cut off by the viewport.
+    const menuH = menuRef.current?.offsetHeight ?? Math.min(256, optionCount * 38 + 8);
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const openUp = spaceBelow < menuH + 8 && spaceAbove > spaceBelow;
+    setRect({
+      left: r.left,
+      width: r.width,
+      top: openUp ? undefined : r.bottom + 4,
+      bottom: openUp ? window.innerHeight - r.top + 4 : undefined,
+    });
+  }, [optionCount]);
 
   const resetSearch = React.useCallback(() => {
     if (searchTimeout.current) window.clearTimeout(searchTimeout.current);
@@ -164,7 +178,14 @@ export function Select({ className, value = "", onChange, disabled, children }: 
         createPortal(
           <div
             ref={menuRef}
-            style={{ position: "fixed", left: rect.left, top: rect.top, width: rect.width, zIndex: 1000 }}
+            style={{
+              position: "fixed",
+              left: rect.left,
+              top: rect.top,
+              bottom: rect.bottom,
+              width: rect.width,
+              zIndex: 1000,
+            }}
             className="max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-[#0c0c0c] p-1 text-sm text-white shadow-2xl"
           >
             {options.map((option) => (

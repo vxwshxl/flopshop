@@ -30,7 +30,7 @@ export async function setOrderStatusAction(
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("orders")
-    .select("order_type, delivery_person_id, otp_code, status")
+    .select("order_type, delivery_person_id, otp_code, status, is_manual")
     .eq("id", orderId)
     .single();
   if (!order) return { ok: false, error: "Order not found." };
@@ -51,11 +51,13 @@ export async function setOrderStatusAction(
     return { ok: false, error: "Not allowed." };
   }
 
-  if (status === "delivered") {
+  // OTP completion only applies to online orders that actually have one. Manual /
+  // walk-in orders are handed over in person, so an admin completes them directly.
+  if (status === "delivered" && !order.is_manual && order.otp_code) {
     if (!otp_code || otp_code.trim().length !== 4) {
       return { ok: false, error: "Enter the 4-digit order OTP." };
     }
-    if (!order.otp_code || order.otp_code !== otp_code.trim()) {
+    if (order.otp_code !== otp_code.trim()) {
       return { ok: false, error: "Incorrect OTP. Please try again." };
     }
   }

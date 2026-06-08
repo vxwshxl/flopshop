@@ -90,7 +90,8 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const order_number = generateOrderNumber();
   const invoice_number = generateInvoiceNumber(count ?? 0);
   const status: OrderStatus = input.confirm ? "confirmed" : "pending";
-  const otp_code = generateOtp();
+  // Manual / walk-in orders are handed over in person, so they never need an OTP.
+  const otp_code = input.is_manual ? null : generateOtp();
 
   const orderPayload = {
     order_number,
@@ -191,7 +192,9 @@ export async function updateOrderStatus(
   } else {
     updatePayload.cancel_reason = null;
   }
-  if (newStatus === "confirmed" || newStatus === "delivered") {
+  // Confirming an order is the single point that auto-marks it paid. No other
+  // transition touches payment status (admins toggle it manually if needed).
+  if (newStatus === "confirmed") {
     updatePayload.payment_status = "paid";
   }
 

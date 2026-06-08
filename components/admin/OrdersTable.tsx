@@ -167,8 +167,11 @@ export function OrdersTable({
                     className="min-w-36"
                   >
                     {(() => {
+                      // "Completed" (delivered) is inline-settable for walk-in/manual
+                      // pickups (no OTP needed). Online pickups still complete via the
+                      // detail page so the OTP can be verified.
                       const available = adminSettableStatuses(o.order_type).filter(
-                        (s) => !(o.order_type === "pickup" && s === "delivered")
+                        (s) => !(o.order_type === "pickup" && s === "delivered" && !o.is_manual)
                       );
                       const options = available.includes(statusOf(o)) ? available : [statusOf(o), ...available];
                       return options.map((s) => (

@@ -115,22 +115,22 @@ body {
 .animate-pop-in { animation: pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-ring { animation: ring-pulse 1.4s ease-out infinite; }
 
-/* Print: only show the invoice area, centered on a white A4 page. */
+/* The print portal is the dedicated print source — never shown on screen. */
+@media screen {
+  .print-portal { display: none !important; }
+}
+
+/* Print: render ONLY the invoice (from the body-level .print-portal) on a white
+   A4 page. Hiding every other body child keeps the document exactly one invoice
+   tall, so the tall admin/store UI can't spill a blank trailing page. */
 @media print {
   @page { size: A4; margin: 14mm; }
   /* Force a white page so the dark admin/store UI doesn't bleed a black page. */
-  html, body { background: #fff !important; }
-  body * { visibility: hidden; }
-  .print-area,
-  .print-area * { visibility: visible; }
-  /* Natural height (top/left only, NOT inset:0) so the document is exactly one
-     invoice tall — avoids the spurious blank/black second page. Centered via
-     margin auto with an A4 content width. */
+  html, body { background: #fff !important; height: auto !important; }
+  /* Hide the whole app shell (and toaster); show only the portal. */
+  body > *:not(.print-portal) { display: none !important; }
+  .print-portal { display: block !important; }
   .print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
     margin: 0 auto;
     padding: 0;
     width: 100%;

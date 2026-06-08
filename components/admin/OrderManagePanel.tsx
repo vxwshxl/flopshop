@@ -46,7 +46,9 @@ export function OrderManagePanel({
     });
 
   function requestStatusChange(status: OrderStatus) {
-    if (status === "delivered") {
+    // Only online orders carry an OTP. Manual / walk-in orders have none, so the
+    // admin completes them directly without the OTP prompt.
+    if (status === "delivered" && !order.is_manual && order.otp_code) {
       setStatusTarget(status);
       setOtp("");
       setShowOtpModal(true);

@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { Invoice } from "@/components/Invoice";
 import { PrintButton } from "@/components/PrintButton";
+import { PrintPortal } from "@/components/PrintPortal";
 import type { Order } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <div className="mx-auto max-w-md rounded-xl bg-white p-6 shadow-lg">
         <Invoice order={order} settings={settings} />
       </div>
+
+      <PrintPortal>
+        <Invoice order={order} settings={settings} />
+      </PrintPortal>
     </div>
   );
 }

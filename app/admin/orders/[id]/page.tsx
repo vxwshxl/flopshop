@@ -7,6 +7,7 @@ import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { OrderManagePanel } from "@/components/admin/OrderManagePanel";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { PrintButton } from "@/components/PrintButton";
+import { PrintPortal } from "@/components/PrintPortal";
 import { Invoice } from "@/components/Invoice";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import type { Order, Profile } from "@/lib/types";
@@ -112,6 +113,10 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           <OrderManagePanel order={order} deliveryPeople={(people as Pick<Profile, "id" | "full_name">[]) ?? []} />
         </div>
       </div>
+
+      <PrintPortal>
+        <Invoice order={order} settings={settings} />
+      </PrintPortal>
     </div>
   );
 }
