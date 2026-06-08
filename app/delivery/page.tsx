@@ -4,20 +4,30 @@ import { DeliveryCard } from "@/components/delivery/DeliveryCard";
 import { AvailableDeliveryCard } from "@/components/delivery/AvailableDeliveryCard";
 import { DeliveryRealtime } from "@/components/delivery/DeliveryRealtime";
 import { OnlineToggle } from "@/components/delivery/OnlineToggle";
-import { formatCurrency } from "@/lib/utils/formatters";
+import { formatCurrency, getISTTimeBounds } from "@/lib/utils/formatters";
 import { Truck, IndianRupee, Package } from "lucide-react";
+import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
+import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
 import type { Order } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function DeliveryDashboard() {
+export default async function DeliveryDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
   const supabase = await createClient();
   const profile = await getCurrentProfile();
   const settings = await getSettings();
   const currency = settings.currency_symbol;
 
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const sp = await searchParams;
+  const rangeKey = sp.range ?? "";
+  const range: DashboardRange = rangeKey in DASHBOARD_RANGES ? (rangeKey as DashboardRange) : "all";
+  const { label: rangeLabel, days: rangeDays, offsetDays } = DASHBOARD_RANGES[range];
+
+  const { since, until: now } = getISTTimeBounds(rangeDays, offsetDays ?? 0);
 
   const [{ data: assignedOrders }, { data: availableOrders }, { data: deliveredTodayOrders }] =
     await Promise.all([
@@ -41,7 +51,8 @@ export default async function DeliveryDashboard() {
         .select("delivery_person_earning, updated_at")
         .eq("delivery_person_id", profile?.id ?? "")
         .eq("status", "delivered")
-        .gte("updated_at", startOfDay.toISOString()),
+        .gte("updated_at", since.toISOString())
+        .lt("updated_at", now.toISOString()),
     ]);
 
   const active = (assignedOrders as Order[]) ?? [];
@@ -62,7 +73,10 @@ export default async function DeliveryDashboard() {
           </h1>
           <p className="text-sm text-stone-500">Here are your deliveries.</p>
         </div>
-        <OnlineToggle initialOnline={profile?.is_online ?? false} />
+        <div className="flex flex-wrap items-center gap-3">
+          <DashboardRangeSelect value={range} />
+          <OnlineToggle initialOnline={profile?.is_online ?? false} />
+        </div>
       </div>
 
       {/* Stats row */}
@@ -76,11 +90,11 @@ export default async function DeliveryDashboard() {
         </div>
         <div className="glass rounded-2xl p-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Today&apos;s earnings</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-500">{rangeLabel} earnings</p>
             <IndianRupee className="h-4 w-4 text-stone-600" />
           </div>
           <p className="mt-2 text-2xl font-extrabold text-lime-400">{formatCurrency(earningsToday, currency)}</p>
-          <p className="mt-1 text-xs text-stone-500">{deliveredToday.length} delivered today</p>
+          <p className="mt-1 text-xs text-stone-500">{deliveredToday.length} delivered {rangeLabel.toLowerCase()}</p>
         </div>
       </div>
 

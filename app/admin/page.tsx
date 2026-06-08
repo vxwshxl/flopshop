@@ -37,7 +37,7 @@ export default async function AdminDashboard({
 
   const sp = await searchParams;
   const rangeKey = sp.range ?? "";
-  const range: DashboardRange = rangeKey in DASHBOARD_RANGES ? (rangeKey as DashboardRange) : "today";
+  const range: DashboardRange = rangeKey in DASHBOARD_RANGES ? (rangeKey as DashboardRange) : "all";
   const { label: rangeLabel, days: rangeDays, offsetDays } = DASHBOARD_RANGES[range];
 
   const { since, until: now } = getISTTimeBounds(rangeDays, offsetDays ?? 0);
@@ -84,8 +84,25 @@ export default async function AdminDashboard({
   // Revenue series across the range — daily buckets for short ranges, monthly
   // for long ones so the chart stays readable.
   const days: { date: string; revenue: number; orders: number }[] = [];
-  if (rangeDays > 31) {
-    const cursor = toISTDate(since);
+  
+  let chartSince = since;
+  if (range === "all") {
+    if (rangeOrders.length > 0) {
+      // Get oldest date in IST to cleanly reset to midnight
+      const oldestIST = toISTDate(rangeOrders[rangeOrders.length - 1].created_at);
+      oldestIST.setHours(0, 0, 0, 0);
+      oldestIST.setDate(oldestIST.getDate() - 1);
+      // Convert back to UTC date object to match how 'since' is structured
+      chartSince = new Date(Date.UTC(oldestIST.getFullYear(), oldestIST.getMonth(), oldestIST.getDate()) - 5.5 * 60 * 60 * 1000);
+    } else {
+      chartSince = new Date(now);
+    }
+  }
+
+  const actualDays = Math.max(1, Math.ceil((now.getTime() - chartSince.getTime()) / (1000 * 60 * 60 * 24)));
+
+  if (actualDays > 31) {
+    const cursor = toISTDate(chartSince);
     cursor.setDate(1);
     const end = toISTDate(now);
     end.setDate(1);
@@ -106,7 +123,7 @@ export default async function AdminDashboard({
     // If we include it in the loop with <= toISTDate(now), we might render an empty next day.
     // So we loop up to until - 1ms.
     const endBound = new Date(now.getTime() - 1);
-    for (let d = toISTDate(since); d <= toISTDate(endBound); d.setDate(d.getDate() + 1)) {
+    for (let d = toISTDate(chartSince); d <= toISTDate(endBound); d.setDate(d.getDate() + 1)) {
       const key = d.toDateString();
       const dayOrders = rangeOrders.filter((o) => toISTDate(o.created_at).toDateString() === key);
       days.push({

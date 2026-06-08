@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Select } from "@/components/ui/input";
 import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
 
@@ -9,13 +9,14 @@ export { DASHBOARD_RANGES, type DashboardRange };
 export function DashboardRangeSelect({ value }: { value: DashboardRange }) {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
 
   function onChange(next: string) {
     const sp = new URLSearchParams(params.toString());
-    if (next === "today") sp.delete("range");
+    if (next === "all") sp.delete("range");
     else sp.set("range", next);
     const qs = sp.toString();
-    router.push(qs ? `/admin?${qs}` : "/admin");
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   return (

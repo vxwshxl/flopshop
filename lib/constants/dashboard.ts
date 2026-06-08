@@ -6,6 +6,7 @@ export const DASHBOARD_RANGES = {
   month: { label: "Last Month", days: 30, offsetDays: 0 },
   "6month": { label: "Last 6 Months", days: 182, offsetDays: 0 },
   year: { label: "Last Year", days: 365, offsetDays: 0 },
+  all: { label: "All Time", days: 36500, offsetDays: 0 },
 } as const;
 
 export type DashboardRange = keyof typeof DASHBOARD_RANGES;

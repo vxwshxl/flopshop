@@ -30,7 +30,7 @@ export function RevenueChart({ data }: { data: { date: string; revenue: number; 
         <XAxis dataKey="date" stroke="#78716c" fontSize={11} />
         <YAxis stroke="#78716c" fontSize={11} />
         <Tooltip contentStyle={tooltipStyle} />
-        <Line type="monotone" dataKey="revenue" stroke="#84cc16" strokeWidth={3} dot={false} name="Revenue ₹" />
+        <Line type="monotone" dataKey="revenue" stroke="#84cc16" strokeWidth={3} dot={data.length === 1 ? { r: 4, fill: "#84cc16" } : false} name="Revenue ₹" />
       </LineChart>
     </ResponsiveContainer>
   );
