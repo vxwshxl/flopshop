@@ -43,10 +43,10 @@ export function ProfileView({ profile }: { profile: Profile }) {
 
   return (
     <div className="mx-auto max-w-md px-4 py-6">
-      <h1 className="mb-1 text-xl font-bold text-gray-900">Your Profile</h1>
-      <p className="mb-5 text-sm text-gray-500">{profile.email}</p>
+      <h1 className="mb-1 text-xl font-bold text-white">Your Profile</h1>
+      <p className="mb-5 text-sm text-white/50">{profile.email}</p>
 
-      <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <form onSubmit={save} className="glass space-y-4 rounded-2xl p-5">
         <div>
           <Label>Full name</Label>
           <Input value={form.full_name} onChange={set("full_name")} />
@@ -65,9 +65,9 @@ export function ProfileView({ profile }: { profile: Profile }) {
           <Label>Hostel block</Label>
           <Input value={form.hostel_block} onChange={set("hostel_block")} />
         </div>
-        <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-          <span className="text-gray-500">Account role</span>
-          <span className="font-semibold capitalize text-gray-900">{profile.role}</span>
+        <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm">
+          <span className="text-white/50">Account role</span>
+          <span className="font-semibold capitalize text-white">{profile.role}</span>
         </div>
         <Button type="submit" loading={saving} className="w-full">
           Save changes

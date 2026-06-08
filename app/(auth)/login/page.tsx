@@ -45,8 +45,8 @@ function LoginForm() {
 
   return (
     <div className="text-center">
-      <h1 className="mb-1 text-2xl font-bold text-gray-900">Welcome to FlopShop</h1>
-      <p className="mb-8 text-sm text-gray-500">
+      <h1 className="mb-1 text-2xl font-bold text-white">Welcome to FlopShop</h1>
+      <p className="mb-8 text-sm text-white/60">
         Sign in with your Google account to order snacks and track deliveries.
       </p>
 
@@ -61,7 +61,7 @@ function LoginForm() {
         Continue with Google
       </Button>
 
-      <p className="mt-6 text-xs text-gray-400">
+      <p className="mt-6 text-xs text-white/40">
         Browsing & pickup don&apos;t need an account — sign in for room delivery and order history.
       </p>
     </div>
