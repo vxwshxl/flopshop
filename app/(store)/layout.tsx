@@ -1,7 +1,7 @@
 import { Navbar, type NavUser } from "@/components/store/Navbar";
 import { Marquee } from "@/components/store/Marquee";
 import { Footer } from "@/components/store/Footer";
-import { ProfileCompletionPrompt } from "@/components/store/ProfileCompletionPrompt";
+import { SettingsProvider } from "@/lib/hooks/useSettings";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import type { Role } from "@/lib/types";
@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSettings();
-  const isOpen = settings.shop_is_open !== "false";
 
   // Resolve the signed-in user server-side (the auth cookie is HttpOnly, so the
   // browser can't read it — the navbar must be told who is logged in).
@@ -33,12 +32,13 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-black">
-      <Marquee />
-      <Navbar shopName={settings.shop_name} isOpen={isOpen} user={navUser} role={role} />
-      <ProfileCompletionPrompt />
-      <div className="flex-1">{children}</div>
-      <Footer />
-    </div>
+    <SettingsProvider initial={settings}>
+      <div className="flex min-h-screen flex-col bg-black">
+        <Marquee />
+        <Navbar shopName={settings.shop_name} user={navUser} role={role} />
+        <div className="flex-1">{children}</div>
+        <Footer />
+      </div>
+    </SettingsProvider>
   );
 }

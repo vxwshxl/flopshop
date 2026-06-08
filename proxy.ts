@@ -9,8 +9,12 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except static assets and image files.
+     * Match all request paths except static assets, image files, and the
+     * /auth/* routes. The auth routes (signout, OAuth callback) write session
+     * cookies themselves; running the session-refreshing proxy on them re-sets
+     * the auth cookie and clobbers sign-out's deletion, so the user never
+     * actually gets logged out.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|auth/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

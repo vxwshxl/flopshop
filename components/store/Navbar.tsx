@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { useCart } from "@/lib/hooks/useCart";
+import { useSettings } from "@/lib/hooks/useSettings";
+import { createClient } from "@/lib/supabase/client";
 import type { Role } from "@/lib/types";
 
 export interface NavUser {
@@ -15,21 +17,27 @@ export interface NavUser {
 
 export function Navbar({
   shopName = "FlopShop",
-  isOpen = true,
   user = null,
   role = null,
 }: {
   shopName?: string;
-  isOpen?: boolean;
   user?: NavUser | null;
   role?: Role | null;
 }) {
   const items = useCart((s) => s.items);
   const hydrated = useCart((s) => s.hydrated);
+  const { isOpen } = useSettings();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const count = hydrated ? items.reduce((s, i) => s + i.quantity, 0) : 0;
   const firstName = user?.name?.split(" ")[0] ?? "there";
+
+  async function signOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    // Hard navigation so server components re-render in the signed-out state.
+    window.location.href = "/";
+  }
 
   useEffect(() => {
     const close = () => setMenuOpen(false);
@@ -104,11 +112,14 @@ export function Navbar({
                     )}
                   </div>
 
-                  <form action="/auth/signout" method="post" className="border-t border-white/10 p-2">
-                    <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-400 hover:bg-white/5">
+                  <div className="border-t border-white/10 p-2">
+                    <button
+                      onClick={signOut}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-400 hover:bg-white/5"
+                    >
                       <LogOut className="h-4 w-4" /> Sign out
                     </button>
-                  </form>
+                  </div>
                 </div>
               )}
             </div>

@@ -44,7 +44,12 @@ export function Select({ className, value = "", onChange, disabled, children }: 
       const props = child.props as { value?: string; children?: React.ReactNode };
       return { value: String(props.value ?? ""), label: props.children };
     });
-  const selected = options.find((option) => option.value === value) ?? options[0];
+  // Prefer the matching option. If a value is set but not (yet) in the list —
+  // e.g. options still loading, or a saved hostel that's since been removed —
+  // show the value itself rather than silently falling back to the placeholder.
+  const selected =
+    options.find((option) => option.value === value) ??
+    (value ? { value, label: value } : options[0]);
 
   const place = React.useCallback(() => {
     const el = triggerRef.current;

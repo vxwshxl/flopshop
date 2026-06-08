@@ -235,6 +235,13 @@ CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 CREATE POLICY "Admin manages settings" ON settings FOR ALL USING (is_admin());
 
 -- ============================================================
+-- REALTIME: expose settings so the storefront reacts to
+-- shop-open/closed (and other) changes without a refresh.
+-- Without this, postgres_changes events never fire.
+-- ============================================================
+ALTER PUBLICATION supabase_realtime ADD TABLE settings;
+
+-- ============================================================
 -- STORAGE: product images bucket (run after creating schema)
 -- ============================================================
 INSERT INTO storage.buckets (id, name, public)
