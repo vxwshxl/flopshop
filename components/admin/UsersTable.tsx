@@ -150,25 +150,44 @@ export function UsersTable({
         ) : history.length === 0 ? (
           <p className="py-6 text-center text-sm text-black/50 dark:text-white/50">No orders.</p>
         ) : (
-          <div className="space-y-2">
-            {history.map((o) => (
-              <Link
-                key={o.id}
-                href={`/admin/orders/${o.id}`}
-                className="flex items-center justify-between rounded-lg border border-black/10 p-2.5 text-sm transition hover:border-yellow-400 hover:bg-yellow-400/10 dark:border-white/10"
-              >
-                <div>
-                  <p className="font-medium text-black dark:text-white">{o.order_number}</p>
-                  <p className="text-xs text-black/50 dark:text-white/50">
-                    {formatDate(o.created_at)} · {o.status}
-                  </p>
-                </div>
-                <span className="font-semibold text-black dark:text-white">{formatCurrency(o.total_amount, currency)}</span>
-              </Link>
-            ))}
-          </div>
+          <PaginatedOrders orders={history} currency={currency} />
         )}
       </Modal>
+    </div>
+  );
+}
+
+function PaginatedOrders({ orders, currency }: { orders: Order[]; currency: string }) {
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(orders, 5);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        {pageItems.map((o) => (
+          <Link
+            key={o.id}
+            href={`/admin/orders/${o.id}`}
+            className="flex items-center justify-between rounded-lg border border-black/10 p-2.5 text-sm transition hover:border-yellow-400 hover:bg-yellow-400/10 dark:border-white/10"
+          >
+            <div>
+              <p className="font-medium text-black dark:text-white">{o.order_number}</p>
+              <p className="text-xs text-black/50 dark:text-white/50">
+                {formatDate(o.created_at)} · {o.status}
+              </p>
+            </div>
+            <span className="font-semibold text-black dark:text-white">{formatCurrency(o.total_amount, currency)}</span>
+          </Link>
+        ))}
+      </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        perPage={perPage}
+        total={total}
+        onPage={setPage}
+        onPerPage={setPerPage}
+        pageSizes={[5, 10, 20]}
+      />
     </div>
   );
 }

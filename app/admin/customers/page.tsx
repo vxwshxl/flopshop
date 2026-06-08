@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") redirect("/login?redirect=/admin/customers");
+  if (!profile || profile.role !== "admin") redirect("/");
 
   const supabase = await createClient();
   const { data } = await supabase.from("customers").select("*").order("name");

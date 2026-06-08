@@ -37,6 +37,7 @@ export function Pagination({
   total,
   onPage,
   onPerPage,
+  pageSizes = PAGE_SIZES,
 }: {
   page: number;
   totalPages: number;
@@ -44,6 +45,7 @@ export function Pagination({
   total: number;
   onPage: (p: number) => void;
   onPerPage: (n: number) => void;
+  pageSizes?: number[];
 }) {
   if (total === 0) return null;
   const start = (page - 1) * perPage + 1;
@@ -58,7 +60,7 @@ export function Pagination({
           onChange={(e) => onPerPage(Number(e.target.value))}
           className="h-8 rounded-lg border border-black/15 bg-white px-2 text-sm text-black focus:border-yellow-400 focus:outline-none dark:border-white/15 dark:bg-black dark:text-white"
         >
-          {PAGE_SIZES.map((s) => (
+          {pageSizes.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>

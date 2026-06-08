@@ -8,7 +8,7 @@ import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
 import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
 import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
-import { formatCurrency } from "@/lib/utils/formatters";
+import { formatCurrency, getISTTimeBounds, toISTDate } from "@/lib/utils/formatters";
 import type { Category, OrderStatus, Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -38,12 +38,9 @@ export default async function AdminDashboard({
   const sp = await searchParams;
   const rangeKey = sp.range ?? "";
   const range: DashboardRange = rangeKey in DASHBOARD_RANGES ? (rangeKey as DashboardRange) : "today";
-  const { label: rangeLabel, days: rangeDays } = DASHBOARD_RANGES[range];
+  const { label: rangeLabel, days: rangeDays, offsetDays } = DASHBOARD_RANGES[range];
 
-  const now = new Date();
-  const since = new Date();
-  since.setDate(since.getDate() - (rangeDays - 1));
-  since.setHours(0, 0, 0, 0);
+  const { since, until: now } = getISTTimeBounds(rangeDays, offsetDays ?? 0);
 
   const [{ data: ordersRaw }, { data: products }, { data: categories }, { data: profiles }] = await Promise.all([
     supabase
@@ -52,6 +49,7 @@ export default async function AdminDashboard({
         "id, order_number, customer_name, order_type, status, total_amount, created_at, delivery_person_earning, admin_delivery_earning, order_items(quantity, total_price, product:products(category_id))"
       )
       .gte("created_at", since.toISOString())
+      .lt("created_at", now.toISOString())
       .order("created_at", { ascending: false }),
     supabase.from("products").select("*").eq("is_active", true),
     supabase.from("categories").select("*"),
@@ -87,11 +85,13 @@ export default async function AdminDashboard({
   // for long ones so the chart stays readable.
   const days: { date: string; revenue: number; orders: number }[] = [];
   if (rangeDays > 31) {
-    const cursor = new Date(since.getFullYear(), since.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), 1);
+    const cursor = toISTDate(since);
+    cursor.setDate(1);
+    const end = toISTDate(now);
+    end.setDate(1);
     while (cursor <= end) {
       const monthOrders = rangeOrders.filter((o) => {
-        const od = new Date(o.created_at);
+        const od = toISTDate(o.created_at);
         return od.getFullYear() === cursor.getFullYear() && od.getMonth() === cursor.getMonth();
       });
       days.push({
@@ -102,9 +102,13 @@ export default async function AdminDashboard({
       cursor.setMonth(cursor.getMonth() + 1);
     }
   } else {
-    for (let d = new Date(since); d <= now; d.setDate(d.getDate() + 1)) {
+    // If it's exact end of day, now might be 00:00:00 of the next day.
+    // If we include it in the loop with <= toISTDate(now), we might render an empty next day.
+    // So we loop up to until - 1ms.
+    const endBound = new Date(now.getTime() - 1);
+    for (let d = toISTDate(since); d <= toISTDate(endBound); d.setDate(d.getDate() + 1)) {
       const key = d.toDateString();
-      const dayOrders = rangeOrders.filter((o) => new Date(o.created_at).toDateString() === key);
+      const dayOrders = rangeOrders.filter((o) => toISTDate(o.created_at).toDateString() === key);
       days.push({
         date: new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
         revenue: dayOrders.reduce((s, o) => s + Number(o.total_amount), 0),

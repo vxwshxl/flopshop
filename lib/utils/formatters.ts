@@ -37,3 +37,39 @@ export function formatTime(date: string | Date): string {
 export function toISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+export function getISTNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+}
+
+export function toISTDate(date: string | Date) {
+  return new Date(new Date(date).toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+}
+
+export function getISTTimeBounds(days: number, offsetDays = 0) {
+  const istNow = getISTNow();
+  
+  // Set to start of day in IST
+  istNow.setHours(0, 0, 0, 0);
+  istNow.setDate(istNow.getDate() - (days - 1) - offsetDays);
+  
+  // Convert IST start of day back to UTC
+  const since = new Date(Date.UTC(istNow.getFullYear(), istNow.getMonth(), istNow.getDate()) - 5.5 * 60 * 60 * 1000);
+  
+  let until = new Date(); // Actual current UTC time
+  if (offsetDays > 0 || days > 1) {
+    // If not "today" up to now, we might want the end of the day or just up to current time.
+    // Actually, "Yesterday" means until the start of Today.
+    // "Last Week" usually means last 7 days up to now.
+    // Let's standardise: if offsetDays > 0, until is the exact end of that range in IST (00:00 of the day after).
+    // If offsetDays = 0, until is just now.
+    if (offsetDays > 0) {
+      const istUntil = new Date(istNow);
+      istUntil.setDate(istUntil.getDate() + days);
+      until = new Date(Date.UTC(istUntil.getFullYear(), istUntil.getMonth(), istUntil.getDate()) - 5.5 * 60 * 60 * 1000);
+    }
+  }
+  
+  return { since, until };
+}
+

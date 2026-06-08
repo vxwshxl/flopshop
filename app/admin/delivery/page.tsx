@@ -22,7 +22,7 @@ export default async function AdminDeliveryPage() {
     supabase
       .from("profiles")
       .select("id, full_name, email, phone, room_number, hostel_block, is_online, last_active_at, created_at")
-      .eq("role", "delivery"),
+      .in("role", ["delivery", "admin"]),
     supabase
       .from("orders")
       .select("id, order_number, customer_name, delivery_person_id, status, delivery_person_earning, total_amount, updated_at")

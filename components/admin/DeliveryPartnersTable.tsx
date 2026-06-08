@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
@@ -141,35 +142,61 @@ export function DeliveryPartnersTable({
 
             <div className="mt-6">
               <h4 className="mb-3 font-semibold text-stone-300">Recent Deliveries</h4>
-              <div className="max-h-60 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
-                {selected.recentDeliveries.length === 0 ? (
-                  <p className="text-sm text-stone-500">No deliveries yet.</p>
-                ) : (
-                  selected.recentDeliveries.map((o) => (
-                    <div
-                      key={o.id}
-                      className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 p-3 text-sm"
-                    >
-                      <div>
-                        <p className="font-semibold text-white">{o.order_number}</p>
-                        <p className="text-xs text-stone-400">
-                          {o.customer_name} • {formatDateTime(o.updated_at)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-lime-400">
-                          +{formatCurrency(o.delivery_person_earning, currency)}
-                        </span>
-                        <OrderStatusBadge status={o.status} />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              {selected.recentDeliveries.length === 0 ? (
+                <p className="text-sm text-stone-500">No deliveries yet.</p>
+              ) : (
+                <PaginatedDeliveries deliveries={selected.recentDeliveries} currency={currency} />
+              )}
             </div>
           </div>
         )}
       </Modal>
     </>
+  );
+}
+
+function PaginatedDeliveries({
+  deliveries,
+  currency,
+}: {
+  deliveries: DeliveryPartnerRow["recentDeliveries"];
+  currency: string;
+}) {
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(deliveries, 5);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        {pageItems.map((o) => (
+          <Link
+            key={o.id}
+            href={`/admin/orders/${o.id}`}
+            className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 p-3 text-sm transition hover:border-lime-400 hover:bg-lime-400/10"
+          >
+            <div>
+              <p className="font-semibold text-white">{o.order_number}</p>
+              <p className="text-xs text-stone-400">
+                {o.customer_name} • {formatDateTime(o.updated_at)}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-lime-400">
+                +{formatCurrency(o.delivery_person_earning, currency)}
+              </span>
+              <OrderStatusBadge status={o.status} />
+            </div>
+          </Link>
+        ))}
+      </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        perPage={perPage}
+        total={total}
+        onPage={setPage}
+        onPerPage={setPerPage}
+        pageSizes={[5, 10, 20]}
+      />
+    </div>
   );
 }

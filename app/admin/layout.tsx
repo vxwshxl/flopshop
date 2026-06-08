@@ -6,8 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
-  if (!profile) redirect("/login?redirect=/admin");
-  if (profile.role !== "admin") redirect("/");
+  if (!profile || profile.role !== "admin") redirect("/");
 
   const settings = await getSettings();
 

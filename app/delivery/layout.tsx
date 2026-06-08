@@ -6,8 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DeliveryLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
-  if (!profile) redirect("/login?redirect=/delivery");
-  if (profile.role !== "delivery" && profile.role !== "admin") redirect("/");
+  if (!profile || (profile.role !== "delivery" && profile.role !== "admin")) redirect("/");
 
   const settings = await getSettings();
 
