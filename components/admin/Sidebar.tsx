@@ -48,6 +48,12 @@ const sections: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
+    title: "Setup",
+    items: [
+      { href: "/admin/hostels", label: "Hostels", icon: Store },
+    ],
+  },
+  {
     title: "Finance",
     items: [
       { href: "/admin/invoices", label: "Invoices", icon: FileText },

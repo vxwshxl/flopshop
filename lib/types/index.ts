@@ -1,7 +1,3 @@
-// ============================================================
-// FlopShop — shared TypeScript types
-// ============================================================
-
 export type Role = "user" | "delivery" | "admin";
 
 export type OrderType = "pickup" | "delivery";
@@ -16,6 +12,14 @@ export type OrderStatus =
 
 export type PaymentMethod = "cash" | "upi";
 export type PaymentStatus = "pending" | "paid";
+
+export interface Hostel {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Profile {
   id: string;

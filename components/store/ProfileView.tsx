@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
-import type { Profile } from "@/lib/types";
+import { Input, Label, Select } from "@/components/ui/input";
+import type { Profile, Hostel } from "@/lib/types";
 
 export function ProfileView({ profile }: { profile: Profile }) {
   const router = useRouter();
+  const [hostels, setHostels] = useState<Hostel[]>([]);
   const [form, setForm] = useState({
     full_name: profile.full_name ?? "",
     phone: profile.phone ?? "",
@@ -18,7 +19,16 @@ export function ProfileView({ profile }: { profile: Profile }) {
   });
   const [saving, setSaving] = useState(false);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  useEffect(() => {
+    async function loadHostels() {
+      const supabase = createClient();
+      const { data } = await supabase.from("hostels").select("*").eq("is_active", true);
+      setHostels((data as Hostel[]) ?? []);
+    }
+    loadHostels();
+  }, []);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement> | { target: { value: string } }) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function save(e: React.FormEvent) {
@@ -57,16 +67,23 @@ export function ProfileView({ profile }: { profile: Profile }) {
             <Input value={form.phone} onChange={set("phone")} />
           </div>
           <div>
-            <Label>Room number</Label>
+            <Label>Room No.</Label>
             <Input value={form.room_number} onChange={set("room_number")} />
           </div>
         </div>
         <div>
-          <Label>Hostel block</Label>
-          <Input value={form.hostel_block} onChange={set("hostel_block")} />
+          <Label>Hostel</Label>
+          <Select value={form.hostel_block} onChange={set("hostel_block")}>
+            <option value="">Select hostel</option>
+            {hostels.map((h) => (
+              <option key={h.id} value={h.name}>
+                {h.name}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm">
-          <span className="text-white/50">Account role</span>
+          <span className="text-white/50">Account</span>
           <span className="font-semibold capitalize text-white">{profile.role}</span>
         </div>
         <Button type="submit" loading={saving} className="w-full">

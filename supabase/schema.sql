@@ -17,6 +17,17 @@ CREATE TABLE profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- HOSTELS --------------------------------------------------
+CREATE TABLE hostels (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO hostels (name) VALUES ('Heyansh House');
+
 -- Auto-create profile on signup.
 -- NOTE: schema-qualified + fixed search_path so it works when fired by the
 -- auth service (whose search_path does not include public).
