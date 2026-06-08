@@ -16,14 +16,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const supabase = await createClient();
   const settings = await getSettings();
 
-  const { data } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .eq("id", id)
-    .single();
+  const [{ data }, { data: auth }] = await Promise.all([
+    supabase.from("orders").select("*, order_items(*)").eq("id", id).single(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!data) notFound();
   const order = data as Order;
+  // Only the customer who placed the order sees the OTP — delivery staff and
+  // admins must ask for it to verify handover.
+  const isOwner = !!auth.user && order.user_id === auth.user.id;
 
   // Build a simple progress timeline (skips cancelled which is terminal).
   const flow =
@@ -66,7 +68,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       )}
 
       <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-stone-900">
-        <Invoice order={order} settings={settings} showOtp />
+        {/* OTP only for the owner, and only until handover (delivered/cancelled). */}
+        <Invoice
+          order={order}
+          settings={settings}
+          showOtp={isOwner && order.status !== "delivered" && order.status !== "cancelled"}
+        />
       </div>
     </div>
   );

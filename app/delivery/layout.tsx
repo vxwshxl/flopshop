@@ -25,6 +25,9 @@ export default async function DeliveryLayout({ children }: { children: React.Rea
             <Link href="/delivery/history" className="rounded-lg px-3 py-1.5 text-gray-300 hover:bg-white/10">
               History
             </Link>
+            <Link href="/" className="rounded-lg px-3 py-1.5 text-gray-300 hover:bg-white/10">
+              Shop
+            </Link>
             <form action="/auth/signout" method="post">
               <button className="rounded-lg px-3 py-1.5 text-gray-300 hover:bg-white/10">Sign out</button>
             </form>

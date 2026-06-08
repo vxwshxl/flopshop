@@ -184,6 +184,10 @@ export async function updateOrderStatus(
   } else {
     updatePayload.cancel_reason = null;
   }
+  // Completion goes through OTP verification, so payment is settled on handover.
+  if (newStatus === "delivered") {
+    updatePayload.payment_status = "paid";
+  }
 
   const { error: updErr } = await supabase
     .from("orders")

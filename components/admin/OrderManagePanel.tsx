@@ -114,6 +114,8 @@ export function OrderManagePanel({
   const settable = adminSettableStatuses(order.order_type);
   // Keep the current status visible in the dropdown even if admin can't set it.
   const statusOptions = settable.includes(order.status) ? settable : [order.status, ...settable];
+  // Delivered = OTP-verified, cancelled = terminal. Both are final: no edits.
+  const finalized = order.status === "delivered" || order.status === "cancelled";
 
   return (
     <AdminCard title="Manage Order">
@@ -145,7 +147,7 @@ export function OrderManagePanel({
           <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Set status</p>
           <Select
             value={order.status}
-            disabled={pending}
+            disabled={pending || finalized}
             onChange={(e) => requestStatusChange(e.target.value as OrderStatus)}
           >
             {statusOptions.map((s) => (
@@ -154,6 +156,13 @@ export function OrderManagePanel({
               </option>
             ))}
           </Select>
+          {finalized && (
+            <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+              {order.status === "delivered"
+                ? "Order is complete (OTP verified) — status is locked."
+                : "Order is cancelled — status is locked."}
+            </p>
+          )}
         </div>
 
         {order.order_type === "delivery" && (

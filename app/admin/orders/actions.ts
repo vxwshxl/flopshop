@@ -37,16 +37,18 @@ export async function setOrderStatusAction(
 
   const isDelivery = order.order_type === "delivery";
   const isDispatchOrComplete = status === "out_for_delivery" || status === "delivered";
+  const isAssignedToActor = order.delivery_person_id === actor.id;
 
-  if (actor.role === "delivery") {
-    if (!isDelivery || order.delivery_person_id !== actor.id)
-      return { ok: false, error: "Not your order." };
-    if (!isDispatchOrComplete) return { ok: false, error: "Not allowed." };
-  } else if (isDelivery && isDispatchOrComplete) {
-    return {
-      ok: false,
-      error: "Only the assigned delivery partner can mark a delivery order delivered.",
-    };
+  if (isDelivery && isDispatchOrComplete) {
+    // Dispatch / completion of a delivery is reserved for whoever is assigned to
+    // it — a delivery partner OR an admin who claimed it on the delivery page.
+    if (!isAssignedToActor) {
+      return { ok: false, error: "Only the assigned delivery partner can dispatch or complete this order." };
+    }
+  } else if (actor.role === "delivery") {
+    // Delivery partners may only dispatch/complete their assigned orders (above);
+    // they can't set any other status.
+    return { ok: false, error: "Not allowed." };
   }
 
   if (status === "delivered") {
@@ -70,13 +72,13 @@ export async function setOrderStatusAction(
 }
 
 export async function claimDeliveryOrderAction(orderId: string) {
-  const actor = await requireRole(["delivery"]);
+  const actor = await requireRole(["delivery", "admin"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
   const admin = createAdminClient();
   const { data: order, error } = await admin
     .from("orders")
-    .select("order_type, status, delivery_person_id")
+    .select("order_type, status, delivery_person_id, delivery_fee")
     .eq("id", orderId)
     .single();
 
@@ -93,6 +95,12 @@ export async function claimDeliveryOrderAction(orderId: string) {
   };
   if (order.status === "pending") {
     updatePayload.status = "confirmed";
+  }
+  // When an admin delivers it themselves, the whole delivery fee stays with the
+  // shop — there's no delivery partner to pay out.
+  if (actor.role === "admin") {
+    updatePayload.delivery_person_earning = 0;
+    updatePayload.admin_delivery_earning = Number(order.delivery_fee ?? 0);
   }
 
   const { error: updErr } = await admin

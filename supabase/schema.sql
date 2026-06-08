@@ -102,6 +102,7 @@ CREATE TABLE orders (
   delivery_person_id UUID REFERENCES profiles(id),
   payment_method TEXT DEFAULT 'cash' CHECK (payment_method IN ('cash', 'upi')),
   payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid')),
+  otp_code TEXT,
   notes TEXT,
   is_manual BOOLEAN DEFAULT false,
   invoice_number TEXT UNIQUE,
@@ -235,11 +236,12 @@ CREATE POLICY "Public read settings" ON settings FOR SELECT USING (true);
 CREATE POLICY "Admin manages settings" ON settings FOR ALL USING (is_admin());
 
 -- ============================================================
--- REALTIME: expose settings so the storefront reacts to
--- shop-open/closed (and other) changes without a refresh.
+-- REALTIME: expose tables the UI reacts to in real time —
+-- settings (shop open/closed) and orders (live delivery queue).
 -- Without this, postgres_changes events never fire.
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE settings;
+ALTER PUBLICATION supabase_realtime ADD TABLE orders;
 
 -- ============================================================
 -- STORAGE: product images bucket (run after creating schema)

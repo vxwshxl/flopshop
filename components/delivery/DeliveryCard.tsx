@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MapPin, Phone, Package } from "lucide-react";
 import toast from "react-hot-toast";
@@ -104,6 +105,11 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
           You earn {formatCurrency(order.delivery_person_earning, currency)}
         </span>
         <div className="flex gap-2">
+          <Link href={`/orders/${order.id}`}>
+            <Button size="sm" variant="outline">
+              Details
+            </Button>
+          </Link>
           {order.status !== "out_for_delivery" && order.status !== "delivered" && (
             <Button size="sm" variant="outline" disabled={pending} onClick={() => update("out_for_delivery")}>
               Pick up
