@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { OrdersTable } from "@/components/admin/OrdersTable";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Order, Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function AdminOrdersPage() {
 
   return (
     <div>
+      <RealtimeRefresh table="orders" channel="admin:orders" />
       <PageHeader title="Orders" subtitle={`${orders?.length ?? 0} total orders`} />
       <OrdersTable
         orders={(orders as Order[]) ?? []}

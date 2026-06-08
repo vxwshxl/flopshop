@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -41,22 +41,53 @@ export function ProductsTable({
   );
   const [savedId, setSavedId] = useState<string | null>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Edits not yet persisted (id -> value). Used to flush on blur / app-background
+  // so mobile saves don't get lost when the keyboard closes or the tab hides.
+  const dirty = useRef<Record<string, string>>({});
+
+  async function saveStock(id: string) {
+    const value = dirty.current[id];
+    if (value === undefined) return;
+    delete dirty.current[id];
+    if (timers.current[id]) {
+      clearTimeout(timers.current[id]);
+      delete timers.current[id];
+    }
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("products")
+      .update({ current_stock: parseInt(value) || 0 })
+      .eq("id", id);
+    if (error) {
+      dirty.current[id] = value; // keep it pending so a later flush retries
+      return toast.error(`Stock: ${error.message}`);
+    }
+    setSavedId(id);
+    setTimeout(() => setSavedId((cur) => (cur === id ? null : cur)), 1200);
+  }
 
   function onStockChange(id: string, value: string) {
     const clean = value.replace(/[^0-9]/g, "");
     setStocks((s) => ({ ...s, [id]: clean }));
+    dirty.current[id] = clean;
     if (timers.current[id]) clearTimeout(timers.current[id]);
-    timers.current[id] = setTimeout(async () => {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("products")
-        .update({ current_stock: parseInt(clean) || 0 })
-        .eq("id", id);
-      if (error) return toast.error(`Stock: ${error.message}`);
-      setSavedId(id);
-      setTimeout(() => setSavedId((cur) => (cur === id ? null : cur)), 1200);
-    }, 500);
+    // Auto-save shortly after typing stops (well within 2.5s).
+    timers.current[id] = setTimeout(() => saveStock(id), 800);
   }
+
+  // Safety net for mobile: persist any pending edits when the field loses focus
+  // (keyboard closes) or the page is hidden/backgrounded.
+  useEffect(() => {
+    const flush = () => Object.keys(dirty.current).forEach((id) => saveStock(id));
+    const onHide = () => document.visibilityState === "hidden" && flush();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -170,6 +201,7 @@ export function ProductsTable({
                       <input
                         value={stocks[p.id] ?? ""}
                         onChange={(e) => onStockChange(p.id, e.target.value)}
+                        onBlur={() => saveStock(p.id)}
                         inputMode="numeric"
                         aria-label={`Stock for ${p.name}`}
                         className={`w-16 rounded-md border border-black/15 bg-transparent px-2 py-1 text-sm font-bold focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 ${stockColorByVal(p, stocks[p.id])}`}

@@ -14,30 +14,12 @@ function isMissingProfile(profile: { phone: string | null; room_number: string |
   return !profile.phone?.trim() || !profile.room_number?.trim() || !profile.hostel_block?.trim();
 }
 
-export function ProfileCompletionPrompt() {
+export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
   const { profile, isAuthenticated, loading } = useUser();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [hostels, setHostels] = useState<Hostel[]>([]);
   const [form, setForm] = useState({ phone: "", room_number: "", hostel_block: "" });
   const router = useRouter();
-
-  useEffect(() => {
-    async function loadHostels() {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase.from("hostels").select("*").eq("is_active", true).order("name");
-        if (error) {
-          console.error("Error loading hostels:", error);
-          return;
-        }
-        setHostels((data as Hostel[]) ?? []);
-      } catch (e) {
-        console.error("Failed to load hostels:", e);
-      }
-    }
-    loadHostels();
-  }, []);
 
   useEffect(() => {
     if (loading || !isAuthenticated || !profile) return;

@@ -1,6 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
-import type { Profile, SettingsMap } from "@/lib/types";
+import type { Hostel, Profile, SettingsMap } from "@/lib/types";
+
+/** Active hostels (server). Fetched server-side so the dropdown never depends
+ *  on a flaky client query. */
+export async function getActiveHostels(): Promise<Hostel[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("hostels")
+    .select("*")
+    .eq("is_active", true)
+    .order("name");
+  return (data as Hostel[] | null) ?? [];
+}
 
 /** Current auth user's profile (server). Returns null if signed out. */
 export async function getCurrentProfile(): Promise<Profile | null> {

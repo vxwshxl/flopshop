@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSettings } from "@/lib/supabase/queries";
+import { getSettings, getActiveHostels } from "@/lib/supabase/queries";
 import { StoreGrid } from "@/components/store/StoreGrid";
 import { ProfileCompletionPrompt } from "@/components/store/ProfileCompletionPrompt";
 import { ShopClosedBanner } from "@/components/store/ShopClosedBanner";
@@ -11,18 +11,19 @@ export default async function HomePage() {
   const supabase = await createClient();
   const settings = await getSettings();
 
-  const [{ data: categories }, { data: products }] = await Promise.all([
+  const [{ data: categories }, { data: products }, hostels] = await Promise.all([
     supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
     supabase
       .from("products")
       .select("*, category:categories(*)")
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
+    getActiveHostels(),
   ]);
 
   return (
     <main>
-      <ProfileCompletionPrompt />
+      <ProfileCompletionPrompt hostels={hostels} />
       <ShopClosedBanner />
       <div className="mx-auto max-w-5xl px-4 pt-5">
         <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">{settings.shop_tagline}</h1>

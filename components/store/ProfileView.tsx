@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -8,9 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import type { Profile, Hostel } from "@/lib/types";
 
-export function ProfileView({ profile }: { profile: Profile }) {
+export function ProfileView({ profile, hostels }: { profile: Profile; hostels: Hostel[] }) {
   const router = useRouter();
-  const [hostels, setHostels] = useState<Hostel[]>([]);
   const [form, setForm] = useState({
     full_name: profile.full_name ?? "",
     phone: profile.phone ?? "",
@@ -18,23 +17,6 @@ export function ProfileView({ profile }: { profile: Profile }) {
     hostel_block: profile.hostel_block ?? "",
   });
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    async function loadHostels() {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase.from("hostels").select("*").eq("is_active", true).order("name");
-        if (error) {
-          console.error("Error loading hostels:", error);
-          return;
-        }
-        setHostels((data as Hostel[]) ?? []);
-      } catch (e) {
-        console.error("Failed to load hostels:", e);
-      }
-    }
-    loadHostels();
-  }, []);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement> | { target: { value: string } }) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
