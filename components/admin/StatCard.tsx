@@ -62,7 +62,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">{title}</h1>
-        {subtitle && <p className="text-sm text-stone-500 dark:text-stone-400">{subtitle}</p>}
+        {subtitle && <div className="text-sm text-stone-500 dark:text-stone-400">{subtitle}</div>}
       </div>
       {action}
     </div>
