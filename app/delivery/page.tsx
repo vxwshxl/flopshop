@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { DeliveryCard } from "@/components/delivery/DeliveryCard";
+import { AvailableDeliveryCard } from "@/components/delivery/AvailableDeliveryCard";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Truck } from "lucide-react";
 import type { Order } from "@/lib/types";
@@ -13,17 +14,27 @@ export default async function DeliveryDashboard() {
   const settings = await getSettings();
   const currency = settings.currency_symbol;
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .eq("delivery_person_id", profile?.id ?? "")
-    .order("created_at", { ascending: false });
+  const [{ data: assignedOrders }, { data: availableOrders }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("delivery_person_id", profile?.id ?? "")
+      .not("status", "in", "(delivered,cancelled)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .is("delivery_person_id", null)
+      .eq("order_type", "delivery")
+      .not("status", "in", "(delivered,cancelled)")
+      .order("created_at", { ascending: false }),
+  ]);
 
-  const list = (orders as Order[]) ?? [];
-  const active = list.filter((o) => o.status !== "delivered" && o.status !== "cancelled");
+  const active = (assignedOrders as Order[]) ?? [];
+  const available = (availableOrders as Order[]) ?? [];
 
   const todayStr = new Date().toDateString();
-  const deliveredToday = list.filter(
+  const deliveredToday = active.filter(
     (o) => o.status === "delivered" && new Date(o.updated_at).toDateString() === todayStr
   );
   const earningsToday = deliveredToday.reduce((s, o) => s + Number(o.delivery_person_earning), 0);
@@ -45,19 +56,43 @@ export default async function DeliveryDashboard() {
         </div>
       </div>
 
-      <h2 className="mb-3 mt-7 text-lg font-semibold text-white">Active orders</h2>
-      {active.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border border-white/10 bg-[#1a1d23] py-12 text-center text-gray-500">
-          <Truck className="mb-2 h-10 w-10" />
-          No active deliveries right now.
+      <section className="mt-7">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">Available orders</h2>
+          <span className="text-sm text-gray-400">{available.length} ready to claim</span>
         </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {active.map((o) => (
-            <DeliveryCard key={o.id} order={o} currency={currency} />
-          ))}
+        {available.length === 0 ? (
+          <div className="rounded-xl border border-white/10 bg-[#1a1d23] py-12 text-center text-gray-500">
+            <Truck className="mx-auto mb-2 h-10 w-10" />
+            No available orders to claim.
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {available.map((o) => (
+              <AvailableDeliveryCard key={o.id} order={o} currency={currency} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-7">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">My active orders</h2>
+          <span className="text-sm text-gray-400">{active.length} assigned orders</span>
         </div>
-      )}
+        {active.length === 0 ? (
+          <div className="flex flex-col items-center rounded-xl border border-white/10 bg-[#1a1d23] py-12 text-center text-gray-500">
+            <Truck className="mb-2 h-10 w-10" />
+            No active deliveries right now.
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {active.map((o) => (
+              <DeliveryCard key={o.id} order={o} currency={currency} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

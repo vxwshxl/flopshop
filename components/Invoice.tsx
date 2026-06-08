@@ -2,7 +2,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import type { Order, SettingsMap } from "@/lib/types";
 
 /** Printable invoice. Wrap with className="print-area" to isolate for printing. */
-export function Invoice({ order, settings }: { order: Order; settings: SettingsMap }) {
+export function Invoice({ order, settings, showOtp = false }: { order: Order; settings: SettingsMap; showOtp?: boolean }) {
   const currency = settings.currency_symbol ?? "₹";
   return (
     <div className="print-area mx-auto max-w-md bg-white text-gray-900">
@@ -62,6 +62,15 @@ export function Invoice({ order, settings }: { order: Order; settings: SettingsM
               {formatCurrency(order.admin_delivery_earning, currency)}
             </p>
           </>
+        )}
+        {showOtp && order.otp_code && (
+          <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+            <p className="font-semibold">Order OTP</p>
+            <p className="mt-2 text-xl tracking-[0.35em] font-semibold">{order.otp_code}</p>
+            <p className="mt-1 text-xs text-yellow-700">
+              Share this 4-digit code with your delivery partner or pickup admin when they arrive.
+            </p>
+          </div>
         )}
         <div className="mt-2 flex justify-between border-t border-gray-200 pt-2 text-base font-bold">
           <span>Total</span>

@@ -165,14 +165,17 @@ export function OrdersTable({
                     onChange={(e) => changeStatus(o.id, e.target.value as OrderStatus)}
                     className="min-w-36"
                   >
-                    {(adminSettableStatuses(o.order_type).includes(statusOf(o))
-                      ? adminSettableStatuses(o.order_type)
-                      : [statusOf(o), ...adminSettableStatuses(o.order_type)]
-                    ).map((s) => (
-                      <option key={s} value={s}>
-                        {statusLabel(s, o.order_type)}
-                      </option>
-                    ))}
+                    {(() => {
+                      const available = adminSettableStatuses(o.order_type).filter(
+                        (s) => !(o.order_type === "pickup" && s === "delivered")
+                      );
+                      const options = available.includes(statusOf(o)) ? available : [statusOf(o), ...available];
+                      return options.map((s) => (
+                        <option key={s} value={s}>
+                          {statusLabel(s, o.order_type)}
+                        </option>
+                      ));
+                    })()}
                   </Select>
                 </td>
                 <td className="p-3">

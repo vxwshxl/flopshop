@@ -1,25 +1,49 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Phone, Package } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatTime } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
 
 export function DeliveryCard({ order, currency }: { order: Order; currency: string }) {
   const [pending, startTransition] = useTransition();
+  const [showOtp, setShowOtp] = useState(false);
+  const [otp, setOtp] = useState("");
   const router = useRouter();
 
   function update(status: "out_for_delivery" | "delivered") {
+    if (status === "delivered") {
+      setShowOtp(true);
+      return;
+    }
+
     startTransition(async () => {
       try {
         const res = await setOrderStatusAction(order.id, status);
         if (!res.ok) return toast.error(res.error ?? "Failed");
         toast.success(status === "delivered" ? "Marked delivered 🎉" : "Out for delivery");
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+  }
+
+  async function confirmDelivery() {
+    startTransition(async () => {
+      try {
+        const res = await setOrderStatusAction(order.id, "delivered", otp);
+        if (!res.ok) return toast.error(res.error ?? "Failed");
+        toast.success("Marked delivered 🎉");
+        setShowOtp(false);
+        setOtp("");
         router.refresh();
       } catch {
         toast.error("Something went wrong. Please try again.");
@@ -86,6 +110,28 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
           )}
         </div>
       </div>
+
+      <Modal open={showOtp} onClose={() => setShowOtp(false)} title="Enter delivery OTP">
+        <p className="mb-4 text-sm text-gray-300">
+          Ask the customer for their 4-digit order OTP and enter it here before marking the delivery complete.
+        </p>
+        <label className="mb-2 block text-sm font-medium text-white">OTP code</label>
+        <Input
+          value={otp}
+          onChange={(event) => setOtp(event.target.value)}
+          placeholder="1234"
+          maxLength={4}
+          className="mb-4 w-full"
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setShowOtp(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button disabled={pending || otp.trim().length !== 4} onClick={confirmDelivery}>
+            Confirm delivery
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

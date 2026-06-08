@@ -29,7 +29,7 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
   );
 
   return (
-    <div className="pb-24">
+    <div>
       <div className="sticky top-16 z-30 border-b border-white/10 bg-black py-3">
         <div className="mx-auto flex max-w-5xl justify-center px-4">
           <CategoryFilter categories={categories} active={active} onChange={setActive} />

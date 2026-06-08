@@ -101,6 +101,7 @@ export interface Order {
   admin_delivery_earning: number;
   total_amount: number;
   delivery_person_id: string | null;
+  otp_code: string | null;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   notes: string | null;

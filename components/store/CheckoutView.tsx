@@ -30,7 +30,7 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
     notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [placed, setPlaced] = useState<{ id: string; order_number: string; total: number } | null>(null);
+  const [placed, setPlaced] = useState<{ id: string; order_number: string; total: number; otp_code?: string } | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -73,7 +73,12 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
     setSubmitting(false);
     if (!res.ok) return toast.error(data.error ?? "Could not place order.");
     clear();
-    setPlaced({ id: data.order.id, order_number: data.order.order_number, total: data.order.total_amount });
+    setPlaced({
+      id: data.order.id,
+      order_number: data.order.order_number,
+      total: data.order.total_amount,
+      otp_code: data.order.otp_code,
+    });
   }
 
   if (!hydrated || userLoading) return <div className="p-10 text-center text-stone-400">Loading...</div>;
@@ -100,6 +105,15 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
               ? " Once a delivery partner accepts it, you'll see the live status on your orders page."
               : " You can track the status anytime on your orders page."}
           </div>
+          {placed.otp_code && (
+            <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-4 text-sm text-yellow-900">
+              <p className="font-semibold">Your 4-digit order OTP</p>
+              <p className="mt-2 text-2xl tracking-[0.5em] font-bold">{placed.otp_code}</p>
+              <p className="mt-1 text-xs text-yellow-700">
+                Share this code with the delivery partner or pickup admin when they arrive.
+              </p>
+            </div>
+          )}
           <div className="mt-6 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
             <Link href="/" className="w-full sm:w-auto">
               <Button variant="outline" className="w-full">Back to shop</Button>

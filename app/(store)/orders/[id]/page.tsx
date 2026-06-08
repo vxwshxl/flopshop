@@ -66,7 +66,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       )}
 
       <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-stone-900">
-        <Invoice order={order} settings={settings} />
+        <Invoice order={order} settings={settings} showOtp />
       </div>
     </div>
   );

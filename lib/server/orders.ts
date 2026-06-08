@@ -5,6 +5,10 @@ import { deliverySplit, statusDeductsStock } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { Order, OrderStatus, OrderType, PaymentMethod } from "@/lib/types";
 
+function generateOtp(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
 export interface CreateOrderInput {
   items: { product_id: string; quantity: number }[];
   order_type: OrderType;
@@ -86,6 +90,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const order_number = generateOrderNumber();
   const invoice_number = generateInvoiceNumber(count ?? 0);
   const status: OrderStatus = input.confirm ? "confirmed" : "pending";
+  const otp_code = generateOtp();
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
@@ -106,6 +111,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       payment_method: input.payment_method ?? "cash",
       notes: input.notes || null,
       is_manual: input.is_manual ?? false,
+      otp_code,
     })
     .select()
     .single();

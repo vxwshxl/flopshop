@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
@@ -10,7 +10,8 @@ import {
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 
@@ -22,6 +23,9 @@ export function OrderManagePanel({
   deliveryPeople: Pick<Profile, "id" | "full_name">[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
   const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
@@ -35,6 +39,33 @@ export function OrderManagePanel({
         toast.error("Something went wrong. Please try again.");
       }
     });
+
+  function requestStatusChange(status: OrderStatus) {
+    if (status === "delivered") {
+      setStatusTarget(status);
+      setOtp("");
+      setShowOtpModal(true);
+      return;
+    }
+    run(() => setOrderStatusAction(order.id, status), `Marked ${statusLabel(status, order.order_type)}`);
+  }
+
+  async function confirmOtpUpdate() {
+    if (!statusTarget) return;
+    startTransition(async () => {
+      try {
+        const res = await setOrderStatusAction(order.id, statusTarget, otp);
+        if (!res.ok) return toast.error(res.error ?? "Failed");
+        toast.success(`Marked ${statusLabel(statusTarget, order.order_type)}`);
+        setShowOtpModal(false);
+        setOtp("");
+        setStatusTarget(null);
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+  }
 
   const isDelivery = order.order_type === "delivery";
   // Admin can't dispatch/complete a delivery order — that's the delivery partner's job.
@@ -58,12 +89,7 @@ export function OrderManagePanel({
                 size="sm"
                 variant={s === "cancelled" ? "danger" : "dark"}
                 disabled={pending}
-                onClick={() =>
-                  run(
-                    () => setOrderStatusAction(order.id, s),
-                    `Marked ${statusLabel(s, order.order_type)}`
-                  )
-                }
+                onClick={() => requestStatusChange(s)}
               >
                 {s === "cancelled" ? "Cancel order" : `Mark ${statusLabel(s, order.order_type)}`}
               </Button>
@@ -81,9 +107,7 @@ export function OrderManagePanel({
           <Select
             value={order.status}
             disabled={pending}
-            onChange={(e) =>
-              run(() => setOrderStatusAction(order.id, e.target.value as OrderStatus), "Status updated")
-            }
+            onChange={(e) => requestStatusChange(e.target.value as OrderStatus)}
           >
             {statusOptions.map((s) => (
               <option key={s} value={s}>
@@ -135,6 +159,28 @@ export function OrderManagePanel({
           </div>
         </div>
       </div>
+
+      <Modal open={showOtpModal} onClose={() => setShowOtpModal(false)} title="Enter order OTP">
+        <p className="mb-4 text-sm text-gray-300">
+          Ask the customer for their 4-digit order OTP and enter it here to complete the order.
+        </p>
+        <label className="mb-2 block text-sm font-medium text-white">Order OTP</label>
+        <Input
+          value={otp}
+          onChange={(event) => setOtp(event.target.value)}
+          placeholder="1234"
+          maxLength={4}
+          className="mb-4 w-full"
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setShowOtpModal(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button disabled={pending || otp.trim().length !== 4} onClick={confirmOtpUpdate}>
+            Confirm OTP
+          </Button>
+        </div>
+      </Modal>
     </AdminCard>
   );
 }

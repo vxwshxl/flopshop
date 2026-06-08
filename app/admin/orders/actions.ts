@@ -17,7 +17,7 @@ async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | 
   return roles.includes(role) ? { id: user.id, role } : null;
 }
 
-export async function setOrderStatusAction(orderId: string, status: OrderStatus) {
+export async function setOrderStatusAction(orderId: string, status: OrderStatus, otp_code?: string) {
   const actor = await requireRole(["admin", "delivery"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
@@ -25,27 +25,32 @@ export async function setOrderStatusAction(orderId: string, status: OrderStatus)
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("orders")
-    .select("order_type, delivery_person_id")
+    .select("order_type, delivery_person_id, otp_code, status")
     .eq("id", orderId)
     .single();
   if (!order) return { ok: false, error: "Order not found." };
 
   const isDelivery = order.order_type === "delivery";
-  // Dispatch + completion of a delivery order belong to the assigned partner.
   const isDispatchOrComplete = status === "out_for_delivery" || status === "delivered";
 
   if (actor.role === "delivery") {
-    // Delivery partners only touch delivery orders assigned to them, and only dispatch / complete.
     if (!isDelivery || order.delivery_person_id !== actor.id)
       return { ok: false, error: "Not your order." };
     if (!isDispatchOrComplete) return { ok: false, error: "Not allowed." };
   } else if (isDelivery && isDispatchOrComplete) {
-    // Admin can confirm / prepare / assign / cancel a delivery order, but only the
-    // assigned delivery partner can dispatch it or mark it delivered.
     return {
       ok: false,
       error: "Only the assigned delivery partner can mark a delivery order delivered.",
     };
+  }
+
+  if (status === "delivered") {
+    if (!otp_code || otp_code.trim().length !== 4) {
+      return { ok: false, error: "Enter the 4-digit order OTP." };
+    }
+    if (!order.otp_code || order.otp_code !== otp_code.trim()) {
+      return { ok: false, error: "Incorrect OTP. Please try again." };
+    }
   }
 
   const result = await updateOrderStatus(orderId, status);
@@ -53,6 +58,44 @@ export async function setOrderStatusAction(orderId: string, status: OrderStatus)
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/delivery");
   return result;
+}
+
+export async function claimDeliveryOrderAction(orderId: string) {
+  const actor = await requireRole(["delivery"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const admin = createAdminClient();
+  const { data: order, error } = await admin
+    .from("orders")
+    .select("order_type, status, delivery_person_id")
+    .eq("id", orderId)
+    .single();
+
+  if (error || !order) return { ok: false, error: error?.message ?? "Order not found." };
+  if (order.order_type !== "delivery") return { ok: false, error: "Only delivery orders can be claimed." };
+  if (order.delivery_person_id) return { ok: false, error: "Order already claimed." };
+  if (order.status === "delivered" || order.status === "cancelled") {
+    return { ok: false, error: "This order can no longer be claimed." };
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    delivery_person_id: actor.id,
+    updated_at: new Date().toISOString(),
+  };
+  if (order.status === "pending") {
+    updatePayload.status = "confirmed";
+  }
+
+  const { error: updErr } = await admin
+    .from("orders")
+    .update(updatePayload)
+    .eq("id", orderId)
+    .is("delivery_person_id", null);
+
+  if (updErr) return { ok: false, error: updErr.message };
+  revalidatePath("/admin/orders");
+  revalidatePath("/delivery");
+  return { ok: true };
 }
 
 export async function assignDeliveryAction(orderId: string, deliveryPersonId: string | null) {
