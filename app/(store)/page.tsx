@@ -22,6 +22,17 @@ export default async function HomePage() {
     getActiveHostels(),
   ]);
 
+  const sortedProducts = ((products as Product[]) ?? []).slice().sort((a, b) => {
+    const aOutOfStock = (a.current_stock ?? 0) <= 0;
+    const bOutOfStock = (b.current_stock ?? 0) <= 0;
+
+    if (aOutOfStock !== bOutOfStock) {
+      return aOutOfStock ? 1 : -1;
+    }
+
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   return (
     <main>
       <RealtimeRefresh table="products" channel="store:products" />
@@ -34,7 +45,7 @@ export default async function HomePage() {
       </div>
       <StoreGrid
         categories={(categories as Category[]) ?? []}
-        products={(products as Product[]) ?? []}
+        products={sortedProducts}
         currency={settings.currency_symbol}
       />
     </main>

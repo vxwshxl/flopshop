@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import type { Profile, Hostel } from "@/lib/types";
@@ -25,32 +24,28 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
     e.preventDefault();
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           full_name: form.full_name || null,
           phone: form.phone || null,
           room_number: form.room_number || null,
           hostel_block: form.hostel_block || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id);
-      
-      setSaving(false); // Stop loading immediately
-      
-      if (error) {
-        toast.error(error.message);
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Unable to save profile.");
       } else {
         toast.success("Profile saved");
-        // Push the refresh to the next tick to avoid batching with setSaving(false)
-        setTimeout(() => {
-          router.refresh();
-        }, 0);
+        router.refresh();
       }
     } catch (err: any) {
-      setSaving(false);
       toast.error(err?.message || "An unexpected error occurred");
+    } finally {
+      setSaving(false);
     }
   }
 

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/lib/hooks/useUser";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
@@ -47,19 +46,19 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
 
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           phone: form.phone.trim(),
           room_number: form.room_number.trim(),
           hostel_block: form.hostel_block.trim(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id);
+        }),
+      });
 
-      if (error) {
-        toast.error(error.message);
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Unable to save profile.");
       } else {
         toast.success("Profile completed.");
         setOpen(false);
