@@ -87,6 +87,12 @@ export function ManualOrderForm({ products, settings }: { products: Product[]; s
     });
     setSaving(false);
     if (!res.ok || !res.order) return toast.error(res.error ?? "Failed to create order.");
+    setLines([]);
+    setQuery("");
+    setCustomer({ name: "", phone: "", room: "" });
+    setPayment("cash");
+    setNotes("");
+    setOrderType("pickup");
     toast.success(`Order ${res.order.order_number} created`);
     router.push(`/admin/orders/${res.order.id}`);
     router.refresh();

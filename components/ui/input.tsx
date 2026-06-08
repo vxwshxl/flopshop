@@ -35,8 +35,14 @@ type CustomSelectProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onChange"> 
 export function Select({ className, value = "", onChange, disabled, children }: CustomSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [rect, setRect] = React.useState<{ left: number; top: number; width: number } | null>(null);
+  const [search, setSearch] = React.useState("");
+  const searchTimeout = React.useRef<number | null>(null);
+  const lastSearchKey = React.useRef<string | null>(null);
+  const lastSearchTime = React.useRef<number>(0);
+  const repeatCount = React.useRef(0);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const optionRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
 
   const options = React.Children.toArray(children)
     .filter(React.isValidElement)
@@ -57,6 +63,50 @@ export function Select({ className, value = "", onChange, disabled, children }: 
     const r = el.getBoundingClientRect();
     setRect({ left: r.left, top: r.bottom + 4, width: r.width });
   }, []);
+
+  const resetSearch = React.useCallback(() => {
+    if (searchTimeout.current) window.clearTimeout(searchTimeout.current);
+    searchTimeout.current = window.setTimeout(() => setSearch(""), 500);
+  }, []);
+
+  const selectMatchingOption = React.useCallback(
+    (key: string) => {
+      const lowerKey = key.toLowerCase();
+      const now = performance.now();
+      const sameKey = lastSearchKey.current === lowerKey && now - lastSearchTime.current < 500;
+      const query = sameKey ? lowerKey : (search + lowerKey).toLowerCase();
+
+      if (sameKey) {
+        repeatCount.current += 1;
+      } else {
+        repeatCount.current = 1;
+      }
+      lastSearchKey.current = lowerKey;
+      lastSearchTime.current = now;
+
+      setSearch(query);
+      resetSearch();
+
+      let matches = options.filter((option) =>
+        String(option.label).toLowerCase().startsWith(query)
+      );
+
+      if (!matches.length && query.length > 1) {
+        matches = options.filter((option) =>
+          String(option.label).toLowerCase().startsWith(lowerKey)
+        );
+      }
+
+      if (matches.length) {
+        const match = matches[(repeatCount.current - 1) % matches.length];
+        onChange?.({ target: { value: match.value } });
+        if (open && optionRefs.current[match.value]) {
+          optionRefs.current[match.value]?.scrollIntoView({ block: "nearest" });
+        }
+      }
+    },
+    [options, onChange, open, resetSearch, search]
+  );
 
   React.useEffect(() => {
     if (!open) return;
@@ -88,6 +138,21 @@ export function Select({ className, value = "", onChange, disabled, children }: 
         type="button"
         disabled={disabled}
         onClick={() => setOpen((next) => !next)}
+        onKeyDown={(event) => {
+          if (event.key.length === 1 && /^[a-z0-9]$/i.test(event.key)) {
+            event.preventDefault();
+            selectMatchingOption(event.key);
+          } else if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setOpen(true);
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+          } else if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen((next) => !next);
+          }
+        }}
         className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-white/15 bg-white/5 px-3 text-left text-sm text-white transition hover:bg-white/10 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/30 disabled:pointer-events-none disabled:opacity-50"
       >
         <span className="min-w-0 truncate">{selected?.label ?? "Select"}</span>
@@ -104,6 +169,9 @@ export function Select({ className, value = "", onChange, disabled, children }: 
           >
             {options.map((option) => (
               <button
+                ref={(el) => {
+                  optionRefs.current[option.value] = el;
+                }}
                 key={option.value}
                 type="button"
                 onClick={() => {

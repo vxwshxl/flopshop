@@ -126,6 +126,14 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     return { ok: false, error: payload.error ?? "Failed to create order." };
   }
 
+  if (input.confirm) {
+    const { error: payErr } = await supabase
+      .from("orders")
+      .update({ payment_status: "paid", updated_at: new Date().toISOString() })
+      .eq("id", payload.order_id);
+    if (payErr) return { ok: false, error: payErr.message };
+  }
+
   // To return the full order object for the client, we fetch it back since the RPC just returns the ID
   const { data: finalOrder } = await supabase
     .from("orders")
@@ -183,8 +191,7 @@ export async function updateOrderStatus(
   } else {
     updatePayload.cancel_reason = null;
   }
-  // Completion goes through OTP verification, so payment is settled on handover.
-  if (newStatus === "delivered") {
+  if (newStatus === "confirmed" || newStatus === "delivered") {
     updatePayload.payment_status = "paid";
   }
 
