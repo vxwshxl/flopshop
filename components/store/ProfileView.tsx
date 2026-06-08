@@ -24,21 +24,30 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: form.full_name || null,
-        phone: form.phone || null,
-        room_number: form.room_number || null,
-        hostel_block: form.hostel_block || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profile.id);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Profile saved");
-    router.refresh();
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: form.full_name || null,
+          phone: form.phone || null,
+          room_number: form.room_number || null,
+          hostel_block: form.hostel_block || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id);
+      
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Profile saved");
+        router.refresh();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "An unexpected error occurred");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

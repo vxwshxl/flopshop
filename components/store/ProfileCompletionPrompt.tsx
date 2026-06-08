@@ -46,25 +46,30 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
     }
 
     setSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        phone: form.phone.trim(),
-        room_number: form.room_number.trim(),
-        hostel_block: form.hostel_block.trim(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profile.id);
-    setSaving(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          phone: form.phone.trim(),
+          room_number: form.room_number.trim(),
+          hostel_block: form.hostel_block.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id);
 
-    if (error) {
-      return toast.error(error.message);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Profile completed.");
+        setOpen(false);
+        router.refresh();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "An unexpected error occurred");
+    } finally {
+      setSaving(false);
     }
-
-    toast.success("Profile completed.");
-    setOpen(false);
-    router.refresh();
   }
 
   if (!isAuthenticated || loading || !profile) return null;
