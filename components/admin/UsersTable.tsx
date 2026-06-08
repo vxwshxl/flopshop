@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 import { setUserRoleAction, toggleUserActiveAction } from "@/app/admin/users/actions";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import type { Order, Profile, Role } from "@/lib/types";

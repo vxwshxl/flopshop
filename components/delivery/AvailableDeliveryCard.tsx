@@ -18,7 +18,10 @@ export function AvailableDeliveryCard({ order, currency }: { order: Order; curre
     startTransition(async () => {
       try {
         const res = await claimDeliveryOrderAction(order.id);
-        if (!res.ok) return toast.error(res.error ?? "Failed to claim order.");
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed to claim order.");
+          return;
+        }
         toast.success("Order claimed. Head to pickup now.");
         router.refresh();
       } catch {

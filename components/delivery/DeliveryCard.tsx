@@ -27,8 +27,11 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
     startTransition(async () => {
       try {
         const res = await setOrderStatusAction(order.id, status);
-        if (!res.ok) return toast.error(res.error ?? "Failed");
-        toast.success(status === "delivered" ? "Marked delivered 🎉" : "Out for delivery");
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed");
+          return;
+        }
+        toast.success("Out for delivery");
         router.refresh();
       } catch {
         toast.error("Something went wrong. Please try again.");
@@ -40,7 +43,10 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
     startTransition(async () => {
       try {
         const res = await setOrderStatusAction(order.id, "delivered", otp);
-        if (!res.ok) return toast.error(res.error ?? "Failed");
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed");
+          return;
+        }
         toast.success("Marked delivered 🎉");
         setShowOtp(false);
         setOtp("");

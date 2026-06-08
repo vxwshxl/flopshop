@@ -69,7 +69,8 @@ export function OrdersTable({
         const res = await setOrderStatusAction(id, status);
         if (!res.ok) {
           revert();
-          return toast.error(res.error ?? "Failed");
+          toast.error(res.error ?? "Failed");
+          return;
         }
         toast.success("Status updated");
         router.refresh();
