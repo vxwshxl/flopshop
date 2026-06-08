@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -23,19 +23,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  const { error } = await supabase
+  const updatePayload = {
+    ...(full_name !== undefined ? { full_name } : {}),
+    ...(phone !== undefined ? { phone } : {}),
+    ...(room_number !== undefined ? { room_number } : {}),
+    ...(hostel_block !== undefined ? { hostel_block } : {}),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
     .from("profiles")
-    .update({
-      ...(full_name !== undefined ? { full_name } : {}),
-      ...(phone !== undefined ? { phone } : {}),
-      ...(room_number !== undefined ? { room_number } : {}),
-      ...(hostel_block !== undefined ? { hostel_block } : {}),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", user.id);
+    .update(updatePayload)
+    .eq("id", user.id)
+    .select()
+    .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (!data) {
+    const admin = createAdminClient();
+    const insertPayload = {
+      id: user.id,
+      email: user.email,
+      full_name: full_name ?? (user.user_metadata?.full_name as string | null) ?? null,
+      phone: phone ?? null,
+      room_number: room_number ?? null,
+      hostel_block: hostel_block ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: insertError } = await admin.from("profiles").insert(insertPayload);
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

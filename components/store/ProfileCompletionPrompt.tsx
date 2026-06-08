@@ -21,14 +21,14 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading || !isAuthenticated || !profile) return;
-    
-    const missing = isMissingProfile(profile);
+    if (loading || !isAuthenticated) return;
+
+    const missing = profile ? isMissingProfile(profile) : true;
     if (missing) {
       setForm({
-        phone: profile.phone ?? "",
-        room_number: profile.room_number ?? "",
-        hostel_block: profile.hostel_block ?? "",
+        phone: profile?.phone ?? "",
+        room_number: profile?.room_number ?? "",
+        hostel_block: profile?.hostel_block ?? "",
       });
       setOpen(true);
     }
@@ -39,7 +39,6 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!profile) return;
     if (!form.phone.trim() || !form.room_number.trim() || !form.hostel_block.trim()) {
       return toast.error("Please enter your phone, room number, and select a hostel.");
     }
@@ -71,7 +70,9 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
     }
   }
 
-  if (!isAuthenticated || loading || !profile) return null;
+  if (!isAuthenticated || loading) return null;
+
+  const canSubmit = Boolean(form.phone.trim() && form.room_number.trim() && form.hostel_block.trim());
 
   return (
     <Modal open={open} onClose={() => {}} title="Complete your delivery details">
@@ -101,7 +102,7 @@ export function ProfileCompletionPrompt({ hostels }: { hostels: Hostel[] }) {
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="submit" loading={saving}>
+          <Button type="submit" loading={saving} disabled={!canSubmit}>
             Save details
           </Button>
         </div>
