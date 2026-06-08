@@ -79,7 +79,7 @@ export default async function DeliveryDashboard({
       {/* Controls row */}
       <div className="flex items-center justify-between">
         <DashboardRangeSelect value={range} />
-        <OnlineToggle initialOnline={profile?.is_online ?? false} shopIsOpen={settings.is_open} />
+        <OnlineToggle initialOnline={profile?.is_online ?? false} shopIsOpen={settings.shop_is_open !== "false"} />
       </div>
 
       {/* Stats row */}

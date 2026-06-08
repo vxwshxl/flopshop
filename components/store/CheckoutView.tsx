@@ -9,11 +9,11 @@ import { useUser } from "@/lib/hooks/useUser";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import type { PaymentMethod, SettingsMap } from "@/lib/types";
+import type { PaymentMethod, SettingsMap, Profile } from "@/lib/types";
 import { useSettings } from "@/lib/hooks/useSettings";
 
-export function CheckoutView({ settings }: { settings: SettingsMap }) {
-  const { profile, isAuthenticated, loading: userLoading } = useUser();
+export function CheckoutView({ settings, initialProfile }: { settings: SettingsMap; initialProfile: Profile | null }) {
+  const { isAuthenticated, loading: userLoading, user } = useUser();
   const hydrated = useCart((s) => s.hydrated);
   const items = useCart((s) => s.items);
   const orderType = useCart((s) => s.orderType);
@@ -24,36 +24,34 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
   const { isOpen } = useSettings();
   const deliveryFee = Number(settings.delivery_fee ?? 10);
 
+  const fullRoom = initialProfile?.hostel_block && initialProfile?.room_number 
+    ? `${initialProfile.hostel_block}, Rm ${initialProfile.room_number}` 
+    : initialProfile?.room_number || "";
+
   const [form, setForm] = useState({
-    customer_name: "",
-    customer_phone: "",
-    customer_room: "",
+    customer_name: initialProfile?.full_name || user?.name || "",
+    customer_phone: initialProfile?.phone || "",
+    customer_room: fullRoom,
     payment_method: "cash" as PaymentMethod,
     notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [placed, setPlaced] = useState<{ id: string; order_number: string; total: number; otp_code?: string } | null>(null);
 
+  // If `user` loads after initial mount and `customer_name` is empty, fallback to `user.name`
   useEffect(() => {
-    if (profile) {
-      // Prefill once the async-loaded profile is available.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm((f) => {
-        const fullRoom = profile.hostel_block && profile.room_number 
-          ? `${profile.hostel_block}, Rm ${profile.room_number}` 
-          : profile.room_number || "";
-        return {
-          ...f,
-          customer_name: f.customer_name || profile.full_name || "",
-          customer_phone: f.customer_phone || profile.phone || "",
-          customer_room: f.customer_room || fullRoom,
-        };
-      });
+    if (user?.name && !form.customer_name) {
+      setForm((f) => ({ ...f, customer_name: user.name as string }));
     }
-  }, [profile]);
+  }, [user?.name]);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    let val = e.target.value;
+    if (k === "customer_phone") {
+      val = val.replace(/\D/g, "").slice(0, 10);
+    }
+    setForm((f) => ({ ...f, [k]: val }));
+  };
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const fee = orderType === "delivery" ? deliveryFee : 0;
@@ -184,7 +182,7 @@ export function CheckoutView({ settings }: { settings: SettingsMap }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" value={form.customer_phone} onChange={set("customer_phone")} />
+                <Input id="phone" value={form.customer_phone} onChange={set("customer_phone")} inputMode="numeric" />
               </div>
               {orderType === "delivery" && (
                 <div>

@@ -17,8 +17,13 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
   });
   const [saving, setSaving] = useState(false);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement> | { target: { value: string } }) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement> | { target: { value: string } }) => {
+    let val = e.target.value;
+    if (k === "phone") {
+      val = val.replace(/\D/g, "").slice(0, 10);
+    }
+    setForm((f) => ({ ...f, [k]: val }));
+  };
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -62,7 +67,7 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Phone</Label>
-            <Input value={form.phone} onChange={set("phone")} />
+            <Input value={form.phone} onChange={set("phone")} inputMode="numeric" />
           </div>
           <div>
             <Label>Room No.</Label>
