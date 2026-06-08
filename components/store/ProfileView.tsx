@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -37,18 +37,20 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
         })
         .eq("id", profile.id);
       
+      setSaving(false); // Stop loading immediately
+      
       if (error) {
         toast.error(error.message);
       } else {
         toast.success("Profile saved");
+        // Push the refresh to the next tick to avoid batching with setSaving(false)
         setTimeout(() => {
           router.refresh();
-        }, 50);
+        }, 0);
       }
     } catch (err: any) {
-      toast.error(err?.message || "An unexpected error occurred");
-    } finally {
       setSaving(false);
+      toast.error(err?.message || "An unexpected error occurred");
     }
   }
 
