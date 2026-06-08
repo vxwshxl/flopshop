@@ -16,39 +16,41 @@ export function Footer() {
   return (
     <footer className="mt-10 border-t border-white/10 bg-black">
       <div className="mx-auto max-w-6xl px-4 pt-14 sm:px-6">
-        {/* utility row */}
-        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
-          <p className="order-3 text-xs text-white/40 sm:order-1">© {year} FlopShop.</p>
+        {/* utility row — horizontal on every screen: © left · WhatsApp · Privacy right */}
+        <div className="flex flex-row items-center justify-between gap-4">
+          <p className="text-xs text-white/40">© {year} FlopShop.</p>
 
           <a
             href={WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Chat on WhatsApp"
-            className="order-1 grid h-11 w-11 cursor-pointer place-items-center rounded-full bg-white/5 text-white transition hover:bg-lime-400 hover:text-black sm:order-2"
+            className="grid h-11 w-11 cursor-pointer place-items-center rounded-full bg-white/5 text-white transition hover:bg-lime-400 hover:text-black"
           >
             <WhatsAppIcon className="h-5 w-5" />
           </a>
 
           <Link
             href="/privacy"
-            className="order-2 cursor-pointer text-xs text-white/40 transition hover:text-white sm:order-3"
+            className="cursor-pointer text-xs text-white/40 transition hover:text-white"
           >
             Privacy Policy
           </Link>
         </div>
 
-        {/* Giant brand wordmark — SVG scales to fill the width on any screen */}
+        {/* Giant brand wordmark — SVG scales to fill the width on any device.
+            Uses CSS w-full + h-auto (not width="100%") to avoid the iOS Safari
+            bug where the viewBox aspect ratio is ignored. */}
         <div className="pt-8">
           <svg
-            viewBox="0 0 1000 250"
-            width="100%"
-            className="block select-none"
+            viewBox="0 0 1024 252"
+            preserveAspectRatio="xMidYMid meet"
+            className="block h-auto w-full select-none"
             role="img"
             aria-label="FlopShop"
           >
             <text
-              x="0"
+              x="12"
               y="192"
               textLength="1000"
               lengthAdjust="spacingAndGlyphs"

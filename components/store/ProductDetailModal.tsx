@@ -26,19 +26,7 @@ export function ProductDetailModal({
   const decrement = useCart((s) => s.decrement);
 
   const d = product.details;
-  const nutrition = d?.nutrition;
-  const hasNutrition =
-    nutrition && Object.values(nutrition).some((v) => v !== null && v !== undefined);
   const outOfStock = product.current_stock <= 0;
-
-  const nutritionRows: { label: string; value?: number | null; unit: string }[] = [
-    { label: "Energy", value: nutrition?.energy_kcal, unit: "kcal" },
-    { label: "Protein", value: nutrition?.protein, unit: "g" },
-    { label: "Carbs", value: nutrition?.carbs, unit: "g" },
-    { label: "Sugars", value: nutrition?.sugars, unit: "g" },
-    { label: "Fat", value: nutrition?.fat, unit: "g" },
-    { label: "Salt", value: nutrition?.salt, unit: "g" },
-  ];
 
   return (
     <Modal open={open} onClose={onClose} className="max-w-md">
@@ -78,32 +66,6 @@ export function ProductDetailModal({
         >
           {product.category.icon} {product.category.name}
         </span>
-      )}
-
-      {hasNutrition && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-sm font-semibold text-stone-700 dark:text-stone-300">Nutrition (per 100g)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {nutritionRows
-              .filter((r) => r.value !== null && r.value !== undefined)
-              .map((r) => (
-                <div key={r.label} className="rounded-lg bg-stone-50 p-2 text-center dark:bg-stone-800">
-                  <p className="text-sm font-bold text-stone-950 dark:text-white">
-                    {Math.round(Number(r.value) * 10) / 10}
-                    <span className="text-xs font-normal text-stone-400">{r.unit}</span>
-                  </p>
-                  <p className="text-[10px] uppercase text-stone-400">{r.label}</p>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {d?.ingredients && (
-        <div className="mt-4">
-          <p className="mb-1 text-sm font-semibold text-stone-700 dark:text-stone-300">Ingredients</p>
-          <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">{d.ingredients}</p>
-        </div>
       )}
 
       <div className="mt-5">

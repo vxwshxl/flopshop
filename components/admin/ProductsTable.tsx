@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -13,9 +13,10 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
 import type { Category, Product } from "@/lib/types";
 
-function stockColor(p: Product) {
-  if (p.current_stock <= 0) return "text-white";
-  if (p.current_stock <= p.minimum_stock) return "text-yellow-400";
+function stockColorByVal(p: Product, value: string | undefined) {
+  const n = parseInt(value ?? "") || 0;
+  if (n <= 0) return "text-red-400";
+  if (n <= p.minimum_stock) return "text-yellow-400";
   return "text-white";
 }
 
@@ -33,6 +34,29 @@ export function ProductsTable({
   const [cat, setCat] = useState("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+
+  // Inline stock editing — instant local update, debounced background save.
+  const [stocks, setStocks] = useState<Record<string, string>>(() =>
+    Object.fromEntries(products.map((p) => [p.id, String(p.current_stock)]))
+  );
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function onStockChange(id: string, value: string) {
+    const clean = value.replace(/[^0-9]/g, "");
+    setStocks((s) => ({ ...s, [id]: clean }));
+    if (timers.current[id]) clearTimeout(timers.current[id]);
+    timers.current[id] = setTimeout(async () => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("products")
+        .update({ current_stock: parseInt(clean) || 0 })
+        .eq("id", id);
+      if (error) return toast.error(`Stock: ${error.message}`);
+      setSavedId(id);
+      setTimeout(() => setSavedId((cur) => (cur === id ? null : cur)), 1200);
+    }, 500);
+  }
 
   const filtered = useMemo(
     () =>
@@ -141,7 +165,18 @@ export function ProductsTable({
                   <td className="p-3">{category ? `${category.icon} ${category.name}` : "—"}</td>
                   <td className="p-3">{formatCurrency(p.cost_price, currency)}</td>
                   <td className="p-3">{formatCurrency(p.selling_price, currency)}</td>
-                  <td className={`p-3 font-semibold ${stockColor(p)}`}>{p.current_stock}</td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        value={stocks[p.id] ?? ""}
+                        onChange={(e) => onStockChange(p.id, e.target.value)}
+                        inputMode="numeric"
+                        aria-label={`Stock for ${p.name}`}
+                        className={`w-16 rounded-md border border-black/15 bg-transparent px-2 py-1 text-sm font-bold focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 ${stockColorByVal(p, stocks[p.id])}`}
+                      />
+                      {savedId === p.id && <Check className="h-4 w-4 text-green-500" />}
+                    </div>
+                  </td>
                   <td className="p-3">
                     <button
                       onClick={() => toggleActive(p)}
