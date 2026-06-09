@@ -175,8 +175,8 @@ export function ReportsView({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
+      <div className="mb-4 flex flex-col items-center gap-3 lg:flex-row lg:justify-between">
+        <div className="flex justify-center gap-2">
           {tabs.map((t) => (
             <button
               key={t}
@@ -185,11 +185,11 @@ export function ReportsView({
                 tab === t ? "bg-white text-black" : "bg-[#1a1a1a] text-gray-400 hover:text-white"
               }`}
             >
-              {t} Report
+              {t}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <DatePicker value={from} onChange={setFrom} className="w-40" />
           <span className="text-white/40">→</span>
           <DatePicker value={to} onChange={setTo} className="w-40" />
