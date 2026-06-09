@@ -16,6 +16,9 @@ export interface CreateOrderInput {
   customer_phone?: string | null;
   customer_room?: string | null;
   payment_method?: PaymentMethod;
+  /** Split payment breakdown (only when payment_method === "split"). */
+  paid_cash?: number;
+  paid_upi?: number;
   notes?: string | null;
   user_id?: string | null;
   is_manual?: boolean;
@@ -112,6 +115,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     admin_delivery_earning: split.admin_delivery_earning,
     total_amount,
     payment_method: input.payment_method ?? "cash",
+    // Only meaningful for split payments; otherwise stored as 0.
+    paid_cash: input.payment_method === "split" ? Number(input.paid_cash ?? 0) : 0,
+    paid_upi: input.payment_method === "split" ? Number(input.paid_upi ?? 0) : 0,
     notes: input.notes || null,
     is_manual: input.is_manual ?? false,
     otp_code,

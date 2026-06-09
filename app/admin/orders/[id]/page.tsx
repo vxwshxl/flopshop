@@ -9,7 +9,7 @@ import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { Invoice } from "@/components/Invoice";
-import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
+import { formatCurrency, formatDateTime, formatPaymentMethod } from "@/lib/utils/formatters";
 import type { Order, Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +52,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               <Field label="Phone" value={order.customer_phone ?? "—"} />
               <Field label="Room" value={order.customer_room ?? "—"} />
               <Field label="Type" value={order.order_type} />
-              <Field label="Payment" value={`${order.payment_method} · ${order.payment_status}`} />
+              <Field label="Payment" value={`${formatPaymentMethod(order, currency)} · ${order.payment_status}`} />
               <Field label="Source" value={order.is_manual ? "Walk-in (manual)" : "Online"} />
               {order.status === "cancelled" && order.cancel_reason && (
                 <Field label="Cancelled because" value={order.cancel_reason} />

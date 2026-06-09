@@ -10,7 +10,7 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
-export type PaymentMethod = "cash" | "upi";
+export type PaymentMethod = "cash" | "upi" | "split";
 export type PaymentStatus = "pending" | "paid";
 
 export interface Hostel {
@@ -133,6 +133,9 @@ export interface Order {
   delivery_person_id: string | null;
   otp_code: string | null;
   payment_method: PaymentMethod;
+  /** For split payments: amount paid by cash / UPI (sum to total_amount). */
+  paid_cash: number;
+  paid_upi: number;
   payment_status: PaymentStatus;
   notes: string | null;
   is_manual: boolean;

@@ -123,7 +123,10 @@ CREATE TABLE orders (
   admin_delivery_earning DECIMAL(10,2) DEFAULT 0,
   total_amount DECIMAL(10,2) NOT NULL,
   delivery_person_id UUID REFERENCES profiles(id),
-  payment_method TEXT DEFAULT 'cash' CHECK (payment_method IN ('cash', 'upi')),
+  payment_method TEXT DEFAULT 'cash' CHECK (payment_method IN ('cash', 'upi', 'split')),
+  -- For split payments: how much of the total was paid by each method.
+  paid_cash DECIMAL(10,2) DEFAULT 0,
+  paid_upi DECIMAL(10,2) DEFAULT 0,
   payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid')),
   otp_code TEXT,
   notes TEXT,
@@ -278,7 +281,7 @@ BEGIN
   INSERT INTO public.orders (
     order_number, invoice_number, user_id, customer_name, customer_phone, customer_room,
     order_type, status, subtotal, delivery_fee, delivery_person_earning, admin_delivery_earning,
-    total_amount, payment_method, notes, is_manual, otp_code
+    total_amount, payment_method, paid_cash, paid_upi, notes, is_manual, otp_code
   ) VALUES (
     p_order->>'order_number',
     p_order->>'invoice_number',
@@ -294,6 +297,8 @@ BEGIN
     (p_order->>'admin_delivery_earning')::DECIMAL,
     (p_order->>'total_amount')::DECIMAL,
     p_order->>'payment_method',
+    COALESCE((p_order->>'paid_cash')::DECIMAL, 0),
+    COALESCE((p_order->>'paid_upi')::DECIMAL, 0),
     NULLIF(p_order->>'notes', ''),
     (p_order->>'is_manual')::BOOLEAN,
     p_order->>'otp_code'

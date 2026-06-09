@@ -49,6 +49,8 @@ export function ManualOrderForm({
     if (c) setCustomer({ name: c.name, phone: c.phone ?? "", room: c.room_number ?? "" });
   }
   const [payment, setPayment] = useState<PaymentMethod>("cash");
+  // Split payment: how much of the total was paid in cash (UPI = total − cash).
+  const [cashAmount, setCashAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -88,6 +90,10 @@ export function ManualOrderForm({
   const fee = orderType === "delivery" ? deliveryFee : 0;
   const total = subtotal + fee;
 
+  // Split payment: cash is clamped to [0, total]; UPI is the remainder.
+  const cashPaid = Math.min(Math.max(Number(cashAmount) || 0, 0), total);
+  const upiPaid = Math.max(total - cashPaid, 0);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!lines.length) return toast.error("Add at least one product.");
@@ -103,6 +109,7 @@ export function ManualOrderForm({
       customer_phone: customer.phone,
       customer_room: customer.room,
       payment_method: payment,
+      ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
       notes,
     });
     setSaving(false);
@@ -112,6 +119,7 @@ export function ManualOrderForm({
     setCustomerId("");
     setCustomer({ name: "", phone: "", room: "" });
     setPayment("cash");
+    setCashAmount("");
     setNotes("");
     setOrderType("pickup");
     toast.success(`Order ${res.order.order_number} completed`);
@@ -245,8 +253,27 @@ export function ManualOrderForm({
               <Select value={payment} onChange={(e) => setPayment(e.target.value as PaymentMethod)} className={inputTheme}>
                 <option value="cash">Cash</option>
                 <option value="upi">UPI</option>
+                <option value="split">Split (Cash + UPI)</option>
               </Select>
             </div>
+            {payment === "split" && (
+              <div>
+                <Label className="text-stone-700 dark:text-stone-300">Paid by cash ({currency})</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  placeholder="0"
+                  className={inputTheme}
+                />
+                <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                  Cash {formatCurrency(cashPaid, currency)} · UPI {formatCurrency(upiPaid, currency)} of {formatCurrency(total, currency)}
+                </p>
+              </div>
+            )}
           </div>
         </AdminCard>
 

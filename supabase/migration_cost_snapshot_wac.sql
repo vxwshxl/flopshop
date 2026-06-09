@@ -18,7 +18,14 @@ FROM public.products p
 WHERE oi.product_id = p.id
   AND oi.cost_price = 0;
 
--- 2) checkout_order: persist the cost snapshot for new orders.
+-- 1b) Split payments: allow 'split' and record how much was paid each way.
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+ALTER TABLE public.orders
+  ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('cash', 'upi', 'split'));
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS paid_cash DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS paid_upi  DECIMAL(10,2) DEFAULT 0;
+
+-- 2) checkout_order: persist the cost snapshot + split amounts for new orders.
 CREATE OR REPLACE FUNCTION public.checkout_order(
   p_order JSONB,
   p_items JSONB
@@ -59,7 +66,7 @@ BEGIN
   INSERT INTO public.orders (
     order_number, invoice_number, user_id, customer_name, customer_phone, customer_room,
     order_type, status, subtotal, delivery_fee, delivery_person_earning, admin_delivery_earning,
-    total_amount, payment_method, notes, is_manual, otp_code
+    total_amount, payment_method, paid_cash, paid_upi, notes, is_manual, otp_code
   ) VALUES (
     p_order->>'order_number',
     p_order->>'invoice_number',
@@ -75,6 +82,8 @@ BEGIN
     (p_order->>'admin_delivery_earning')::DECIMAL,
     (p_order->>'total_amount')::DECIMAL,
     p_order->>'payment_method',
+    COALESCE((p_order->>'paid_cash')::DECIMAL, 0),
+    COALESCE((p_order->>'paid_upi')::DECIMAL, 0),
     NULLIF(p_order->>'notes', ''),
     (p_order->>'is_manual')::BOOLEAN,
     p_order->>'otp_code'

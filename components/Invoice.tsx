@@ -1,4 +1,4 @@
-import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
+import { formatCurrency, formatDateTime, formatPaymentMethod } from "@/lib/utils/formatters";
 import type { Order, SettingsMap } from "@/lib/types";
 
 /** Printable invoice. Wrap with className="print-area" to isolate for printing. */
@@ -84,8 +84,8 @@ export function Invoice({ order, settings, showOtp = false }: { order: Order; se
         </div>
         <div className="mt-1 flex justify-between text-xs text-gray-500">
           <span>Payment</span>
-          <span className="capitalize">
-            {order.payment_method} · {order.payment_status}
+          <span>
+            {formatPaymentMethod(order, currency)} · <span className="capitalize">{order.payment_status}</span>
           </span>
         </div>
       </div>

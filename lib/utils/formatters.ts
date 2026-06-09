@@ -8,6 +8,17 @@ export function formatCurrency(amount: number, symbol = "₹"): string {
   })}`;
 }
 
+/** Human label for an order's payment method, expanding split into its parts. */
+export function formatPaymentMethod(
+  order: { payment_method: string; paid_cash?: number; paid_upi?: number },
+  symbol = "₹"
+): string {
+  if (order.payment_method === "split") {
+    return `Split · ${formatCurrency(Number(order.paid_cash ?? 0), symbol)} cash + ${formatCurrency(Number(order.paid_upi ?? 0), symbol)} UPI`;
+  }
+  return order.payment_method.toUpperCase();
+}
+
 export function formatDate(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleDateString("en-IN", {
