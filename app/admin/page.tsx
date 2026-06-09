@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ShoppingBag, IndianRupee, Package, AlertTriangle, Clock, Truck, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
-import { StatCard, AdminCard, PageHeader } from "@/components/admin/StatCard";
+import { StatCard, AdminCard } from "@/components/admin/StatCard";
 import { ShopStatusToggle } from "@/components/admin/ShopStatusToggle";
 import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
 import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
@@ -151,17 +151,18 @@ export default async function AdminDashboard({
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
-        <div className="w-full sm:w-80">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {/* Left side: Dashboard title and range selector */}
+        <div className="flex w-full items-center justify-between gap-3 order-2 md:order-1 md:w-auto md:justify-start">
+          <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white mr-2">Dashboard</h1>
+          <DashboardRangeSelect value={range} />
+        </div>
+
+        {/* Right side: Shop Status Toggle */}
+        <div className="w-full order-1 md:order-2 md:w-80">
           <ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} />
         </div>
       </div>
-
-      <PageHeader
-        title={<h1 className="text-2xl font-extrabold text-stone-950 dark:text-white mr-2">Dashboard</h1>}
-        subtitle={<DashboardRangeSelect value={range} />}
-        mobileJustifyBetween={true}
-      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard label="Orders" value={rangeOrders.length} icon={<ShoppingBag className="h-4 w-4" />} />
