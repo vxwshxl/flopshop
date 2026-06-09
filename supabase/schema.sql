@@ -141,7 +141,10 @@ CREATE TABLE order_items (
   product_name TEXT NOT NULL,
   quantity INTEGER NOT NULL,
   unit_price DECIMAL(10,2) NOT NULL,
-  total_price DECIMAL(10,2) NOT NULL
+  total_price DECIMAL(10,2) NOT NULL,
+  -- Cost snapshot at order time. Profit reports read THIS, not the live product
+  -- cost, so editing a product's cost never rewrites past orders' profit.
+  cost_price DECIMAL(10,2) NOT NULL DEFAULT 0
 );
 
 -- PURCHASES (inventory restocking by admin) --------------------
@@ -191,6 +194,43 @@ AS $$
 BEGIN
   UPDATE public.products
   SET current_stock = GREATEST(current_stock + p_delta, 0),
+      updated_at = NOW()
+  WHERE id = p_product_id;
+END;
+$$;
+
+-- Records a purchase: adds stock AND recomputes the product's cost_price as a
+-- weighted moving average of the existing inventory and the incoming lot:
+--   new_cost = (old_stock*old_cost + new_qty*new_unit_cost) / (old_stock + new_qty)
+-- So the live cost tracks what stock actually cost, while past order_items keep
+-- their own cost snapshot (profit history stays put).
+CREATE OR REPLACE FUNCTION public.record_purchase_cost(
+  p_product_id UUID,
+  p_qty INTEGER,
+  p_unit_cost DECIMAL
+)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_old_stock INTEGER;
+  v_old_cost DECIMAL(10,2);
+  v_base INTEGER;
+BEGIN
+  SELECT GREATEST(current_stock, 0), cost_price
+    INTO v_old_stock, v_old_cost
+    FROM public.products WHERE id = p_product_id
+    FOR UPDATE;
+
+  v_base := v_old_stock + GREATEST(p_qty, 0);
+
+  UPDATE public.products
+  SET current_stock = current_stock + p_qty,
+      cost_price = CASE
+        WHEN v_base > 0
+          THEN ROUND((v_old_stock * v_old_cost + GREATEST(p_qty, 0) * p_unit_cost) / v_base, 2)
+        ELSE cost_price
+      END,
       updated_at = NOW()
   WHERE id = p_product_id;
 END;
@@ -263,20 +303,41 @@ BEGIN
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     INSERT INTO public.order_items (
-      order_id, product_id, product_name, quantity, unit_price, total_price
+      order_id, product_id, product_name, quantity, unit_price, total_price, cost_price
     ) VALUES (
       v_order_id,
       (v_item->>'product_id')::UUID,
       v_item->>'product_name',
       (v_item->>'quantity')::INTEGER,
       (v_item->>'unit_price')::DECIMAL,
-      (v_item->>'total_price')::DECIMAL
+      (v_item->>'total_price')::DECIMAL,
+      COALESCE((v_item->>'cost_price')::DECIMAL, 0)
     );
   END LOOP;
 
   RETURN jsonb_build_object('ok', true, 'order_id', v_order_id);
 EXCEPTION WHEN OTHERS THEN
   RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+
+-- Recomputes an order's subtotal/total from its (possibly edited) line items.
+-- Used when admins fix a past "error" order; delivery fee is left untouched.
+CREATE OR REPLACE FUNCTION public.recompute_order_totals(p_order_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_subtotal DECIMAL(10,2);
+BEGIN
+  SELECT COALESCE(SUM(total_price), 0) INTO v_subtotal
+    FROM public.order_items WHERE order_id = p_order_id;
+
+  UPDATE public.orders
+  SET subtotal = v_subtotal,
+      total_amount = v_subtotal + COALESCE(delivery_fee, 0),
+      updated_at = NOW()
+  WHERE id = p_order_id;
 END;
 $$;
 

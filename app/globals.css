@@ -115,6 +115,13 @@ body {
 .animate-pop-in { animation: pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-ring { animation: ring-pulse 1.4s ease-out infinite; }
 
+/* New-order toast: yellow progress bar that drains over its 5s lifetime. */
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.toast-progress { animation: toast-progress 5000ms linear forwards; transform-origin: left; }
+
 /* The print portal is the dedicated print source — never shown on screen. */
 @media screen {
   .print-portal { display: none !important; }

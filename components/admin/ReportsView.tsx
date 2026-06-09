@@ -35,7 +35,8 @@ interface ReportOrder {
     quantity: number;
     total_price: number;
     product_name: string;
-    product: { cost_price: number; category_id: string | null } | null;
+    cost_price: number;
+    product: { category_id: string | null } | null;
   }[];
 }
 
@@ -117,7 +118,7 @@ export function ReportsView({
         const e = map.get(it.product_name) ?? { name: it.product_name, qty: 0, revenue: 0, cost: 0 };
         e.qty += it.quantity;
         e.revenue += Number(it.total_price);
-        e.cost += it.quantity * Number(it.product?.cost_price ?? 0);
+        e.cost += it.quantity * Number(it.cost_price ?? 0);
         map.set(it.product_name, e);
       })
     );

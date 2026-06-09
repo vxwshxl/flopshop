@@ -112,6 +112,8 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  /** Cost price snapshot at order time — profit history must not move when a product's cost is later edited. */
+  cost_price: number;
 }
 
 export interface Order {

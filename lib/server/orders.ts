@@ -48,7 +48,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const ids = input.items.map((i) => i.product_id);
   const { data: products, error: prodErr } = await supabase
     .from("products")
-    .select("id, name, selling_price, current_stock, is_active")
+    .select("id, name, selling_price, cost_price, current_stock, is_active")
     .in("id", ids);
 
   if (prodErr) return { ok: false, error: prodErr.message };
@@ -73,6 +73,9 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       quantity: qty,
       unit_price: unit,
       total_price: total,
+      // Snapshot the cost now so editing the product's cost later never
+      // rewrites the profit of this (already-placed) order.
+      cost_price: Number(p.cost_price),
     });
   }
 

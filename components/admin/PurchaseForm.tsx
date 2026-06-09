@@ -61,10 +61,11 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
       return toast.error(pErr.message);
     }
 
-    // Increase stock atomically.
-    const { error: sErr } = await supabase.rpc("adjust_stock", {
+    // Add stock and roll the product's cost into a weighted moving average.
+    const { error: sErr } = await supabase.rpc("record_purchase_cost", {
       p_product_id: product.id,
-      p_delta: qty,
+      p_qty: qty,
+      p_unit_cost: Number(form.unit_price) || 0,
     });
     setSaving(false);
     if (sErr) return toast.error(`Purchase saved, but stock update failed: ${sErr.message}`);
