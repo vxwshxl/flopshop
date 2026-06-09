@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { Invoice } from "@/components/Invoice";
 import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
@@ -37,6 +38,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
+      <RealtimeRefresh table="orders" channel={`order-${id}`} />
       <Link href="/orders" className="mb-4 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-950 dark:hover:text-white">
         <ArrowLeft className="h-4 w-4" /> Back to orders
       </Link>

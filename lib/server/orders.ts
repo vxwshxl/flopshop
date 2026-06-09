@@ -202,9 +202,11 @@ export async function updateOrderStatus(
   } else {
     updatePayload.cancel_reason = null;
   }
-  // Confirming an order is the single point that auto-marks it paid. No other
-  // transition touches payment status (admins toggle it manually if needed).
-  if (newStatus === "confirmed") {
+  // Payment is auto-marked paid when an order is confirmed, and again on
+  // delivery/completion — cash-on-delivery is collected at the door, and the
+  // order is stored with whatever method ended up being used (cash, or UPI if
+  // the delivery partner switched it via the shop QR).
+  if (newStatus === "confirmed" || newStatus === "delivered") {
     updatePayload.payment_status = "paid";
   }
 

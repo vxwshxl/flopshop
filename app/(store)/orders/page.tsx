@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { Package } from "lucide-react";
@@ -27,6 +28,7 @@ export default async function MyOrdersPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
+      <RealtimeRefresh table="orders" channel="my-orders" />
       <h1 className="mb-4 text-xl font-extrabold text-stone-950 dark:text-white">My Orders</h1>
       {list.length === 0 ? (
         <div className="flex flex-col items-center py-20 text-center text-stone-400">

@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { MapPin, Phone, Package } from "lucide-react";
+import { MapPin, Phone, Package, QrCode, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { setOrderStatusAction } from "@/app/admin/orders/actions";
+import { setOrderStatusAction, confirmUpiToShopAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,10 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
   const [pending, startTransition] = useTransition();
   const [showOtp, setShowOtp] = useState(false);
   const [otp, setOtp] = useState("");
+  // Shop-UPI payment (delivery person can't take UPI → customer pays the shop).
+  const [showUpi, setShowUpi] = useState(false);
+  const [upiOtp, setUpiOtp] = useState("");
+  const [upiPaid, setUpiPaid] = useState(false);
   const router = useRouter();
 
   function update(status: "out_for_delivery" | "delivered") {
@@ -56,6 +61,32 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
         toast.error("Something went wrong. Please try again.");
       }
     });
+  }
+
+  function confirmUpiPayment() {
+    startTransition(async () => {
+      try {
+        const res = await confirmUpiToShopAction(order.id, upiOtp);
+        if (!res.ok) {
+          toast.error(res.error ?? "Failed");
+          return;
+        }
+        // Show the proof screen; the card disappears on refresh (now delivered).
+        setUpiPaid(true);
+        toast.success("Payment confirmed ✓");
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+  }
+
+  function closeUpi() {
+    setShowUpi(false);
+    setUpiOtp("");
+    if (upiPaid) {
+      setUpiPaid(false);
+      router.refresh();
+    }
   }
 
   return (
@@ -116,6 +147,11 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
             </Button>
           )}
           {order.status !== "delivered" && (
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => setShowUpi(true)}>
+              <QrCode className="h-4 w-4" /> UPI to shop
+            </Button>
+          )}
+          {order.status !== "delivered" && (
             <Button size="sm" disabled={pending} onClick={() => update("delivered")}>
               Mark delivered
             </Button>
@@ -143,6 +179,59 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
             Confirm delivery
           </Button>
         </div>
+      </Modal>
+
+      <Modal open={showUpi} onClose={closeUpi} title={upiPaid ? "Payment confirmed" : "Pay to shop UPI"}>
+        {upiPaid ? (
+          <div className="flex flex-col items-center py-4 text-center">
+            <CheckCircle2 className="h-14 w-14 text-lime-400" />
+            <p className="mt-3 text-lg font-bold text-white">
+              Paid {formatCurrency(order.total_amount, currency)} via UPI
+            </p>
+            <p className="mt-1 text-sm text-stone-400">Money received in the shop&apos;s account · Order delivered ✓</p>
+            <Button className="mt-5 w-full" onClick={closeUpi}>
+              Done
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Big, high-contrast QR so the customer can scan it straight off
+                the delivery person's screen without fuss. */}
+            <div className="mb-4 rounded-2xl bg-white p-5 text-center shadow-lg">
+              <p className="text-sm font-semibold text-stone-500">Scan &amp; pay the shop</p>
+              <p className="text-3xl font-extrabold text-stone-900">{formatCurrency(order.total_amount, currency)}</p>
+              <div className="mt-3 flex justify-center">
+                <Image
+                  src="/QR.jpeg"
+                  alt="Shop UPI QR code — scan to pay"
+                  width={320}
+                  height={320}
+                  className="h-auto w-full max-w-[300px]"
+                  priority
+                />
+              </div>
+              <p className="mt-2 text-xs text-stone-500">Open any UPI app → scan → pay</p>
+            </div>
+            <p className="mb-2 text-sm text-stone-400">
+              Once paid, ask the customer for their 4-digit OTP and enter it to confirm payment &amp; complete delivery.
+            </p>
+            <Input
+              value={upiOtp}
+              onChange={(e) => setUpiOtp(e.target.value)}
+              placeholder="1234"
+              maxLength={4}
+              className="mb-4 w-full"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeUpi} disabled={pending}>
+                Cancel
+              </Button>
+              <Button disabled={pending || upiOtp.trim().length !== 4} onClick={confirmUpiPayment}>
+                Confirm payment
+              </Button>
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   );

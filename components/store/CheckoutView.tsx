@@ -71,7 +71,9 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,
         customer_room: form.customer_room,
-        payment_method: form.payment_method,
+        // Delivery is always cash-on-delivery at checkout; the delivery partner
+        // switches it to UPI at the door if the customer pays the shop QR.
+        payment_method: orderType === "delivery" ? "cash" : form.payment_method,
         notes: form.notes,
       }),
     });
@@ -193,22 +195,31 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
             </div>
             <div>
               <Label>Payment method</Label>
-              <div className="flex gap-3">
-                {(["cash", "upi"] as PaymentMethod[]).map((m) => (
-                  <button
-                    type="button"
-                    key={m}
-                    onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
-                      form.payment_method === m
-                        ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
-                        : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
-                    }`}
-                  >
-                    {m === "cash" ? "Cash" : "UPI"}
-                  </button>
-                ))}
-              </div>
+              {orderType === "delivery" ? (
+                <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
+                  Cash on delivery
+                  <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
+                    Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  {(["cash", "upi"] as PaymentMethod[]).map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                        form.payment_method === m
+                          ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                          : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
+                      }`}
+                    >
+                      {m === "cash" ? "Cash" : "UPI"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="notes">Notes (optional)</Label>
