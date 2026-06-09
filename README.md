@@ -1,109 +1,170 @@
-# 🛒 FlopShop — Hostel Shop Management System
+# 🛒 FlopShop — Premium Hostel Shop Management System
 
-A full-stack hostel snack shop: students browse and order (pickup or room delivery),
-admins manage the catalog, orders, inventory, invoices and reports, and delivery
-persons fulfil assigned orders.
+[![Next.js](https://img.shields.io/badge/Next.js-16%20(App%20Router)-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-emerald?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![Zustand](https://img.shields.io/badge/Zustand-State_Management-orange?style=for-the-badge)](https://zustand-demo.pmnd.rs)
 
-Built with **Next.js 16 (App Router) · TypeScript · Supabase (Auth + Postgres + Storage) ·
-Tailwind CSS · Recharts · Zustand**.
+A state-of-the-art, full-stack hostel snack shop management system. Designed for seamless operations: students browse and order (pickup or room delivery), delivery partners fulfill assigned room deliveries, and admins manage inventory, categories, purchases, orders, invoicing, and real-time financial reporting.
 
 ---
 
-## 1. Setup
+## 🏗️ Architecture Flow
 
-### Install dependencies
+```mermaid
+graph TD
+    %% User Flow
+    subgraph Client ["Storefront (Zustand & Next.js)"]
+        A[Browse Products] --> B[Cart & Checkout]
+    end
+
+    %% Auth & Middleware
+    subgraph Auth ["Security & Verification"]
+        B --> C{Guest Pickup?}
+        C -- Yes --> D[Server Action / Privilege Client]
+        C -- No --> E[Supabase Auth / RLS Verification]
+        E --> D
+        F[Route Protection] -->|proxy.ts| G[Role: Admin / Delivery / User]
+    end
+
+    %% Server & Storage
+    subgraph Backend ["Supabase Cloud"]
+        D --> H[(Postgres DB)]
+        H --> I[adjust_stock Function]
+        H --> J[handle_new_user Trigger]
+        K[Admin Dashboard / File Upload] --> L[product-images Storage]
+    end
+    
+    style Client fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
+    style Auth fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff
+    style Backend fill:#022c22,stroke:#10b981,stroke-width:2px,color:#fff
+```
+
+---
+
+## ✨ Key Features
+
+### 🛍️ Customers
+- **Intuitive Storefront**: Fast categorical navigation, visual search, and quick-add actions.
+- **Detailed Product Modals**: Real-time display of nutrition details, ingredients, and product origin imported directly via OpenFoodFacts integration.
+- **Versatile Checkout**: Support for guest-allowed pickup orders and login-required hostel room deliveries.
+- **Status Timelines & Invoices**: Interactive status updates and print-ready invoices for order tracking.
+
+### 👑 Administrators (Dark Mode Console)
+- **Real-Time Dashboard**: Key performance statistics, 7-day revenue charts (interactive Recharts), and category pie charts.
+- **Catalog Management**: Full CRUD operations on products/categories with a responsive, customizable 4:5 image cropper tool.
+- **Inventory Control**: Dedicated Purchases module that records supplier restocks and automatically increments stock.
+- **Manual Order Creator**: Desktop and tablet-optimized walk-in/offline order system.
+- **Financial Analytics**: Multi-tab Reports with Sales, Profit, and Inventory breakdown, including CSV export.
+- **Dynamic Settings**: Live settings panel for shop status toggling (Open/Closed), delivery fees, and earning splits.
+
+### 🛵 Delivery Partners
+- **Mobile-Responsive Portal**: Dashboard displaying active order assignments.
+- **Quick-Action Delivery**: One-tap "Mark Delivered" triggers with instant backend status synchronization.
+- **Earnings Tracking**: Real-time summary of accumulated delivery tips and shares.
+
+---
+
+## 📁 Project Directory Tour
+
+```
+flopshop/
+├── app/                  # Next.js Pages & Route Handlers
+│   ├── (store)/          # Customer facing storefront, cart, checkout, orders
+│   ├── admin/            # Admin dashboard, products, purchases, sales, settings
+│   ├── delivery/         # Delivery partner portal (assignments, delivery controls)
+│   └── api/              # Internal APIs (OpenFoodFacts search proxy, profiles, etc.)
+├── components/           # Reusable UI Components
+│   ├── admin/            # Image adjusters, stats cards, tables, dashboard charts
+│   ├── store/            # Product cards, detail modals, cart drawer
+│   └── ui/               # Base styled primitives (buttons, inputs, select fields)
+├── lib/                  # Application Utilities & Infrastructure
+│   ├── hooks/            # Frontend hooks (zustand cart hook, settings hydration)
+│   ├── supabase/         # Server and client database connection logic
+│   └── utils/            # Shared formatting helpers (currency, time boundaries)
+├── scripts/              # Seed scripts and OpenFoodFacts enrichments
+└── supabase/             # DB schema definitions and setup SQL scripts
+```
+
+---
+
+## 🚀 Getting Started
+
+### 1. Installation & Environment Setup
+Clone the repository and install the dependencies:
 ```bash
 npm install
 ```
 
-### Configure environment
-Fill in `.env.local` (already scaffolded) with values from your Supabase project
-(**Settings → API**):
-
+Configure your environment variables by renaming `.env.example` to `.env.local` and filling in the Supabase API credentials:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key   # server-only, never exposed to the browser
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-### Create the database
-Open the **Supabase SQL editor** and run the entire script in
-[`supabase/schema.sql`](supabase/schema.sql). It creates all tables, the
-auto-profile trigger, the `adjust_stock` function, RLS policies, seed categories
-& settings, and the `product-images` storage bucket.
+### 2. Database Schema Setup
+1. Log into your **Supabase Workspace**.
+2. Go to the **SQL Editor** and execute the entire SQL script from [`supabase/schema.sql`](file:///Users/vee/Web%20Dev/flopshop/supabase/schema.sql).
+3. This script sets up:
+   - Tables (`profiles`, `categories`, `products`, `orders`, `order_items`, `purchases`, `settings`)
+   - An auto-profile creation trigger for new users
+   - RLS security policies
+   - Default seeds (categories & base shop settings)
+   - The `product-images` storage bucket
 
-### Run
+### 3. Running Locally
+Start the local development server:
 ```bash
-npm run dev      # http://localhost:3000
-npm run build    # production build
+npm run dev
 ```
+Open [http://localhost:3000](http://localhost:3000) to view the storefront, or [http://localhost:3000/admin](http://localhost:3000/admin) to view the admin console.
 
 ---
 
-## 2. Authentication — Google only
+## 🔒 Authentication & Role Configuration
 
-Sign-in is **Google OAuth only**. Enable it once in Supabase:
+By default, authentication is configured with **Google OAuth**.
 
-1. **Google Cloud Console** → APIs & Services → Credentials → *Create OAuth client ID*
-   → type **Web application**.
-   - Authorized JavaScript origins: `http://localhost:3000` and your prod URL.
-   - Authorized redirect URI: `https://lxpjbfeenounxnancxec.supabase.co/auth/v1/callback`
-2. Copy the **Client ID** and **Client Secret**.
-3. **Supabase** → Authentication → Providers → **Google** → enable, paste the ID/Secret, Save.
-4. **Supabase** → Authentication → URL Configuration → add `http://localhost:3000/**`
-   (and your prod URL) to the redirect allow-list.
+### Google OAuth Setup
+1. Visit the **Google Cloud Console**, create a project, and setup OAuth credentials for a **Web Application**.
+   - **Authorized JavaScript origins**: `http://localhost:3000` (and production URLs).
+   - **Authorized redirect URI**: Copy the callback URL provided in the Supabase Auth Settings (e.g. `https://<project-ref>.supabase.co/auth/v1/callback`).
+2. Go to **Supabase** → **Authentication** → **Providers** → **Google**, enable the provider, paste your Client ID and Client Secret, and save.
+3. Add `http://localhost:3000/**` to the redirect allow-list in **Authentication** → **URL Configuration**.
 
-### Make yourself admin
-Roles default to `user`. Sign in with Google once (this auto-creates your `profiles`
-row via the `handle_new_user` trigger), then in the Supabase SQL editor:
+### Elevating User Roles
+All new Google sign-ups are created with a default `user` role. To grant administrator or delivery roles:
 
+1. Sign in to the application once.
+2. In the Supabase SQL editor, run:
 ```sql
-UPDATE profiles SET role = 'admin' WHERE email = 'you@gmail.com';
+-- Grant Admin Privileges
+UPDATE profiles SET role = 'admin' WHERE email = 'youremail@gmail.com';
+
+-- Grant Delivery Privileges (from Admin UI or SQL)
+UPDATE profiles SET role = 'delivery' WHERE email = 'deliveryperson@gmail.com';
 ```
 
-Re-navigate to `/admin`. You can manage everyone else's roles from **Admin → Users**;
-set a user to `delivery` for the `/delivery` panel.
+---
 
-## 2a. Adding products with OpenFoodFacts
-In **Admin → Products → Add product** there's an *Import from OpenFoodFacts* box:
-search by name or paste a barcode to auto-fill the name, real product image, and
-nutrition. Customers see the full details (image, brand, nutrition, ingredients) by
-tapping a product on the storefront.
+## 💡 Key Business Logic Rules
+
+* **Aspect Ratio Consistency**: All product images are uploaded and managed at a modern **4:5 aspect ratio**. The custom visual adjuster allows admins to crop, pan, and zoom uploaded images, maintaining layout integrity across storefront and tables.
+* **Automatic Stock Deductions**: Product stock is automatically decremented when order status transitions from `pending` to confirmed states. If an order is later `cancelled`, stock levels are automatically restored. Walk-in manual orders bypass approval and deduct stock instantly.
+* **Split Delivery Fees**: Delivery earnings are calculated dynamically on every checkout:
+  - Default: ₹10 Delivery Fee = ₹8 Delivery Partner Share + ₹2 Shop/Platform Share.
+  - Fees are locked into each order row at creation to remain robust against future setting updates.
+* **Code Prefixes**: Order codes conform to `ORD-YYMMDD-####` (sequential index per day) and invoices are structured as `INV-YYMMDD-###`.
 
 ---
 
-## 3. How it works
+## 🛠️ Tech Stack & Credits
 
-| Area | Route | Notes |
-|------|-------|-------|
-| Storefront | `/` | Browse by category, quick add to cart, sticky cart bar |
-| Cart / Checkout | `/cart`, `/checkout` | Pickup = guest allowed · Delivery = login required |
-| My orders | `/orders` | Order history + printable invoice + status timeline |
-| Admin | `/admin` | Dark dashboard: stats, 7-day revenue, category pie |
-| Products / Categories | `/admin/products`, `/admin/categories` | CRUD + image upload to Storage |
-| Purchases | `/admin/purchases` | Records restock **and** bumps product stock |
-| Orders / Manual order | `/admin/orders`, `/admin/orders/new` | Status flow, assign delivery, walk-in orders |
-| Invoices | `/admin/invoices` | Searchable list + printable invoice view |
-| Reports | `/admin/reports` | Sales · Profit · Inventory tabs + CSV export |
-| Settings | `/admin/settings` | Dynamic shop name, fees, delivery split, open/closed |
-| Delivery | `/delivery` | Assigned orders, mark delivered, earnings |
-
-### Business rules
-- **Delivery fee split** is fully dynamic from `settings`: ₹10 total = ₹8 delivery person + ₹2 shop. The three values are stored on every order.
-- **Stock** is deducted when an order moves out of `pending` (confirmed/preparing/…) and restored if it is later cancelled. Manual orders are auto-confirmed and deduct immediately.
-- **Order #** `ORD-YYMMDD-####` · **Invoice #** `INV-YYMMDD-###`.
-- **Route protection** lives in [`proxy.ts`](proxy.ts) (`/admin` → admin, `/delivery` → delivery/admin, `/orders` → any auth).
-
----
-
-## 4. Architecture notes
-- Order creation (checkout + manual) runs **server-side** with the service-role client
-  ([`lib/server/orders.ts`](lib/server/orders.ts)) so prices and stock are validated
-  against the DB and guest pickup orders work despite RLS.
-- Admin catalog/settings/user mutations run client-side via the browser client and are
-  authorised by RLS admin policies.
-- Cart is a persisted **Zustand** store ([`lib/hooks/useCart.ts`](lib/hooks/useCart.ts)).
-
-## 5. Deploy (Vercel)
-Push to a Git repo, import into Vercel, add the three env vars, and deploy. Add your
-Vercel URL to Supabase **Authentication → URL Configuration** redirect allow-list.
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Database**: [Supabase PostgreSQL](https://supabase.com/)
+- **State management**: [Zustand](https://github.com/pmndrs/zustand)
+- **Charts**: [Recharts](https://recharts.org/)
+- **Product Data**: [OpenFoodFacts API](https://world.openfoodfacts.org/)
