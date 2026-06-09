@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { setOrderStatusAction, confirmUpiToShopAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { OtpInput } from "@/components/ui/otp-input";
 import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatTime } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
@@ -131,28 +131,36 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs font-semibold text-lime-400">
+      <div className="mt-3 border-t border-white/5 pt-3">
+        <p className="mb-2.5 text-xs font-semibold text-lime-400">
           You earn {formatCurrency(order.delivery_person_earning, currency)}
-        </span>
-        <div className="flex gap-2">
-          <Link href={`/orders/${order.id}`}>
-            <Button size="sm" variant="outline">
+        </p>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Link
+            href={`/orders/${order.id}`}
+            className={`w-full ${order.status === "delivered" ? "col-span-2" : ""}`}
+          >
+            <Button size="sm" variant="outline" className="w-full">
               Details
             </Button>
           </Link>
-          {order.status !== "out_for_delivery" && order.status !== "delivered" && (
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => update("out_for_delivery")}>
+          {order.status !== "delivered" && order.status !== "out_for_delivery" && (
+            <Button size="sm" variant="outline" className="w-full" disabled={pending} onClick={() => update("out_for_delivery")}>
               Pick up
             </Button>
           )}
           {order.status !== "delivered" && (
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => setShowUpi(true)}>
+            <Button size="sm" variant="outline" className="w-full" disabled={pending} onClick={() => setShowUpi(true)}>
               <QrCode className="h-4 w-4" /> UPI to shop
             </Button>
           )}
           {order.status !== "delivered" && (
-            <Button size="sm" disabled={pending} onClick={() => update("delivered")}>
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() => update("delivered")}
+              className={`w-full ${order.status === "out_for_delivery" ? "col-span-2" : ""}`}
+            >
               Mark delivered
             </Button>
           )}
@@ -160,22 +168,15 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
       </div>
 
       <Modal open={showOtp} onClose={() => setShowOtp(false)} title="Enter delivery OTP">
-        <p className="mb-4 text-sm text-stone-400">
-          Ask the customer for their 4-digit order OTP and enter it here before marking the delivery complete.
+        <p className="mb-5 text-center text-sm text-stone-400">
+          Ask the customer for their 4-digit order OTP.
         </p>
-        <label className="mb-2 block text-sm font-medium text-white">OTP code</label>
-        <Input
-          value={otp}
-          onChange={(event) => setOtp(event.target.value)}
-          placeholder="1234"
-          maxLength={4}
-          className="mb-4 w-full"
-        />
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setShowOtp(false)} disabled={pending}>
+        <OtpInput value={otp} onChange={setOtp} autoFocus />
+        <div className="mt-6 grid grid-cols-2 gap-2.5">
+          <Button variant="outline" className="w-full" onClick={() => setShowOtp(false)} disabled={pending}>
             Cancel
           </Button>
-          <Button disabled={pending || otp.trim().length !== 4} onClick={confirmDelivery}>
+          <Button className="w-full" disabled={pending || otp.length !== 4} onClick={confirmDelivery}>
             Confirm delivery
           </Button>
         </div>
@@ -195,38 +196,23 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
           </div>
         ) : (
           <>
-            {/* Big, high-contrast QR so the customer can scan it straight off
-                the delivery person's screen without fuss. */}
-            <div className="mb-4 rounded-2xl bg-white p-5 text-center shadow-lg">
-              <p className="text-sm font-semibold text-stone-500">Scan &amp; pay the shop</p>
-              <p className="text-3xl font-extrabold text-stone-900">{formatCurrency(order.total_amount, currency)}</p>
-              <div className="mt-3 flex justify-center">
-                <Image
-                  src="/QR.jpeg"
-                  alt="Shop UPI QR code — scan to pay"
-                  width={320}
-                  height={320}
-                  className="h-auto w-full max-w-[300px]"
-                  priority
-                />
-              </div>
-              <p className="mt-2 text-xs text-stone-500">Open any UPI app → scan → pay</p>
+            <div className="mb-5 flex flex-col items-center rounded-2xl bg-white p-4 shadow-lg">
+              <p className="text-2xl font-extrabold text-stone-900">{formatCurrency(order.total_amount, currency)}</p>
+              <Image
+                src="/QR.jpeg"
+                alt="Shop UPI QR code — scan to pay"
+                width={180}
+                height={180}
+                className="mt-2 h-auto w-full max-w-[180px]"
+                priority
+              />
             </div>
-            <p className="mb-2 text-sm text-stone-400">
-              Once paid, ask the customer for their 4-digit OTP and enter it to confirm payment &amp; complete delivery.
-            </p>
-            <Input
-              value={upiOtp}
-              onChange={(e) => setUpiOtp(e.target.value)}
-              placeholder="1234"
-              maxLength={4}
-              className="mb-4 w-full"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={closeUpi} disabled={pending}>
+            <OtpInput value={upiOtp} onChange={setUpiOtp} autoFocus />
+            <div className="mt-6 grid grid-cols-2 gap-2.5">
+              <Button variant="outline" className="w-full" onClick={closeUpi} disabled={pending}>
                 Cancel
               </Button>
-              <Button disabled={pending || upiOtp.trim().length !== 4} onClick={confirmUpiPayment}>
+              <Button className="w-full" disabled={pending || upiOtp.length !== 4} onClick={confirmUpiPayment}>
                 Confirm payment
               </Button>
             </div>
