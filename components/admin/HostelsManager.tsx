@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { formatDate } from "@/lib/utils/formatters";
 import type { Hostel } from "@/lib/types";
 
 export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] }) {
@@ -109,7 +110,7 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
                   <td className="p-3">
                     <span className="font-medium text-white">{h.name}</span>
                   </td>
-                  <td className="p-3 text-black/50 dark:text-white/50">{new Date(h.created_at).toLocaleDateString()}</td>
+                  <td className="p-3 text-black/50 dark:text-white/50">{formatDate(h.created_at)}</td>
                   <td className="p-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs ${
                       h.is_active
