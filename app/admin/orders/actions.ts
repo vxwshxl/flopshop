@@ -272,6 +272,53 @@ export async function createManualOrderAction(input: Omit<CreateOrderInput, "con
   if (!res.ok || !res.order) return res;
 
   await updateOrderStatus(res.order.id, "delivered");
+  // Remember the walk-in customer (best-effort) so the name auto-suggests next
+  // time. Matched by name (case-insensitive): a new name is added, an existing
+  // one is merged — filling in a phone/room we didn't have before.
+  await upsertCustomerByName(input.customer_name, input.customer_phone, input.customer_room);
+  revalidatePath("/admin/orders/new");
   revalidatePath("/admin/orders");
   return { ...res, order: { ...res.order, status: "delivered" as OrderStatus } };
+}
+
+/**
+ * Save/merge a walk-in customer into the `customers` directory. Phone is
+ * optional (the table requires NOT NULL, so we store an empty string when none
+ * is given). Never throws — a failure here must not fail the completed order.
+ */
+async function upsertCustomerByName(
+  name: string,
+  phone?: string | null,
+  room?: string | null
+) {
+  const trimmed = name?.trim();
+  if (!trimmed) return;
+  const admin = createAdminClient();
+  try {
+    // ilike with no wildcards is an exact, case-insensitive match.
+    const { data: matches } = await admin
+      .from("customers")
+      .select("id, phone, room_number")
+      .ilike("name", trimmed)
+      .limit(1);
+    const existing = matches?.[0];
+
+    if (existing) {
+      const patch: Record<string, unknown> = {};
+      if (phone?.trim() && !existing.phone?.trim()) patch.phone = phone.trim();
+      if (room?.trim() && room.trim() !== (existing.room_number ?? "")) patch.room_number = room.trim();
+      if (Object.keys(patch).length) {
+        patch.updated_at = new Date().toISOString();
+        await admin.from("customers").update(patch).eq("id", existing.id);
+      }
+    } else {
+      await admin.from("customers").insert({
+        name: trimmed,
+        phone: phone?.trim() || "",
+        room_number: room?.trim() || null,
+      });
+    }
+  } catch {
+    // Directory bookkeeping only — swallow errors so the order still succeeds.
+  }
 }

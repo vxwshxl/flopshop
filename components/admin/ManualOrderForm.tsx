@@ -37,18 +37,26 @@ export function ManualOrderForm({
   const [lines, setLines] = useState<Line[]>([]);
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("pickup");
-  // "" = new walk-in (type the details); otherwise a saved customer's id.
-  const [customerId, setCustomerId] = useState("");
   const [customer, setCustomer] = useState({ name: "", phone: "", room: "" });
+  // Whether the name field is focused — controls the suggestions dropdown.
+  const [nameFocused, setNameFocused] = useState(false);
 
-  function selectCustomer(id: string) {
-    setCustomerId(id);
-    if (!id) {
-      setCustomer({ name: "", phone: "", room: "" });
-      return;
-    }
-    const c = customers.find((x) => x.id === id);
-    if (c) setCustomer({ name: c.name, phone: c.phone ?? "", room: c.room_number ?? "" });
+  // Live name suggestions from the saved customer directory.
+  const customerMatches = useMemo(() => {
+    const q = customer.name.trim().toLowerCase();
+    if (!q) return [];
+    return customers.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
+  }, [customers, customer.name]);
+
+  // Exact (case-insensitive) hit on a saved customer — this order will merge.
+  const matchedCustomer = useMemo(() => {
+    const q = customer.name.trim().toLowerCase();
+    return q ? customers.find((c) => c.name.toLowerCase() === q) : undefined;
+  }, [customers, customer.name]);
+
+  function pickCustomer(c: Customer) {
+    setCustomer({ name: c.name, phone: c.phone ?? "", room: c.room_number ?? "" });
+    setNameFocused(false);
   }
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   // Split payment: how much of the total was paid in cash (UPI = total − cash).
@@ -123,7 +131,6 @@ export function ManualOrderForm({
     if (!res.ok || !res.order) return toast.error(res.error ?? "Failed to create order.");
     setLines([]);
     setQuery("");
-    setCustomerId("");
     setCustomer({ name: "", phone: "", room: "" });
     setPayment("cash");
     setCashAmount("");
@@ -212,36 +219,45 @@ export function ManualOrderForm({
 
         <AdminCard title="Customer">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Label className="text-stone-700 dark:text-stone-300">Customer</Label>
-              <Select value={customerId} onChange={(e) => selectCustomer(e.target.value)} className={inputTheme}>
-                <option value="">+ New walk-in customer</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.phone ? ` · ${c.phone}` : ""}
-                  </option>
-                ))}
-              </Select>
+            <div className="relative">
+              <Label className="text-stone-700 dark:text-stone-300">Name</Label>
+              <Input
+                required
+                value={customer.name}
+                onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))}
+                onFocus={() => setNameFocused(true)}
+                // Delay so a click on a suggestion registers before it closes.
+                onBlur={() => setTimeout(() => setNameFocused(false), 150)}
+                placeholder="Type a name…"
+                autoComplete="off"
+                className={inputTheme}
+              />
+              {nameFocused && customerMatches.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
+                  {customerMatches.map((c) => (
+                    <button
+                      type="button"
+                      key={c.id}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pickCustomer(c)}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10"
+                    >
+                      <span>{c.name}</span>
+                      <span className="text-xs text-gray-500">{c.phone || "no phone"}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {matchedCustomer && (
+                <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                  Merges with saved customer{matchedCustomer.phone ? ` · ${matchedCustomer.phone}` : ""}
+                </p>
+              )}
             </div>
-
-            {customerId === "" ? (
-              <>
-                <div>
-                  <Label className="text-stone-700 dark:text-stone-300">Name</Label>
-                  <Input required value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} className={inputTheme} />
-                </div>
-                <div>
-                  <Label className="text-stone-700 dark:text-stone-300">Phone</Label>
-                  <Input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} className={inputTheme} />
-                </div>
-              </>
-            ) : (
-              <div className="sm:col-span-2 rounded-lg border border-black/10 bg-stone-50 p-3 text-sm dark:border-white/10 dark:bg-stone-900">
-                <p className="font-medium text-stone-950 dark:text-white">{customer.name}</p>
-                <p className="text-stone-500 dark:text-stone-400">{customer.phone || "No phone"}</p>
-              </div>
-            )}
+            <div>
+              <Label className="text-stone-700 dark:text-stone-300">Phone (optional)</Label>
+              <Input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} className={inputTheme} />
+            </div>
 
             {orderType === "delivery" && (
               <div>
