@@ -70,7 +70,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
       )}
 
-      <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-stone-900">
+      <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
         {/* OTP only for the owner, and only until handover (delivered/cancelled). */}
         <Invoice
           order={order}
