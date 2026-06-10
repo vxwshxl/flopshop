@@ -14,7 +14,7 @@ export default async function AdminOrdersPage() {
   const [{ data: orders }, { data: people }] = await Promise.all([
     supabase
       .from("orders")
-      .select("*, order_items(id), delivery_person:profiles!orders_delivery_person_id_fkey(id, full_name)")
+      .select("*, order_items(id, product_name), delivery_person:profiles!orders_delivery_person_id_fkey(id, full_name)")
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("id, full_name, role").in("role", ["delivery", "admin"]),
   ]);

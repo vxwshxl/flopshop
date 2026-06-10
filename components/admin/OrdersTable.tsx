@@ -15,7 +15,7 @@ import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } fro
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 
 type Row = Order & {
-  order_items?: { id: string }[];
+  order_items?: { id: string; product_name: string }[];
   delivery_person?: Pick<Profile, "id" | "full_name"> | null;
 };
 
@@ -49,7 +49,12 @@ export function OrdersTable({
     [orders, tab]
   );
   const ctl = useTableControls(tabbed, {
-    searchFields: (o) => [o.order_number, o.customer_name, o.invoice_number],
+    searchFields: (o) => [
+      o.order_number,
+      o.customer_name,
+      o.invoice_number,
+      ...(o.order_items?.map((it) => it.product_name) ?? []),
+    ],
     dateField: (o) => o.created_at,
     sorters: {
       order: byText((o) => o.order_number),
@@ -119,7 +124,7 @@ export function OrdersTable({
       <TableToolbar
         query={ctl.query}
         onQuery={ctl.setQuery}
-        placeholder="Search order #, invoice or customer…"
+        placeholder="Search order #, invoice, customer or product…"
         from={ctl.from}
         to={ctl.to}
         onFrom={ctl.setFrom}
