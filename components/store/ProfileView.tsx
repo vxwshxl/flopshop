@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import type { Profile, Hostel } from "@/lib/types";
 
 export function ProfileView({ profile, hostels }: { profile: Profile; hostels: Hostel[] }) {
-  const router = useRouter();
   const [form, setForm] = useState({
     full_name: profile.full_name ?? "",
     phone: profile.phone ?? "",
@@ -49,7 +47,10 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
         toast.error(result.error || "Unable to save profile.");
       } else {
         toast.success("Saved Changes");
-        router.push("/");
+        // Hard navigation so the middleware re-runs with the freshly-saved
+        // profile and lands on the home page instantly (no stale RSC cache).
+        window.location.href = "/";
+        return;
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "An unexpected error occurred");

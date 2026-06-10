@@ -82,14 +82,19 @@ export async function updateSession(request: NextRequest) {
     if (needsAdmin && role !== "admin") return redirectTo("/403");
     if (needsDelivery && role !== "delivery" && role !== "admin") return redirectTo("/403");
 
-    // Profile completion gate: regular customers must fill phone + room + hostel
-    // before they can use any page. Staff (admin/delivery) are exempt. API routes
-    // are allowed through so the save request itself can complete.
+    // Profile completion gate: the storefront (home, products, checkout, cart,
+    // orders) is blocked for ANY signed-in user until phone + room + hostel are
+    // filled. Staff dashboards (/admin, /delivery), the profile page itself, the
+    // API (so the save can complete) and the banned page stay reachable.
     const profileIncomplete =
       !profile?.phone?.trim() || !profile?.room_number?.trim() || !profile?.hostel_block?.trim();
-    const profileExempt = role === "admin" || role === "delivery";
-    const profileSafePath = path === "/profile" || path.startsWith("/api");
-    if (profileIncomplete && !profileExempt && !profileSafePath) {
+    const profileSafePath =
+      path === "/profile" ||
+      path.startsWith("/api") ||
+      path.startsWith("/admin") ||
+      path.startsWith("/delivery") ||
+      path === "/banned";
+    if (profileIncomplete && !profileSafePath) {
       return redirectTo("/profile");
     }
   }
