@@ -10,7 +10,8 @@ function generateOtp(): string {
 }
 
 export interface CreateOrderInput {
-  items: { product_id: string; quantity: number }[];
+  /** unit_price override is honoured only for manual (admin walk-in) orders. */
+  items: { product_id: string; quantity: number; unit_price?: number }[];
   order_type: OrderType;
   customer_name: string;
   customer_phone?: string | null;
@@ -67,7 +68,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     if (input.confirm && p.current_stock < qty) {
       return { ok: false, error: `Not enough stock for ${p.name}.` };
     }
-    const unit = Number(p.selling_price);
+    // Admins may override the price on manual walk-in orders; public checkout
+    // always uses the trusted DB price.
+    const unit =
+      input.is_manual && item.unit_price != null && Number(item.unit_price) >= 0
+        ? Number(item.unit_price)
+        : Number(p.selling_price);
     const total = unit * qty;
     subtotal += total;
     lineItems.push({

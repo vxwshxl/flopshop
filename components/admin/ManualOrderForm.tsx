@@ -17,6 +17,8 @@ const inputTheme =
 interface Line {
   product: Product;
   quantity: number;
+  /** Editable unit price for this walk-in (defaults to the product price). */
+  unitPrice: number;
 }
 
 export function ManualOrderForm({
@@ -69,7 +71,7 @@ export function ManualOrderForm({
         return ls.map((l) =>
           l.product.id === p.id ? { ...l, quantity: Math.min(l.quantity + 1, p.current_stock) } : l
         );
-      return [...ls, { product: p, quantity: 1 }];
+      return [...ls, { product: p, quantity: 1, unitPrice: Number(p.selling_price) }];
     });
     setQuery("");
   }
@@ -86,7 +88,12 @@ export function ManualOrderForm({
     );
   }
 
-  const subtotal = lines.reduce((s, l) => s + Number(l.product.selling_price) * l.quantity, 0);
+  function setPrice(id: string, value: string) {
+    const v = Math.max(0, Number(value) || 0);
+    setLines((ls) => ls.map((l) => (l.product.id === id ? { ...l, unitPrice: v } : l)));
+  }
+
+  const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const fee = orderType === "delivery" ? deliveryFee : 0;
   const total = subtotal + fee;
 
@@ -103,7 +110,7 @@ export function ManualOrderForm({
 
     setSaving(true);
     const res = await createManualOrderAction({
-      items: lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+      items: lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity, unit_price: l.unitPrice })),
       order_type: orderType,
       customer_name: customer.name,
       customer_phone: customer.phone,
@@ -123,7 +130,8 @@ export function ManualOrderForm({
     setNotes("");
     setOrderType("pickup");
     toast.success(`Order ${res.order.order_number} completed`);
-    router.push(`/admin/orders/${res.order.id}`);
+    // Stay on the manual-order page (fields already reset above) so the admin
+    // can ring up the next walk-in immediately. refresh() re-pulls live stock.
     router.refresh();
   }
 
@@ -165,7 +173,18 @@ export function ManualOrderForm({
               <div key={l.product.id} className="flex items-center gap-3 rounded-lg bg-stone-50 p-2.5 dark:bg-stone-900">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-stone-950 dark:text-white">{l.product.name}</p>
-                  <p className="text-xs text-stone-500 dark:text-stone-400">{formatCurrency(l.product.selling_price, currency)}</p>
+                  <div className="mt-1 flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
+                    <span>{currency}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={l.unitPrice}
+                      onChange={(e) => setPrice(l.product.id, e.target.value)}
+                      className={`h-7 w-16 rounded-md px-1.5 text-xs ${inputTheme}`}
+                      aria-label="Unit price"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => setQty(l.product.id, -1)} className="grid h-7 w-7 place-items-center rounded-md bg-black/5 text-stone-950 dark:bg-white/10 dark:text-white">
@@ -177,7 +196,7 @@ export function ManualOrderForm({
                   </button>
                 </div>
                 <span className="w-16 text-right text-sm text-stone-950 dark:text-white">
-                  {formatCurrency(Number(l.product.selling_price) * l.quantity, currency)}
+                  {formatCurrency(l.unitPrice * l.quantity, currency)}
                 </span>
                 <button
                   type="button"

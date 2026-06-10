@@ -7,13 +7,15 @@ import {
   setOrderStatusAction,
   assignDeliveryAction,
   setPaymentStatusAction,
+  updateOrderItemsAction,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
-import type { Order, OrderStatus, Profile } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, Profile } from "@/lib/types";
 
 export function OrderManagePanel({
   order,
@@ -28,6 +30,7 @@ export function OrderManagePanel({
   const [otp, setOtp] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
+  const [showItems, setShowItems] = useState(false);
   const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
@@ -187,6 +190,18 @@ export function OrderManagePanel({
           </div>
         )}
 
+        {order.status !== "cancelled" && (order.order_items?.length ?? 0) > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Items</p>
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => setShowItems(true)}>
+              Edit items
+            </Button>
+            <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+              Swap a flavour or fix quantity/price — the customer sees the update live.
+            </p>
+          </div>
+        )}
+
         <div>
           <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment</p>
           <div className="flex gap-2">
@@ -235,6 +250,17 @@ export function OrderManagePanel({
         </div>
       </Modal>
 
+      {showItems && (
+        <EditItemsModal
+          order={order}
+          onClose={() => setShowItems(false)}
+          onSaved={() => {
+            setShowItems(false);
+            router.refresh();
+          }}
+        />
+      )}
+
       <Modal open={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancellation reason">
         <p className="mb-4 text-sm text-gray-300">
           Tell the customer why this order cannot be fulfilled. This reason is saved with the cancelled order.
@@ -256,5 +282,79 @@ export function OrderManagePanel({
         </div>
       </Modal>
     </AdminCard>
+  );
+}
+
+function EditItemsModal({
+  order,
+  onClose,
+  onSaved,
+}: {
+  order: Order;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const currency = "₹";
+  const [rows, setRows] = useState(
+    (order.order_items ?? []).map((it: OrderItem) => ({
+      id: it.id,
+      product_name: it.product_name,
+      quantity: String(it.quantity),
+      unit_price: String(it.unit_price),
+    }))
+  );
+  const [saving, setSaving] = useState(false);
+
+  const set = (id: string, key: "product_name" | "quantity" | "unit_price", value: string) =>
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
+
+  const total = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unit_price) || 0), 0);
+
+  async function save() {
+    setSaving(true);
+    const res = await updateOrderItemsAction(
+      order.id,
+      rows.map((r) => ({
+        id: r.id,
+        product_name: r.product_name,
+        quantity: Number(r.quantity) || 1,
+        unit_price: Number(r.unit_price) || 0,
+      }))
+    );
+    setSaving(false);
+    if (!res.ok) return toast.error(res.error ?? "Failed to save.");
+    toast.success("Items updated");
+    onSaved();
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Edit order items">
+      <div className="space-y-3">
+        {rows.map((r) => (
+          <div key={r.id} className="rounded-lg border border-white/10 p-3">
+            <Label className="text-gray-300">Item</Label>
+            <Input value={r.product_name} onChange={(e) => set(r.id, "product_name", e.target.value)} className="mb-2" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-gray-300">Qty</Label>
+                <Input type="number" min="1" value={r.quantity} onChange={(e) => set(r.id, "quantity", e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-gray-300">Unit price ({currency})</Label>
+                <Input type="number" min="0" step="0.01" value={r.unit_price} onChange={(e) => set(r.id, "unit_price", e.target.value)} />
+              </div>
+            </div>
+          </div>
+        ))}
+        <p className="text-sm text-gray-400">
+          New items total: <span className="font-semibold text-white">{formatCurrency(total, currency)}</span>
+          <span className="text-gray-500"> (delivery fee unchanged)</span>
+        </p>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Button variant="outline" className="w-full" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="w-full" onClick={save} disabled={saving}>Save changes</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

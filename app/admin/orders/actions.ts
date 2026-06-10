@@ -98,12 +98,10 @@ export async function claimDeliveryOrderAction(orderId: string) {
   if (order.status === "pending") {
     updatePayload.status = "confirmed";
   }
-  // When an admin delivers it themselves, the whole delivery fee stays with the
-  // shop — there's no delivery partner to pay out.
-  if (actor.role === "admin") {
-    updatePayload.delivery_person_earning = 0;
-    updatePayload.admin_delivery_earning = Number(order.delivery_fee ?? 0);
-  }
+  // Whoever delivers the order — delivery partner OR an admin who claimed it —
+  // always earns the delivery-person share from settings. The split set at
+  // order creation (person 8 / shop 2) is kept regardless of payment method
+  // (cash collected at the door, or UPI paid to the shop QR).
 
   const { error: updErr } = await admin
     .from("orders")
@@ -166,6 +164,44 @@ export async function confirmUpiToShopAction(orderId: string, otp_code: string) 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/delivery");
   return result;
+}
+
+/**
+ * Admin edits an order's line items (e.g. swap a flavour, fix qty/price). The
+ * order's subtotal/total are recomputed afterwards, and the customer's order
+ * page updates live (it subscribes to realtime). Items are matched by id.
+ */
+export async function updateOrderItemsAction(
+  orderId: string,
+  items: { id: string; product_name: string; quantity: number; unit_price: number }[]
+) {
+  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  const admin = createAdminClient();
+
+  for (const it of items) {
+    const qty = Math.max(1, Math.floor(it.quantity));
+    const unit = Math.max(0, Number(it.unit_price) || 0);
+    const { error } = await admin
+      .from("order_items")
+      .update({
+        product_name: it.product_name.trim() || "Item",
+        quantity: qty,
+        unit_price: unit,
+        total_price: qty * unit,
+      })
+      .eq("id", it.id)
+      .eq("order_id", orderId);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  const { error: recalcErr } = await admin.rpc("recompute_order_totals", { p_order_id: orderId });
+  if (recalcErr) return { ok: false, error: recalcErr.message };
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true };
 }
 
 export async function assignDeliveryAction(orderId: string, deliveryPersonId: string | null) {
