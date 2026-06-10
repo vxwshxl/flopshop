@@ -33,10 +33,18 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = purchases.filter((p) => {
-      const matchQ =
-        !q ||
-        p.product_name.toLowerCase().includes(q) ||
-        (p.supplier ?? "").toLowerCase().includes(q);
+      const haystack = [
+        p.product_name,
+        p.supplier ?? "",
+        p.quantity,
+        p.unit_price,
+        p.total_cost,
+        formatDate(p.purchase_date),
+        (p.purchase_date ?? "").slice(0, 10),
+      ]
+        .join(" ")
+        .toLowerCase();
+      const matchQ = !q || haystack.includes(q);
       const day = (p.purchase_date ?? "").slice(0, 10);
       const matchFrom = !from || day >= from;
       const matchTo = !to || day <= to;
