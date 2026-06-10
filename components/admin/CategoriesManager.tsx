@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus, GripVertical } from "lucide-react";
+import { Pencil, Trash2, Plus, GripVertical } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -165,6 +165,9 @@ export function CategoriesManager({
                 </td>
                 <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-1">
+                    <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
+                      <Pencil className="h-4 w-4" />
+                    </button>
                     <button onClick={() => remove(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
                       <Trash2 className="h-4 w-4" />
                     </button>

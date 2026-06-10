@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   setOrderStatusAction,
@@ -11,6 +11,7 @@ import {
   deleteOrderAction,
 } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -21,7 +22,7 @@ import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/compo
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDateTime, formatPaymentMethod, paymentMethodLabel } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
-import type { Order, OrderItem, OrderStatus, PaymentStatus, Profile } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentStatus, Product, Profile } from "@/lib/types";
 
 type Row = Order & {
   order_items?: OrderItem[];
@@ -41,10 +42,12 @@ const PAY_FILTERS: { key: PayFilter; label: string }[] = [
 export function OrdersTable({
   orders,
   deliveryPeople,
+  products,
   currency,
 }: {
   orders: Row[];
   deliveryPeople: Pick<Profile, "id" | "full_name" | "role">[];
+  products: Pick<Product, "id" | "name" | "selling_price">[];
   currency: string;
 }) {
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
@@ -58,7 +61,8 @@ export function OrdersTable({
   // Optimistic payment status (same idea) so "Mark paid" reflects instantly.
   const [payStatusOverrides, setPayStatusOverrides] = useState<Record<string, PaymentStatus>>({});
   const payStatusOf = (o: Row) => payStatusOverrides[o.id] ?? o.payment_status;
-  // Delete-confirm target.
+  // Edit-items modal target + delete-confirm target.
+  const [editTarget, setEditTarget] = useState<Row | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -371,6 +375,16 @@ export function OrdersTable({
                         Mark paid
                       </button>
                     )}
+                    {o.status !== "cancelled" && (o.order_items?.length ?? 0) > 0 && (
+                      <button
+                        onClick={() => setEditTarget(o)}
+                        disabled={pending}
+                        title="Edit items"
+                        className="grid h-7 w-7 place-items-center rounded-md border border-black/10 text-black/60 transition hover:bg-black/5 hover:text-black disabled:opacity-50 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setDeleteTarget(o)}
                       disabled={pending}
@@ -390,6 +404,18 @@ export function OrdersTable({
           <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
         </div>
       </div>
+
+      {editTarget && (
+        <EditOrderItemsModal
+          order={editTarget}
+          products={products}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            router.refresh();
+          }}
+        />
+      )}
 
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete order?">
         <p className="mb-4 text-sm text-gray-300">

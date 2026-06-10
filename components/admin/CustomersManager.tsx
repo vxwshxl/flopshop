@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus, Merge } from "lucide-react";
+import { Pencil, Trash2, Plus, Merge } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   createCustomerAction,
@@ -215,6 +215,9 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
                   <td className="p-3 text-black/50 dark:text-white/50">{c.hostel_block ?? "—"}</td>
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
+                      <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50" aria-label="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={() => handleDelete(c.id)}
                         disabled={deleting === c.id}

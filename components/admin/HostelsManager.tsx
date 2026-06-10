@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { createHostelAction, deleteHostelAction } from "@/app/admin/hostels/actions";
 import { PageHeader } from "@/components/admin/StatCard";
@@ -148,6 +148,9 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
                   </td>
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
+                      <button onClick={() => openEdit(h)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50" aria-label="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={async () => {
                           const { updateHostelAction } = await import("@/app/admin/hostels/actions");
