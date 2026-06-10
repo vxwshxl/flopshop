@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { Trash2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { createHostelAction, deleteHostelAction } from "@/app/admin/hostels/actions";
-import { PageHeader, AdminCard } from "@/components/admin/StatCard";
+import { PageHeader } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
 import { formatDate } from "@/lib/utils/formatters";
 import type { Hostel } from "@/lib/types";
@@ -91,10 +92,9 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
   }
 
   return (
-    <div>
+    <div className={tablePageClass}>
       <PageHeader
         title="Hostels"
-        subtitle="Manage hostel blocks"
         action={
           <Button onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4" /> Add hostel
@@ -102,21 +102,23 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
         }
       />
 
-      <AdminCard>
-        <TableToolbar
-          query={ctl.query}
-          onQuery={ctl.setQuery}
-          placeholder="Search hostel…"
-          from={ctl.from}
-          to={ctl.to}
-          onFrom={ctl.setFrom}
-          onTo={ctl.setTo}
-          hasDateFilter={ctl.hasDateFilter}
-          onClearDates={ctl.clearDates}
-        />
-        <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+      <div className={tableCardClass}>
+        <div className="shrink-0">
+          <TableToolbar
+            query={ctl.query}
+            onQuery={ctl.setQuery}
+            placeholder="Search hostel…"
+            from={ctl.from}
+            to={ctl.to}
+            onFrom={ctl.setFrom}
+            onTo={ctl.setTo}
+            hasDateFilter={ctl.hasDateFilter}
+            onClearDates={ctl.clearDates}
+          />
+        </div>
+        <TableScroll>
           <table className="w-full text-sm">
-            <thead>
+            <thead className={stickyHead}>
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
                 <SortHeader label="Hostel" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
                 <SortHeader label="Created" sortKey="created" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
@@ -167,9 +169,11 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
               ))}
             </tbody>
           </table>
+        </TableScroll>
+        <div className="shrink-0">
+          <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
         </div>
-        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
-      </AdminCard>
+      </div>
 
       <Modal open={showAddModal} onClose={() => { setShowAddModal(false); setEditing(null); }} title={editing ? "Edit hostel" : "Add hostel"}>
         <form onSubmit={editing ? handleSaveEdit : handleAdd} className="space-y-4">

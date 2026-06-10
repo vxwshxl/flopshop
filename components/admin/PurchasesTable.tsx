@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { DatePicker } from "@/components/ui/date-picker";
+import { TableScroll, tableCardClass } from "@/components/admin/TableShell";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { deletePurchaseAction, updatePurchaseAction } from "@/app/admin/purchases/actions";
 import type { Purchase } from "@/lib/types";
@@ -90,8 +91,8 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
   );
 
   return (
-    <div>
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+    <div className={tableCardClass}>
+      <div className="mb-3 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <input
@@ -113,9 +114,9 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#1a1a1a]">
+      <TableScroll className="rounded-xl border-[#222] bg-[#1a1a1a]">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 [&_th]:bg-[#1a1a1a]">
             <tr className="border-b border-[#222] text-left text-xs text-gray-500">
               {sortTh("purchase_date", "Date")}
               {sortTh("product_name", "Product")}
@@ -154,8 +155,10 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
             ))}
           </tbody>
         </table>
+      </TableScroll>
+      <div className="shrink-0">
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
 
       {editing && (
         <EditPurchaseModal

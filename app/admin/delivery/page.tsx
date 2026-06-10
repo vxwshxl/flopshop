@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
-import { StatCard, AdminCard, PageHeader } from "@/components/admin/StatCard";
+import { StatCard, PageHeader } from "@/components/admin/StatCard";
+import { tablePageClass } from "@/components/admin/TableShell";
 import { Truck, Users, Clock, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Profile, Order } from "@/lib/types";
@@ -78,13 +79,13 @@ export default async function AdminDeliveryPage() {
     .reduce((s, o) => s + Number(o.delivery_person_earning), 0);
 
   return (
-    <div>
+    <div className={tablePageClass}>
       <AdminDeliveryRefresh />
       <RealtimeRefresh table="orders" channel="admin:delivery:orders" />
       <RealtimeRefresh table="profiles" channel="admin:delivery:profiles" />
-      <PageHeader title="Delivery Partners" subtitle="Manage & monitor delivery team" />
+      <PageHeader title="Delivery Partners" />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Active Now"
           value={activeCount}
@@ -108,9 +109,14 @@ export default async function AdminDeliveryPage() {
         />
       </div>
 
-      <AdminCard title="Delivery Partners" className="mt-4">
-        <DeliveryPartnersTable partners={partnerStats} currency={currency} />
-      </AdminCard>
+      <div className="glass mt-4 flex min-h-0 flex-1 flex-col rounded-2xl">
+        <div className="glass-line flex shrink-0 items-center border-b px-4 py-3">
+          <h3 className="text-sm font-bold text-stone-900 dark:text-white">Delivery Partners</h3>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col p-4">
+          <DeliveryPartnersTable partners={partnerStats} currency={currency} />
+        </div>
+      </div>
     </div>
   );
 }

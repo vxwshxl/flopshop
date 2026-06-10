@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
+import { tablePageClass } from "@/components/admin/TableShell";
 import { ProductsTable } from "@/components/admin/ProductsTable";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category, Product } from "@/lib/types";
@@ -17,7 +18,7 @@ export default async function AdminProductsPage() {
   ]);
 
   return (
-    <div>
+    <div className={tablePageClass}>
       <RealtimeRefresh table="products" channel="admin:products" />
       <RealtimeRefresh table="categories" channel="admin:categories" />
       <PageHeader title="Products" subtitle={`${products?.length ?? 0} products`} />

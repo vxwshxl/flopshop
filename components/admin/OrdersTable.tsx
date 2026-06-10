@@ -9,6 +9,7 @@ import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Select } from "@/components/ui/input";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
@@ -103,8 +104,8 @@ export function OrdersTable({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className={tableCardClass}>
+      <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2">
         {TABS.map((t) => (
           <button
             key={t}
@@ -121,21 +122,23 @@ export function OrdersTable({
         ))}
       </div>
 
-      <TableToolbar
-        query={ctl.query}
-        onQuery={ctl.setQuery}
-        placeholder="Search order #, invoice, customer or product…"
-        from={ctl.from}
-        to={ctl.to}
-        onFrom={ctl.setFrom}
-        onTo={ctl.setTo}
-        hasDateFilter={ctl.hasDateFilter}
-        onClearDates={ctl.clearDates}
-      />
+      <div className="shrink-0">
+        <TableToolbar
+          query={ctl.query}
+          onQuery={ctl.setQuery}
+          placeholder="Search order #, invoice, customer or product…"
+          from={ctl.from}
+          to={ctl.to}
+          onFrom={ctl.setFrom}
+          onTo={ctl.setTo}
+          hasDateFilter={ctl.hasDateFilter}
+          onClearDates={ctl.clearDates}
+        />
+      </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+      <TableScroll>
         <table className="w-full text-sm">
-          <thead>
+          <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Order" sortKey="order" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <SortHeader label="Customer" sortKey="customer" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -220,8 +223,10 @@ export function OrdersTable({
             ))}
           </tbody>
         </table>
+      </TableScroll>
+      <div className="shrink-0">
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import type { Category, Product } from "@/lib/types";
 
@@ -134,36 +135,38 @@ export function ProductsTable({
   }
 
   return (
-    <div>
-      <TableToolbar
-        query={ctl.query}
-        onQuery={ctl.setQuery}
-        placeholder="Search products…"
-        from={ctl.from}
-        to={ctl.to}
-        onFrom={ctl.setFrom}
-        onTo={ctl.setTo}
-        hasDateFilter={ctl.hasDateFilter}
-        onClearDates={ctl.clearDates}
-      >
-        <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-48">
-          <option value="all">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
-            </option>
-          ))}
-        </Select>
-        <Link href="/admin/products/new">
-          <Button variant="dark">
-            <Plus className="h-4 w-4" /> Add product
-          </Button>
-        </Link>
-      </TableToolbar>
+    <div className={tableCardClass}>
+      <div className="shrink-0">
+        <TableToolbar
+          query={ctl.query}
+          onQuery={ctl.setQuery}
+          placeholder="Search products…"
+          from={ctl.from}
+          to={ctl.to}
+          onFrom={ctl.setFrom}
+          onTo={ctl.setTo}
+          hasDateFilter={ctl.hasDateFilter}
+          onClearDates={ctl.clearDates}
+        >
+          <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-48">
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.icon} {c.name}
+              </option>
+            ))}
+          </Select>
+          <Link href="/admin/products/new">
+            <Button variant="dark">
+              <Plus className="h-4 w-4" /> Add product
+            </Button>
+          </Link>
+        </TableToolbar>
+      </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+      <TableScroll>
         <table className="w-full text-sm">
-          <thead>
+          <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Product" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Category</th>
@@ -249,8 +252,10 @@ export function ProductsTable({
             })}
           </tbody>
         </table>
+      </TableScroll>
+      <div className="shrink-0">
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete product"

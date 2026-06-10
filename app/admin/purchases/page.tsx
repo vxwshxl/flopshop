@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { PurchasesTable } from "@/components/admin/PurchasesTable";
+import { tablePageClass } from "@/components/admin/TableShell";
 import type { Purchase } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function PurchasesPage() {
   const totalSpent = list.reduce((s, p) => s + Number(p.total_cost), 0);
 
   return (
-    <div>
+    <div className={tablePageClass}>
       <RealtimeRefresh table="purchases" channel="admin:purchases" />
       <PageHeader
         title="Purchases"

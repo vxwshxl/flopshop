@@ -42,7 +42,7 @@ export function TableToolbar({
       </div>
       {children}
       {showDateRange && onFrom && onTo && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2 lg:justify-start">
           <DatePicker value={from ?? ""} onChange={onFrom} className="w-36" />
           <span className="text-white/40">→</span>
           <DatePicker value={to ?? ""} onChange={onTo} className="w-36" />

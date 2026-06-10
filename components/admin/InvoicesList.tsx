@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tableCardClass } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
@@ -25,22 +26,24 @@ export function InvoicesList({ orders, currency }: { orders: Row[]; currency: st
   const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
   return (
-    <div>
-      <TableToolbar
-        query={ctl.query}
-        onQuery={ctl.setQuery}
-        placeholder="Search invoice # or customer…"
-        from={ctl.from}
-        to={ctl.to}
-        onFrom={ctl.setFrom}
-        onTo={ctl.setTo}
-        hasDateFilter={ctl.hasDateFilter}
-        onClearDates={ctl.clearDates}
-      />
+    <div className={tableCardClass}>
+      <div className="shrink-0">
+        <TableToolbar
+          query={ctl.query}
+          onQuery={ctl.setQuery}
+          placeholder="Search invoice # or customer…"
+          from={ctl.from}
+          to={ctl.to}
+          onFrom={ctl.setFrom}
+          onTo={ctl.setTo}
+          hasDateFilter={ctl.hasDateFilter}
+          onClearDates={ctl.clearDates}
+        />
+      </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#1a1a1a]">
+      <TableScroll className="rounded-xl border-[#222] bg-[#1a1a1a]">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 [&_th]:bg-[#1a1a1a]">
             <tr className="border-b border-[#222] text-left text-xs text-gray-500">
               <SortHeader label="Invoice #" sortKey="invoice" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <SortHeader label="Customer" sortKey="customer" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -84,8 +87,10 @@ export function InvoicesList({ orders, currency }: { orders: Row[]; currency: st
             ))}
           </tbody>
         </table>
+      </TableScroll>
+      <div className="shrink-0">
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
     </div>
   );
 }

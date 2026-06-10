@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
+import { tablePageClass } from "@/components/admin/TableShell";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Profile } from "@/lib/types";
@@ -22,7 +23,7 @@ export default async function UsersPage() {
   });
 
   return (
-    <div>
+    <div className={tablePageClass}>
       <RealtimeRefresh table="profiles" channel="admin:profiles" />
       <PageHeader title="Users" subtitle={`${users?.length ?? 0} users`} />
       <UsersTable

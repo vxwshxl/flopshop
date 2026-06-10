@@ -16,6 +16,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
 import type { Customer, Hostel } from "@/lib/types";
 
@@ -142,10 +143,9 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
   }
 
   return (
-    <div className="flex h-[calc(100dvh-6rem)] flex-col md:h-[calc(100dvh-8rem)]">
+    <div className={tablePageClass}>
       <PageHeader
         title="Customers"
-        subtitle="Walk-in customers for manual orders"
         action={
           <div className="flex gap-2">
             {selected.size >= 2 && (
@@ -160,7 +160,7 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
         }
       />
 
-      <div className="glass flex min-h-0 flex-1 flex-col rounded-2xl p-4">
+      <div className={tableCardClass}>
         <div className="shrink-0">
           <TableToolbar
             query={ctl.query}
@@ -174,9 +174,9 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
             onClearDates={ctl.clearDates}
           />
         </div>
-        <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+        <TableScroll>
           <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 [&_th]:bg-white dark:[&_th]:bg-black">
+            <thead className={stickyHead}>
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
                 <th className="w-10 p-3"></th>
                 <SortHeader label="Name" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -227,7 +227,7 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
         <div className="shrink-0">
           <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
         </div>

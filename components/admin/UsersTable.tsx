@@ -12,6 +12,7 @@ import { setUserRoleAction, toggleUserActiveAction } from "@/app/admin/users/act
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import type { Order, Profile, Role } from "@/lib/types";
 
 const ROLES: Role[] = ["user", "delivery", "admin"];
@@ -74,22 +75,24 @@ export function UsersTable({
   }
 
   return (
-    <div>
-      <TableToolbar
-        query={ctl.query}
-        onQuery={ctl.setQuery}
-        placeholder="Search name, email or room…"
-        from={ctl.from}
-        to={ctl.to}
-        onFrom={ctl.setFrom}
-        onTo={ctl.setTo}
-        hasDateFilter={ctl.hasDateFilter}
-        onClearDates={ctl.clearDates}
-      />
+    <div className={tableCardClass}>
+      <div className="shrink-0">
+        <TableToolbar
+          query={ctl.query}
+          onQuery={ctl.setQuery}
+          placeholder="Search name, email or room…"
+          from={ctl.from}
+          to={ctl.to}
+          onFrom={ctl.setFrom}
+          onTo={ctl.setTo}
+          hasDateFilter={ctl.hasDateFilter}
+          onClearDates={ctl.clearDates}
+        />
+      </div>
 
-      <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+      <TableScroll>
         <table className="w-full text-sm">
-          <thead>
+          <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Name" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Email</th>
@@ -145,8 +148,10 @@ export function UsersTable({
             ))}
           </tbody>
         </table>
+      </TableScroll>
+      <div className="shrink-0">
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
 
       <Modal open={!!historyFor} onClose={() => setHistoryFor(null)} title={`${historyFor?.full_name ?? "User"} — Orders`}>
         {history === null ? (

@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import type { Category } from "@/lib/types";
 
@@ -103,16 +104,18 @@ export function CategoriesManager({
   }
 
   return (
-    <div>
-      <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search category…" showDateRange={false}>
-        <Button variant="dark" onClick={openNew}>
-          <Plus className="h-4 w-4" /> Add category
-        </Button>
-      </TableToolbar>
+    <div className={tableCardClass}>
+      <div className="shrink-0">
+        <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search category…" showDateRange={false}>
+          <Button variant="dark" onClick={openNew}>
+            <Plus className="h-4 w-4" /> Add category
+          </Button>
+        </TableToolbar>
+      </div>
 
-      <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+      <TableScroll>
         <table className="w-full text-sm">
-          <thead>
+          <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Order" sortKey="order" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <SortHeader label="Category" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -162,8 +165,10 @@ export function CategoriesManager({
             ))}
           </tbody>
         </table>
+      </TableScroll>
+      <div className="shrink-0">
+        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-      <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit Category" : "New Category"}>
         <form onSubmit={save} className="space-y-4">

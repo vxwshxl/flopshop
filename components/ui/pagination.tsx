@@ -54,7 +54,8 @@ export function Pagination({
   return (
     <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-black/60 dark:text-white/60">
       <div className="flex items-center gap-2">
-        <span>Rows per page</span>
+        <span className="sm:hidden">Rows</span>
+        <span className="hidden sm:inline">Rows per page</span>
         <select
           value={perPage}
           onChange={(e) => onPerPage(Number(e.target.value))}

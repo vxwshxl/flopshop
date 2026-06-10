@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
+import { tablePageClass } from "@/components/admin/TableShell";
 import { InvoicesList } from "@/components/admin/InvoicesList";
 import type { Order } from "@/lib/types";
 
@@ -16,7 +17,7 @@ export default async function InvoicesPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div>
+    <div className={tablePageClass}>
       <PageHeader title="Invoices" subtitle={`${orders?.length ?? 0} invoices`} />
       <InvoicesList orders={(orders as Order[]) ?? []} currency={settings.currency_symbol} />
     </div>
