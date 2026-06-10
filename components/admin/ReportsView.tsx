@@ -58,6 +58,16 @@ const INCOME_COLORS: Record<string, string> = {
 };
 const tooltipStyle = { backgroundColor: "#0a0a0a", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
 
+/**
+ * Developer's cut: a flat ₹1 per successfully completed (delivered) order,
+ * counted only for orders placed on or after DEV_CUT_START. This is an
+ * admin↔developer accounting item — it is never charged to customers and does
+ * not appear on any invoice or order total. It only reduces reported net profit.
+ */
+const DEV_CUT_PER_ORDER = 1;
+const DEV_CUT_START = "2026-06-10";
+const DEV_CUT_START_LABEL = "10 Jun, 2026";
+
 export function ReportsView({
   orders,
   products,
@@ -74,9 +84,19 @@ export function ReportsView({
   const currency = settings.currency_symbol ?? "₹";
   const [tab, setTab] = useState<Tab>("Sales");
 
-  const defFrom = new Date();
-  defFrom.setDate(defFrom.getDate() - 29);
-  const [from, setFrom] = useState(toISODate(defFrom));
+  // Default the range to start at the very first sale on record (so it always
+  // covers all history), falling back to 29 days ago when there are no orders.
+  const [from, setFrom] = useState(() => {
+    let earliest = "";
+    for (const o of orders) {
+      const day = o.created_at.slice(0, 10);
+      if (!earliest || day < earliest) earliest = day;
+    }
+    if (earliest) return earliest;
+    const d = new Date();
+    d.setDate(d.getDate() - 29);
+    return toISODate(d);
+  });
   const [to, setTo] = useState(toISODate(new Date()));
 
   const catName = useMemo(
@@ -191,7 +211,13 @@ export function ReportsView({
     },
     { fee: 0, person: 0, admin: 0 }
   );
-  const netProfit = grossProfit + deliveryTotals.admin;
+  // Developer's cut — ₹1 per completed (delivered) order placed on/after the
+  // start date. Pure calculation, no stored column; reduces net profit only.
+  const devCutCount = validOrders.filter(
+    (o) => o.status === "delivered" && o.created_at.slice(0, 10) >= DEV_CUT_START
+  ).length;
+  const devCut = devCutCount * DEV_CUT_PER_ORDER;
+  const netProfit = grossProfit + deliveryTotals.admin - devCut;
 
   // Profit/Loss per product — searchable, sortable, paginated.
   const profitRows = useMemo(
@@ -399,10 +425,10 @@ export function ReportsView({
             <StatCard label="Product Revenue" value={formatCurrency(productRevenue, currency)} />
             <StatCard label="Cost of Goods" value={formatCurrency(cogs, currency)} />
             <StatCard label="Gross Profit" value={formatCurrency(grossProfit, currency)} hint="Revenue − COGS" />
-            <StatCard label="Net Profit" value={formatCurrency(netProfit, currency)} hint="+ admin delivery share" />
+            <StatCard label="Net Profit" value={formatCurrency(netProfit, currency)} hint="+ admin delivery − dev fee" />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <AdminCard title="Delivery Earnings">
               <div className="space-y-2 text-sm">
                 <Line label="Total delivery fees" value={formatCurrency(deliveryTotals.fee, currency)} />
@@ -410,10 +436,19 @@ export function ReportsView({
                 <Line label="Shop (admin share)" value={formatCurrency(deliveryTotals.admin, currency)} />
               </div>
             </AdminCard>
-            <AdminCard title="Purchase Cost (in range)">
-              <p className="text-2xl font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
-              <p className="mt-1 text-xs text-gray-500">{rangePurchases.length} purchase records</p>
-            </AdminCard>
+            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+              <AdminCard title="Purchase Cost">
+                <p className="text-2xl font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
+                <p className="mt-1 text-xs text-gray-500">{rangePurchases.length} purchase records</p>
+              </AdminCard>
+              <AdminCard title="Developer Fees">
+                <p className="text-2xl font-bold text-white">{formatCurrency(devCut, currency)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                  <p>· {devCutCount} completed × {formatCurrency(DEV_CUT_PER_ORDER, currency)}</p>
+                  <p>· {DEV_CUT_START_LABEL} onwards</p>
+                </div>
+              </AdminCard>
+            </div>
           </div>
 
           <AdminCard title="Profit / Loss per Product">
