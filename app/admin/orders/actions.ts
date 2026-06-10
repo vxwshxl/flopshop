@@ -167,30 +167,61 @@ export async function confirmUpiToShopAction(orderId: string, otp_code: string) 
 }
 
 /**
- * Admin edits an order's line items (e.g. swap a flavour, fix qty/price). The
- * order's subtotal/total are recomputed afterwards, and the customer's order
- * page updates live (it subscribes to realtime). Items are matched by id.
+ * Admin edits an order's line items: swap a flavour, fix qty/price, ADD a brand
+ * new line, or remove one. Existing rows carry an `id` (matched + updated);
+ * rows without an `id` are inserted; any existing item the admin dropped from
+ * the list is deleted. The order's subtotal/total are recomputed afterwards,
+ * and the customer's order page updates live (it subscribes to realtime).
  */
 export async function updateOrderItemsAction(
   orderId: string,
-  items: { id: string; product_name: string; quantity: number; unit_price: number }[]
+  items: { id?: string | null; product_id?: string | null; product_name: string; quantity: number; unit_price: number }[]
 ) {
   if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  if (!items.length) return { ok: false, error: "An order must have at least one item." };
   const admin = createAdminClient();
+
+  // Anything currently on the order but not resubmitted gets removed.
+  const { data: existing } = await admin.from("order_items").select("id").eq("order_id", orderId);
+  const keepIds = new Set(items.filter((i) => i.id).map((i) => i.id as string));
+  const toDelete = (existing ?? []).map((r) => r.id).filter((id) => !keepIds.has(id));
+
+  // Cost snapshot for brand-new lines: read the product's live cost so profit
+  // reports stay accurate (matches how createOrder snapshots cost at order time).
+  const newProductIds = [...new Set(items.filter((i) => !i.id && i.product_id).map((i) => i.product_id as string))];
+  const costMap = new Map<string, number>();
+  if (newProductIds.length) {
+    const { data: prods } = await admin.from("products").select("id, cost_price").in("id", newProductIds);
+    for (const p of prods ?? []) costMap.set(p.id, Number(p.cost_price) || 0);
+  }
 
   for (const it of items) {
     const qty = Math.max(1, Math.floor(it.quantity));
     const unit = Math.max(0, Number(it.unit_price) || 0);
-    const { error } = await admin
-      .from("order_items")
-      .update({
-        product_name: it.product_name.trim() || "Item",
+    const name = it.product_name.trim() || "Item";
+    if (it.id) {
+      const { error } = await admin
+        .from("order_items")
+        .update({ product_name: name, quantity: qty, unit_price: unit, total_price: qty * unit })
+        .eq("id", it.id)
+        .eq("order_id", orderId);
+      if (error) return { ok: false, error: error.message };
+    } else {
+      const { error } = await admin.from("order_items").insert({
+        order_id: orderId,
+        product_id: it.product_id ?? null,
+        product_name: name,
         quantity: qty,
         unit_price: unit,
         total_price: qty * unit,
-      })
-      .eq("id", it.id)
-      .eq("order_id", orderId);
+        cost_price: it.product_id ? costMap.get(it.product_id) ?? 0 : 0,
+      });
+      if (error) return { ok: false, error: error.message };
+    }
+  }
+
+  if (toDelete.length) {
+    const { error } = await admin.from("order_items").delete().in("id", toDelete).eq("order_id", orderId);
     if (error) return { ok: false, error: error.message };
   }
 
