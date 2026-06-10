@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { OrderManagePanel } from "@/components/admin/OrderManagePanel";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import { DeleteOrderButton } from "@/components/admin/DeleteOrderButton";
 import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { Invoice } from "@/components/Invoice";
@@ -40,6 +41,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         action={
           <div className="flex items-center gap-3">
             <OrderStatusBadge status={order.status} />
+            <DeleteOrderButton orderId={order.id} orderNumber={order.order_number} />
             <PrintButton label="Print invoice" />
           </div>
         }
