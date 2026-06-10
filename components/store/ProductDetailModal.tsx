@@ -83,8 +83,6 @@ export function ProductDetailModal({
             onClick={() => {
               if (!isOpen) return toast.error("The shop is currently closed.");
               addItem(product);
-              // Sit just above the fixed bottom cart/checkout bar for clarity.
-              toast.success(`${product.name} added`, { position: "bottom-center", style: { marginBottom: "4.75rem" } });
             }}
             disabled={!isOpen}
           >
