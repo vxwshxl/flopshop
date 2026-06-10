@@ -107,6 +107,16 @@ export function ManualOrderForm({
     setLines((ls) => ls.map((l) => (l.product.id === id ? { ...l, unitPrice: v } : l)));
   }
 
+  function setQtyValue(id: string, value: string) {
+    setLines((ls) =>
+      ls.map((l) => {
+        if (l.product.id !== id) return l;
+        const n = Math.max(1, Math.min(Math.floor(Number(value) || 1), l.product.current_stock));
+        return { ...l, quantity: n };
+      })
+    );
+  }
+
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const fee = orderType === "delivery" ? deliveryFee : 0;
   const total = subtotal + fee;
@@ -229,7 +239,15 @@ export function ManualOrderForm({
                   <button type="button" onClick={() => setQty(l.product.id, -1)} className="grid h-7 w-7 place-items-center rounded-md bg-black/5 text-stone-950 dark:bg-white/10 dark:text-white">
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className="w-5 text-center text-sm font-bold text-stone-950 dark:text-white">{l.quantity}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={l.product.current_stock}
+                    value={l.quantity}
+                    onChange={(e) => setQtyValue(l.product.id, e.target.value)}
+                    className={`h-7 w-14 rounded-md px-1 text-center text-sm font-bold ${inputTheme}`}
+                    aria-label="Quantity"
+                  />
                   <button type="button" onClick={() => setQty(l.product.id, 1)} className="grid h-7 w-7 place-items-center rounded-md bg-black/5 text-stone-950 dark:bg-white/10 dark:text-white">
                     <Plus className="h-3 w-3" />
                   </button>

@@ -427,6 +427,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE categories;
 ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE purchases;
 
+-- RLS-protected tables need REPLICA IDENTITY FULL so Realtime can authorize
+-- UPDATE/DELETE events per subscriber (e.g. a customer watching their order).
+ALTER TABLE orders REPLICA IDENTITY FULL;
+ALTER TABLE profiles REPLICA IDENTITY FULL;
+ALTER TABLE products REPLICA IDENTITY FULL;
+ALTER TABLE categories REPLICA IDENTITY FULL;
+ALTER TABLE settings REPLICA IDENTITY FULL;
+ALTER TABLE purchases REPLICA IDENTITY FULL;
+
 -- ============================================================
 -- DELIVERY SETTLEMENTS: batch reconciliation between shop & partner.
 -- net_amount > 0 ⇒ partner pays shop; < 0 ⇒ shop pays partner.

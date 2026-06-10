@@ -208,8 +208,8 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
                 <div className="rounded-lg border border-lime-500 bg-lime-50 px-3 py-2 text-sm font-medium text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
                   UPI at the door (required)
                   <span className="mt-0.5 block text-xs font-normal text-lime-700/80 dark:text-lime-300/70">
-                    Orders over {formatCurrency(COD_MAX, currency)} can&apos;t be cash on delivery. Pay the shop QR the
-                    partner shows on arrival.
+                    Orders over {formatCurrency(COD_MAX, currency)}{" "}
+                    can&apos;t be cash on delivery. Pay the shop QR the partner shows on arrival.
                   </span>
                 </div>
               ) : (
