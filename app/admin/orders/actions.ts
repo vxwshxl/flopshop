@@ -263,6 +263,31 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+/** Methods an admin can switch an order to. Stored lowercase to match how the
+ *  reports bucket income (Cash / UPI / Bank Transfer / Other). */
+export const EDITABLE_PAYMENT_METHODS = ["cash", "upi", "bank transfer", "other"] as const;
+
+/**
+ * Change an order's payment method (admin only). Switching to any single method
+ * clears the split breakdown so reports attribute the whole amount to one bucket.
+ */
+export async function setPaymentMethodAction(orderId: string, method: string) {
+  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  const normalized = method.trim().toLowerCase();
+  if (!EDITABLE_PAYMENT_METHODS.includes(normalized as (typeof EDITABLE_PAYMENT_METHODS)[number])) {
+    return { ok: false, error: "Invalid payment method." };
+  }
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("orders")
+    .update({ payment_method: normalized, paid_cash: 0, paid_upi: 0, updated_at: new Date().toISOString() })
+    .eq("id", orderId);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/reports");
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 /**
  * Permanently delete an order (and its items, via ON DELETE CASCADE). If the
  * order had deducted stock (any non-pending, non-cancelled status), the stock is

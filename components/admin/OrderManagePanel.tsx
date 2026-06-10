@@ -7,6 +7,8 @@ import {
   setOrderStatusAction,
   assignDeliveryAction,
   setPaymentStatusAction,
+  setPaymentMethodAction,
+  EDITABLE_PAYMENT_METHODS,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,14 @@ import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/or
 import type { Order, OrderStatus, Product, Profile } from "@/lib/types";
 
 type PickerProduct = Pick<Product, "id" | "name" | "selling_price">;
+
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  upi: "UPI",
+  "bank transfer": "Bank Transfer",
+  other: "Other",
+  split: "Split",
+};
 
 export function OrderManagePanel({
   order,
@@ -125,6 +135,16 @@ export function OrderManagePanel({
   // Delivered = OTP-verified, cancelled = terminal. Both are final: no edits.
   const finalized = order.status === "delivered" || order.status === "cancelled";
 
+  // Payment method is editable even on finalized orders (e.g. fixing how a
+  // completed walk-in was actually paid). The current value is always shown —
+  // including non-editable ones like "split" — so nothing is silently dropped.
+  const paymentMethod = (order.payment_method ?? "").toLowerCase();
+  const methodOptions = EDITABLE_PAYMENT_METHODS.includes(
+    paymentMethod as (typeof EDITABLE_PAYMENT_METHODS)[number]
+  )
+    ? [...EDITABLE_PAYMENT_METHODS]
+    : [paymentMethod, ...EDITABLE_PAYMENT_METHODS];
+
   return (
     <AdminCard title="Manage Order">
       <div className="space-y-5">
@@ -206,7 +226,22 @@ export function OrderManagePanel({
         )}
 
         <div>
-          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment</p>
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment method</p>
+          <Select
+            value={paymentMethod}
+            disabled={pending}
+            onChange={(e) => run(() => setPaymentMethodAction(order.id, e.target.value), "Payment method updated")}
+          >
+            {methodOptions.map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m] ?? m}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment status</p>
           <div className="flex gap-2">
             <Button
               size="sm"
