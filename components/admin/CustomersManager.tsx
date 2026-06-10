@@ -195,8 +195,12 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
                 </tr>
               )}
               {pageItems.map((c) => (
-                <tr key={c.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
-                  <td className="p-3">
+                <tr
+                  key={c.id}
+                  onClick={() => openEdit(c)}
+                  className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+                >
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected.has(c.id)}
@@ -209,11 +213,8 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
                   <td className="p-3">{c.phone}</td>
                   <td className="p-3 text-black/50 dark:text-white/50">{c.room_number ?? "—"}</td>
                   <td className="p-3 text-black/50 dark:text-white/50">{c.hostel_block ?? "—"}</td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
-                        Edit
-                      </button>
                       <button
                         onClick={() => handleDelete(c.id)}
                         disabled={deleting === c.id}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Pencil, Trash2, ArrowUpDown } from "lucide-react";
+import { Search, Trash2, ArrowUpDown } from "lucide-react";
 import toast from "react-hot-toast";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
@@ -142,18 +142,19 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
               </tr>
             )}
             {pageItems.map((p) => (
-              <tr key={p.id} className="border-b border-[#222] last:border-0 hover:bg-white/5">
+              <tr
+                key={p.id}
+                onClick={() => setEditing(p)}
+                className="cursor-pointer border-b border-[#222] last:border-0 hover:bg-white/5"
+              >
                 <td className="p-3 whitespace-nowrap">{formatDate(p.purchase_date)}</td>
                 <td className="p-3 font-medium text-white">{p.product_name}</td>
                 <td className="p-3">{p.quantity}</td>
                 <td className="p-3">{formatCurrency(p.unit_price, currency)}</td>
                 <td className="p-3">{formatCurrency(p.total_cost, currency)}</td>
                 <td className="p-3">{p.supplier ?? "—"}</td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => setEditing(p)} className="rounded p-1.5 text-gray-400 hover:bg-white/10 hover:text-white" aria-label="Edit">
-                      <Pencil className="h-4 w-4" />
-                    </button>
                     <button onClick={() => setDeleting(p)} className="rounded p-1.5 text-gray-400 hover:bg-red-500/15 hover:text-red-400" aria-label="Delete">
                       <Trash2 className="h-4 w-4" />
                     </button>

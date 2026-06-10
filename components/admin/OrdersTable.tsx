@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Pencil, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   setOrderStatusAction,
@@ -12,7 +11,6 @@ import {
   deleteOrderAction,
 } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
-import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -23,7 +21,7 @@ import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/compo
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDateTime, formatPaymentMethod, paymentMethodLabel } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
-import type { Order, OrderItem, OrderStatus, PaymentStatus, Product, Profile } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentStatus, Profile } from "@/lib/types";
 
 type Row = Order & {
   order_items?: OrderItem[];
@@ -43,12 +41,10 @@ const PAY_FILTERS: { key: PayFilter; label: string }[] = [
 export function OrdersTable({
   orders,
   deliveryPeople,
-  products,
   currency,
 }: {
   orders: Row[];
   deliveryPeople: Pick<Profile, "id" | "full_name" | "role">[];
-  products: Pick<Product, "id" | "name" | "selling_price">[];
   currency: string;
 }) {
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
@@ -62,8 +58,7 @@ export function OrdersTable({
   // Optimistic payment status (same idea) so "Mark paid" reflects instantly.
   const [payStatusOverrides, setPayStatusOverrides] = useState<Record<string, PaymentStatus>>({});
   const payStatusOf = (o: Row) => payStatusOverrides[o.id] ?? o.payment_status;
-  // Edit-items modal target + delete-confirm target.
-  const [editTarget, setEditTarget] = useState<Row | null>(null);
+  // Delete-confirm target.
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -288,11 +283,15 @@ export function OrdersTable({
               </tr>
             )}
             {pageItems.map((o) => (
-              <tr key={o.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+              <tr
+                key={o.id}
+                onClick={() => router.push(`/admin/orders/${o.id}`)}
+                className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+              >
                 <td className="p-3">
-                  <Link href={`/admin/orders/${o.id}`} className="font-medium text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
+                  <span className="font-medium text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
                     {o.order_number}
-                  </Link>
+                  </span>
                 </td>
                 <td className="p-3">
                   {o.customer_name}
@@ -319,7 +318,7 @@ export function OrdersTable({
                   <OrderStatusBadge status={statusOf(o)} />
                 </td>
                 <td className="p-3 whitespace-nowrap text-xs text-black/50 dark:text-white/50">{formatDateTime(o.created_at)}</td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={statusOf(o)}
                     disabled={pending}
@@ -342,7 +341,7 @@ export function OrdersTable({
                     })()}
                   </Select>
                 </td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   {o.order_type === "delivery" ? (
                     <Select
                       value={o.delivery_person_id ?? ""}
@@ -361,7 +360,7 @@ export function OrdersTable({
                     <span className="text-xs text-black/40 dark:text-white/40">—</span>
                   )}
                 </td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5 whitespace-nowrap">
                     {payStatusOf(o) === "pending" && (
                       <button
@@ -370,16 +369,6 @@ export function OrdersTable({
                         className="rounded-md bg-emerald-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-emerald-600 disabled:opacity-50"
                       >
                         Mark paid
-                      </button>
-                    )}
-                    {o.status !== "cancelled" && (o.order_items?.length ?? 0) > 0 && (
-                      <button
-                        onClick={() => setEditTarget(o)}
-                        disabled={pending}
-                        title="Edit items"
-                        className="grid h-7 w-7 place-items-center rounded-md border border-black/10 text-black/60 transition hover:bg-black/5 hover:text-black disabled:opacity-50 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
                       </button>
                     )}
                     <button
@@ -401,18 +390,6 @@ export function OrdersTable({
           <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
         </div>
       </div>
-
-      {editTarget && (
-        <EditOrderItemsModal
-          order={editTarget}
-          products={products}
-          onClose={() => setEditTarget(null)}
-          onSaved={() => {
-            setEditTarget(null);
-            router.refresh();
-          }}
-        />
-      )}
 
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete order?">
         <p className="mb-4 text-sm text-gray-300">

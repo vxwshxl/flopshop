@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Check } from "lucide-react";
+import { Trash2, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -182,7 +181,11 @@ export function ProductsTable({
             {pageItems.map((p) => {
               const category = categories.find((c) => c.id === p.category_id);
               return (
-                <tr key={p.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                <tr
+                  key={p.id}
+                  onClick={() => router.push(`/admin/products/${p.id}`)}
+                  className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+                >
                   <td className="p-3">
                     <div className="flex items-center gap-3">
                       <div className="relative h-10 w-8 shrink-0 overflow-hidden rounded-md bg-black/5 dark:bg-white/10">
@@ -198,7 +201,7 @@ export function ProductsTable({
                   <td className="p-3">{category ? `${category.icon} ${category.name}` : "—"}</td>
                   <td className="p-3">{formatCurrency(p.cost_price, currency)}</td>
                   <td className="p-3">{formatCurrency(p.selling_price, currency)}</td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
                       <input
                         value={stocks[p.id] ?? ""}
@@ -211,7 +214,7 @@ export function ProductsTable({
                       {savedId === p.id && <Check className="h-4 w-4 text-green-500" />}
                     </div>
                   </td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => toggleActive(p)}
                       disabled={busy === p.id}
@@ -224,14 +227,8 @@ export function ProductsTable({
                       {p.is_active ? "Active" : "Hidden"}
                     </button>
                   </td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">
-                      <Link
-                        href={`/admin/products/${p.id}`}
-                        className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Link>
                       <button
                         onClick={() => setDeleteTarget(p)}
                         disabled={busy === p.id}

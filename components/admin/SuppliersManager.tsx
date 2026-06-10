@@ -135,7 +135,11 @@ export function SuppliersManager({ suppliers: initialSuppliers }: { suppliers: S
                 </tr>
               )}
               {pageItems.map((s) => (
-                <tr key={s.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                <tr
+                  key={s.id}
+                  onClick={() => openEdit(s)}
+                  className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+                >
                   <td className="p-3">
                     <span className="font-medium text-white">{s.name}</span>
                   </td>
@@ -149,11 +153,8 @@ export function SuppliersManager({ suppliers: initialSuppliers }: { suppliers: S
                       {s.is_active ? "Active" : "Hidden"}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => openEdit(s)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
-                        Edit
-                      </button>
                       <button
                         onClick={async () => {
                           const { updateSupplierAction } = await import("@/app/admin/suppliers/actions");

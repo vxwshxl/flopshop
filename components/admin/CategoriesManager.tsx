@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, GripVertical } from "lucide-react";
+import { Trash2, Plus, GripVertical } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -135,7 +135,11 @@ export function CategoriesManager({
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
             {pageItems.map((c) => (
-              <tr key={c.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+              <tr
+                key={c.id}
+                onClick={() => openEdit(c)}
+                className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+              >
                 <td className="p-3 text-black/50 dark:text-white/50">
                   <div className="flex items-center gap-1">
                     <GripVertical className="h-3 w-3" /> {c.sort_order}
@@ -159,11 +163,8 @@ export function CategoriesManager({
                     {c.is_active ? "Active" : "Hidden"}
                   </span>
                 </td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
-                      <Pencil className="h-4 w-4" />
-                    </button>
                     <button onClick={() => remove(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
                       <Trash2 className="h-4 w-4" />
                     </button>

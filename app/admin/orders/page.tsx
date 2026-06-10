@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
-import type { Order, Product, Profile } from "@/lib/types";
+import type { Order, Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,15 +10,14 @@ export default async function AdminOrdersPage() {
   const supabase = await createClient();
   const settings = await getSettings();
 
-  const [{ data: orders }, { data: people }, { data: products }] = await Promise.all([
+  const [{ data: orders }, { data: people }] = await Promise.all([
     supabase
       .from("orders")
       .select(
-        "*, order_items(id, product_id, product_name, quantity, unit_price, total_price), delivery_person:profiles!orders_delivery_person_id_fkey(id, full_name)"
+        "*, order_items(id, product_name), delivery_person:profiles!orders_delivery_person_id_fkey(id, full_name)"
       )
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("id, full_name, role").in("role", ["delivery", "admin"]),
-    supabase.from("products").select("id, name, selling_price").eq("is_active", true).order("name"),
   ]);
 
   return (
@@ -27,7 +26,6 @@ export default async function AdminOrdersPage() {
       <OrdersTable
         orders={(orders as Order[]) ?? []}
         deliveryPeople={(people as Pick<Profile, "id" | "full_name" | "role">[]) ?? []}
-        products={(products as Pick<Product, "id" | "name" | "selling_price">[]) ?? []}
         currency={settings.currency_symbol}
       />
     </>

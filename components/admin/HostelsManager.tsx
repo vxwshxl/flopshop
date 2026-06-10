@@ -128,7 +128,11 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
             </thead>
             <tbody className="text-black/75 dark:text-white/75">
               {pageItems.map((h) => (
-                <tr key={h.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                <tr
+                  key={h.id}
+                  onClick={() => openEdit(h)}
+                  className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+                >
                   <td className="p-3">
                     <span className="font-medium text-white">{h.name}</span>
                   </td>
@@ -142,11 +146,8 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
                       {h.is_active ? "Active" : "Hidden"}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => openEdit(h)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50">
-                        Edit
-                      </button>
                       <button
                         onClick={async () => {
                           const { updateHostelAction } = await import("@/app/admin/hostels/actions");
