@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
-import { statusDeductsStock } from "@/lib/utils/orderHelpers";
+import { statusDeductsStock, EDITABLE_PAYMENT_METHODS, type EditablePaymentMethod } from "@/lib/utils/orderHelpers";
 import type { OrderStatus, PaymentStatus, Role } from "@/lib/types";
 
 async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | null> {
@@ -263,10 +263,6 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-/** Methods an admin can switch an order to. Stored lowercase to match how the
- *  reports bucket income (Cash / UPI / Bank Transfer / Other). */
-export const EDITABLE_PAYMENT_METHODS = ["cash", "upi", "bank transfer", "other"] as const;
-
 /**
  * Change an order's payment method (admin only). Switching to any single method
  * clears the split breakdown so reports attribute the whole amount to one bucket.
@@ -274,7 +270,7 @@ export const EDITABLE_PAYMENT_METHODS = ["cash", "upi", "bank transfer", "other"
 export async function setPaymentMethodAction(orderId: string, method: string) {
   if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
   const normalized = method.trim().toLowerCase();
-  if (!EDITABLE_PAYMENT_METHODS.includes(normalized as (typeof EDITABLE_PAYMENT_METHODS)[number])) {
+  if (!EDITABLE_PAYMENT_METHODS.includes(normalized as EditablePaymentMethod)) {
     return { ok: false, error: "Invalid payment method." };
   }
   const admin = createAdminClient();

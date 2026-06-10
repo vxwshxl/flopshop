@@ -8,14 +8,19 @@ import {
   assignDeliveryAction,
   setPaymentStatusAction,
   setPaymentMethodAction,
-  EDITABLE_PAYMENT_METHODS,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
-import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
+import {
+  adminSettableStatuses,
+  statusLabel,
+  nextStatuses,
+  EDITABLE_PAYMENT_METHODS,
+  type EditablePaymentMethod,
+} from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Product, Profile } from "@/lib/types";
 
 type PickerProduct = Pick<Product, "id" | "name" | "selling_price">;
@@ -139,9 +144,7 @@ export function OrderManagePanel({
   // completed walk-in was actually paid). The current value is always shown —
   // including non-editable ones like "split" — so nothing is silently dropped.
   const paymentMethod = (order.payment_method ?? "").toLowerCase();
-  const methodOptions = EDITABLE_PAYMENT_METHODS.includes(
-    paymentMethod as (typeof EDITABLE_PAYMENT_METHODS)[number]
-  )
+  const methodOptions = EDITABLE_PAYMENT_METHODS.includes(paymentMethod as EditablePaymentMethod)
     ? [...EDITABLE_PAYMENT_METHODS]
     : [paymentMethod, ...EDITABLE_PAYMENT_METHODS];
 
