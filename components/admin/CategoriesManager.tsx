@@ -10,6 +10,8 @@ import { Input, Label } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import type { Category } from "@/lib/types";
 
 function slugify(s: string) {
@@ -33,7 +35,17 @@ export function CategoriesManager({
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [form, setForm] = useState({ name: "", icon: "📦", color: "#facc15", sort_order: "0", is_active: true });
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(categories);
+  const ctl = useTableControls(categories, {
+    searchFields: (c) => [c.name, c.slug],
+    sorters: {
+      order: byNum((c) => c.sort_order),
+      name: byText((c) => c.name),
+      products: byNum((c) => counts[c.id] ?? 0),
+    },
+    initialSort: "order",
+    initialDir: "asc",
+  });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
   function openNew() {
     setEditing(null);
@@ -92,20 +104,20 @@ export function CategoriesManager({
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search category…" showDateRange={false}>
         <Button variant="dark" onClick={openNew}>
           <Plus className="h-4 w-4" /> Add category
         </Button>
-      </div>
+      </TableToolbar>
 
       <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
-              <th className="p-3">Order</th>
-              <th className="p-3">Category</th>
+              <SortHeader label="Order" sortKey="order" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
+              <SortHeader label="Category" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Slug</th>
-              <th className="p-3">Products</th>
+              <SortHeader label="Products" sortKey="products" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Actions</th>
             </tr>

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
 import type { Customer, Hostel } from "@/lib/types";
 
 const empty = { name: "", phone: "", email: "", room_number: "", hostel_block: "" };
@@ -26,7 +28,18 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const router = useRouter();
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(customers);
+  const ctl = useTableControls(customers, {
+    searchFields: (c) => [c.name, c.phone, c.room_number, c.hostel_block],
+    dateField: (c) => c.created_at,
+    sorters: {
+      name: byText((c) => c.name),
+      room: byText((c) => c.room_number),
+      created: byDate((c) => c.created_at),
+    },
+    initialSort: "name",
+    initialDir: "asc",
+  });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -97,13 +110,24 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
       />
 
       <AdminCard>
+        <TableToolbar
+          query={ctl.query}
+          onQuery={ctl.setQuery}
+          placeholder="Search name, phone or room…"
+          from={ctl.from}
+          to={ctl.to}
+          onFrom={ctl.setFrom}
+          onTo={ctl.setTo}
+          hasDateFilter={ctl.hasDateFilter}
+          onClearDates={ctl.clearDates}
+        />
         <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
-                <th className="p-3">Name</th>
+                <SortHeader label="Name" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
                 <th className="p-3">Phone</th>
-                <th className="p-3">Room</th>
+                <SortHeader label="Room" sortKey="room" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
                 <th className="p-3">Hostel</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>

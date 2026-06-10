@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Search, Check } from "lucide-react";
+import { Pencil, Trash2, Plus, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -13,6 +13,8 @@ import { Pagination, usePagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import type { Category, Product } from "@/lib/types";
 
 function stockColorByVal(p: Product, value: string | undefined) {
@@ -32,7 +34,6 @@ export function ProductsTable({
   currency: string;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
   const [cat, setCat] = useState("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
@@ -88,19 +89,23 @@ export function ProductsTable({
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", flush);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filtered = useMemo(
-    () =>
-      products.filter(
-        (p) =>
-          (cat === "all" || p.category_id === cat) &&
-          p.name.toLowerCase().includes(query.toLowerCase())
-      ),
-    [products, query, cat]
-  );
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
+  const byCat = cat === "all" ? products : products.filter((p) => p.category_id === cat);
+  const ctl = useTableControls(byCat, {
+    searchFields: (p) => [p.name],
+    dateField: (p) => p.created_at,
+    sorters: {
+      name: byText((p) => p.name),
+      cost: byNum((p) => p.cost_price),
+      price: byNum((p) => p.selling_price),
+      stock: byNum((p) => p.current_stock),
+      created: byDate((p) => p.created_at),
+    },
+    initialSort: "name",
+    initialDir: "asc",
+  });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
   async function toggleActive(p: Product) {
     setBusy(p.id);
@@ -130,21 +135,18 @@ export function ProductsTable({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products…"
-            className="h-10 w-full rounded-lg border border-black/15 bg-white pl-9 pr-3 text-sm text-black placeholder:text-black/40 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40"
-          />
-        </div>
-        <Select
-          value={cat}
-          onChange={(e) => setCat(e.target.value)}
-          className="w-48"
-        >
+      <TableToolbar
+        query={ctl.query}
+        onQuery={ctl.setQuery}
+        placeholder="Search products…"
+        from={ctl.from}
+        to={ctl.to}
+        onFrom={ctl.setFrom}
+        onTo={ctl.setTo}
+        hasDateFilter={ctl.hasDateFilter}
+        onClearDates={ctl.clearDates}
+      >
+        <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-48">
           <option value="all">All categories</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
@@ -157,23 +159,23 @@ export function ProductsTable({
             <Plus className="h-4 w-4" /> Add product
           </Button>
         </Link>
-      </div>
+      </TableToolbar>
 
       <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
-              <th className="p-3">Product</th>
+              <SortHeader label="Product" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Category</th>
-              <th className="p-3">Cost</th>
-              <th className="p-3">Price</th>
-              <th className="p-3">Stock</th>
+              <SortHeader label="Cost" sortKey="cost" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
+              <SortHeader label="Price" sortKey="price" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
+              <SortHeader label="Stock" sortKey="stock" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
-            {filtered.length === 0 && (
+            {ctl.rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-black/50 dark:text-white/50">
                   No products found.

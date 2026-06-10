@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
 import { formatDate } from "@/lib/utils/formatters";
 import type { Hostel } from "@/lib/types";
 
@@ -20,7 +22,14 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(hostels);
+  const ctl = useTableControls(hostels, {
+    searchFields: (h) => [h.name],
+    dateField: (h) => h.created_at,
+    sorters: { name: byText((h) => h.name), created: byDate((h) => h.created_at) },
+    initialSort: "name",
+    initialDir: "asc",
+  });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
   const router = useRouter();
 
   async function handleAdd(e: React.FormEvent) {
@@ -94,12 +103,23 @@ export function HostelsManager({ hostels: initialHostels }: { hostels: Hostel[] 
       />
 
       <AdminCard>
+        <TableToolbar
+          query={ctl.query}
+          onQuery={ctl.setQuery}
+          placeholder="Search hostel…"
+          from={ctl.from}
+          to={ctl.to}
+          onFrom={ctl.setFrom}
+          onTo={ctl.setTo}
+          hasDateFilter={ctl.hasDateFilter}
+          onClearDates={ctl.clearDates}
+        />
         <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
-                <th className="p-3">Hostel</th>
-                <th className="p-3">Created</th>
+                <SortHeader label="Hostel" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
+                <SortHeader label="Created" sortKey="created" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
                 <th className="p-3">Status</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>

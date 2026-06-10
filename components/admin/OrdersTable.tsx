@@ -3,12 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction, assignDeliveryAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Select } from "@/components/ui/input";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
@@ -30,7 +31,6 @@ export function OrdersTable({
   currency: string;
 }) {
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
-  const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   // Optimistic status per row so the table reflects the change immediately
@@ -44,17 +44,23 @@ export function OrdersTable({
     return c;
   }, [orders]);
 
-  const filtered = useMemo(
-    () =>
-      orders.filter(
-        (o) =>
-          (tab === "all" || o.status === tab) &&
-          (o.order_number.toLowerCase().includes(query.toLowerCase()) ||
-            o.customer_name.toLowerCase().includes(query.toLowerCase()))
-      ),
-    [orders, tab, query]
+  const tabbed = useMemo(
+    () => (tab === "all" ? orders : orders.filter((o) => o.status === tab)),
+    [orders, tab]
   );
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
+  const ctl = useTableControls(tabbed, {
+    searchFields: (o) => [o.order_number, o.customer_name, o.invoice_number],
+    dateField: (o) => o.created_at,
+    sorters: {
+      order: byText((o) => o.order_number),
+      customer: byText((o) => o.customer_name),
+      total: byNum((o) => o.total_amount),
+      date: byDate((o) => o.created_at),
+    },
+    initialSort: "date",
+    initialDir: "desc",
+  });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
   function changeStatus(id: string, status: OrderStatus) {
     const prev = overrides[id];
@@ -110,33 +116,35 @@ export function OrdersTable({
         ))}
       </div>
 
-      <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search order # or customer…"
-          className="h-10 w-full rounded-lg border border-black/15 bg-white pl-9 pr-3 text-sm text-black placeholder:text-black/40 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40"
-        />
-      </div>
+      <TableToolbar
+        query={ctl.query}
+        onQuery={ctl.setQuery}
+        placeholder="Search order #, invoice or customer…"
+        from={ctl.from}
+        to={ctl.to}
+        onFrom={ctl.setFrom}
+        onTo={ctl.setTo}
+        hasDateFilter={ctl.hasDateFilter}
+        onClearDates={ctl.clearDates}
+      />
 
       <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
-              <th className="p-3">Order</th>
-              <th className="p-3">Customer</th>
+              <SortHeader label="Order" sortKey="order" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
+              <SortHeader label="Customer" sortKey="customer" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Type</th>
               <th className="p-3">Items</th>
-              <th className="p-3">Total</th>
+              <SortHeader label="Total" sortKey="total" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Status</th>
-              <th className="p-3">Date</th>
+              <SortHeader label="Date" sortKey="date" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Update</th>
               <th className="p-3">Delivery</th>
             </tr>
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
-            {filtered.length === 0 && (
+            {ctl.rows.length === 0 && (
               <tr>
                 <td colSpan={9} className="p-8 text-center text-black/50 dark:text-white/50">
                   No orders.

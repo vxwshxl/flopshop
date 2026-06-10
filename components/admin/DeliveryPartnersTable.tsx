@@ -5,7 +5,10 @@ import Link from "next/link";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import type { OrderStatus } from "@/lib/types";
 
 export type DeliveryPartnerRow = {
   id: string;
@@ -23,7 +26,7 @@ export type DeliveryPartnerRow = {
     id: string;
     order_number: string;
     customer_name: string;
-    status: any;
+    status: OrderStatus;
     updated_at: string;
     delivery_person_earning: number;
   }[];
@@ -37,7 +40,18 @@ export function DeliveryPartnersTable({
   currency: string;
 }) {
   const [selected, setSelected] = useState<DeliveryPartnerRow | null>(null);
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(partners);
+  const ctl = useTableControls(partners, {
+    searchFields: (p) => [p.full_name, p.phone, p.email],
+    sorters: {
+      name: byText((p) => p.full_name),
+      progress: byNum((p) => p.inProgressCount),
+      delivered: byNum((p) => p.deliveredCount),
+      earnings: byNum((p) => p.totalEarnings),
+    },
+    initialSort: "name",
+    initialDir: "asc",
+  });
+  const { pageItems } = usePagination(ctl.rows);
 
   if (partners.length === 0) {
     return <p className="py-8 text-center text-sm text-stone-500">No delivery partners yet.</p>;
@@ -45,15 +59,16 @@ export function DeliveryPartnersTable({
 
   return (
     <>
+      <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search partner…" showDateRange={false} />
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-stone-500">
-              <th className="pb-2">Partner</th>
+              <SortHeader label="Partner" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} className="!p-0 !pb-2" />
               <th className="pb-2">Status</th>
-              <th className="pb-2 text-center">In Progress</th>
-              <th className="pb-2 text-center">Delivered</th>
-              <th className="pb-2 text-right">Earnings</th>
+              <SortHeader label="In Progress" sortKey="progress" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} className="!p-0 !pb-2 text-center" defaultDir="desc" />
+              <SortHeader label="Delivered" sortKey="delivered" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} className="!p-0 !pb-2 text-center" defaultDir="desc" />
+              <SortHeader label="Earnings" sortKey="earnings" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
             </tr>
           </thead>
           <tbody className="text-stone-300">

@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import toast from "react-hot-toast";
 import { Modal } from "@/components/ui/modal";
@@ -11,6 +10,8 @@ import { Select } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { setUserRoleAction, toggleUserActiveAction } from "@/app/admin/users/actions";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import type { Order, Profile, Role } from "@/lib/types";
 
 const ROLES: Role[] = ["user", "delivery", "admin"];
@@ -25,21 +26,22 @@ export function UsersTable({
   currency: string;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [historyFor, setHistoryFor] = useState<Profile | null>(null);
   const [history, setHistory] = useState<Order[] | null>(null);
 
-  const filtered = useMemo(
-    () =>
-      users.filter(
-        (u) =>
-          (u.full_name ?? "").toLowerCase().includes(query.toLowerCase()) ||
-          (u.email ?? "").toLowerCase().includes(query.toLowerCase())
-      ),
-    [users, query]
-  );
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
+  const ctl = useTableControls(users, {
+    searchFields: (u) => [u.full_name, u.email, u.room_number],
+    dateField: (u) => u.created_at,
+    sorters: {
+      name: byText((u) => u.full_name),
+      orders: (a, b) => (orderCounts[a.id] ?? 0) - (orderCounts[b.id] ?? 0),
+      joined: byDate((u) => u.created_at),
+    },
+    initialSort: "joined",
+    initialDir: "desc",
+  });
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
   async function changeRole(u: Profile, role: Role) {
     setBusy(u.id);
@@ -73,27 +75,29 @@ export function UsersTable({
 
   return (
     <div>
-      <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name or email…"
-          className="h-10 w-full rounded-lg border border-black/15 bg-white pl-9 pr-3 text-sm text-black placeholder:text-black/40 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40"
-        />
-      </div>
+      <TableToolbar
+        query={ctl.query}
+        onQuery={ctl.setQuery}
+        placeholder="Search name, email or room…"
+        from={ctl.from}
+        to={ctl.to}
+        onFrom={ctl.setFrom}
+        onTo={ctl.setTo}
+        hasDateFilter={ctl.hasDateFilter}
+        onClearDates={ctl.clearDates}
+      />
 
       <div className="overflow-x-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
-              <th className="p-3">Name</th>
+              <SortHeader label="Name" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Email</th>
               <th className="p-3">Room</th>
-              <th className="p-3">Orders</th>
+              <SortHeader label="Orders" sortKey="orders" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Role</th>
               <th className="p-3">Status</th>
-              <th className="p-3">Joined</th>
+              <SortHeader label="Joined" sortKey="joined" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>

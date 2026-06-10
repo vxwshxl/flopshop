@@ -18,6 +18,9 @@ import { Download } from "lucide-react";
 import { StatCard, AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
 import type { Category, Product, Purchase, SettingsMap } from "@/lib/types";
 
@@ -154,6 +157,24 @@ export function ReportsView({
   );
   const netProfit = grossProfit + deliveryTotals.admin;
 
+  // Profit/Loss per product — searchable, sortable, paginated.
+  const profitRows = useMemo(
+    () => productAgg.map((p) => ({ ...p, profit: p.revenue - p.cost })),
+    [productAgg]
+  );
+  const pfCtl = useTableControls(profitRows, {
+    searchFields: (p) => [p.name],
+    sorters: {
+      name: byText((p) => p.name),
+      revenue: byNum((p) => p.revenue),
+      cost: byNum((p) => p.cost),
+      profit: byNum((p) => p.profit),
+    },
+    initialSort: "profit",
+    initialDir: "desc",
+  });
+  const pfPag = usePagination(pfCtl.rows);
+
   // ---- Inventory ----
   const stockValue = products.reduce((s, p) => s + p.current_stock * Number(p.cost_price), 0);
   const lowStock = products.filter((p) => p.current_stock <= p.minimum_stock);
@@ -286,51 +307,62 @@ export function ReportsView({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <AdminCard title="Profit / Loss per Product">
+            <AdminCard title="Delivery Earnings">
+              <div className="space-y-2 text-sm">
+                <Line label="Total delivery fees" value={formatCurrency(deliveryTotals.fee, currency)} />
+                <Line label="Delivery persons earned" value={formatCurrency(deliveryTotals.person, currency)} />
+                <Line label="Shop (admin share)" value={formatCurrency(deliveryTotals.admin, currency)} />
+              </div>
+            </AdminCard>
+            <AdminCard title="Purchase Cost (in range)">
+              <p className="text-2xl font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
+              <p className="mt-1 text-xs text-gray-500">{rangePurchases.length} purchase records</p>
+            </AdminCard>
+          </div>
+
+          <AdminCard title="Profit / Loss per Product">
+            <TableToolbar
+              query={pfCtl.query}
+              onQuery={pfCtl.setQuery}
+              placeholder="Search product…"
+              showDateRange={false}
+            />
+            <div className="overflow-x-auto">
               <table className="w-full text-sm text-gray-300">
                 <thead>
                   <tr className="text-left text-xs text-gray-500">
-                    <th className="pb-2">Product</th>
-                    <th className="pb-2 text-right">Revenue</th>
-                    <th className="pb-2 text-right">Cost</th>
-                    <th className="pb-2 text-right">Profit</th>
+                    <SortHeader label="Product" sortKey="name" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2" />
+                    <SortHeader label="Revenue" sortKey="revenue" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
+                    <SortHeader label="Cost" sortKey="cost" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
+                    <SortHeader label="Profit" sortKey="profit" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
                   </tr>
                 </thead>
                 <tbody>
-                  {productAgg.length === 0 && (
+                  {pfPag.pageItems.length === 0 && (
                     <tr><td colSpan={4} className="py-6 text-center text-gray-500">No data</td></tr>
                   )}
-                  {productAgg.map((p) => {
-                    const profit = p.revenue - p.cost;
-                    return (
-                      <tr key={p.name} className="border-t border-[#222]">
-                        <td className="py-2">{p.name}</td>
-                        <td className="py-2 text-right">{formatCurrency(p.revenue, currency)}</td>
-                        <td className="py-2 text-right">{formatCurrency(p.cost, currency)}</td>
-                        <td className={`py-2 text-right font-medium ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {formatCurrency(profit, currency)}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {pfPag.pageItems.map((p) => (
+                    <tr key={p.name} className="border-t border-[#222]">
+                      <td className="py-2">{p.name}</td>
+                      <td className="py-2 text-right">{formatCurrency(p.revenue, currency)}</td>
+                      <td className="py-2 text-right">{formatCurrency(p.cost, currency)}</td>
+                      <td className={`py-2 text-right font-medium ${p.profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {formatCurrency(p.profit, currency)}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            </AdminCard>
-
-            <div className="space-y-4">
-              <AdminCard title="Delivery Earnings">
-                <div className="space-y-2 text-sm">
-                  <Line label="Total delivery fees" value={formatCurrency(deliveryTotals.fee, currency)} />
-                  <Line label="Delivery persons earned" value={formatCurrency(deliveryTotals.person, currency)} />
-                  <Line label="Shop (admin share)" value={formatCurrency(deliveryTotals.admin, currency)} />
-                </div>
-              </AdminCard>
-              <AdminCard title="Purchase Cost (in range)">
-                <p className="text-2xl font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
-                <p className="mt-1 text-xs text-gray-500">{rangePurchases.length} purchase records</p>
-              </AdminCard>
             </div>
-          </div>
+            <Pagination
+              page={pfPag.page}
+              totalPages={pfPag.totalPages}
+              perPage={pfPag.perPage}
+              total={pfPag.total}
+              onPage={pfPag.setPage}
+              onPerPage={pfPag.setPerPage}
+            />
+          </AdminCard>
         </div>
       )}
 
