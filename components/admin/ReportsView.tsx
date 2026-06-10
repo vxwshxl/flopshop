@@ -295,7 +295,7 @@ export function ReportsView({
               <div className="grid items-center gap-4 sm:grid-cols-2">
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={incomePie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                    <Pie data={incomePie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
                       {incomePie.map((d) => (
                         <Cell key={d.name} fill={INCOME_COLORS[d.name] ?? "#8b5cf6"} />
                       ))}

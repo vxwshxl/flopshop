@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
+import { statusDeductsStock } from "@/lib/utils/orderHelpers";
 import type { OrderStatus, PaymentStatus, Role } from "@/lib/types";
 
 async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | null> {
@@ -262,16 +263,64 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function createManualOrderAction(input: Omit<CreateOrderInput, "confirm" | "is_manual">) {
+/**
+ * Permanently delete an order (and its items, via ON DELETE CASCADE). If the
+ * order had deducted stock (any non-pending, non-cancelled status), the stock is
+ * restored first so inventory stays correct. Admin only — irreversible.
+ */
+export async function deleteOrderAction(orderId: string) {
+  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  const admin = createAdminClient();
+
+  const { data: order, error } = await admin
+    .from("orders")
+    .select("id, status, order_items(product_id, quantity)")
+    .eq("id", orderId)
+    .single();
+  if (error || !order) return { ok: false, error: error?.message ?? "Order not found." };
+
+  // Put stock back if this order was holding it.
+  if (statusDeductsStock(order.status as OrderStatus)) {
+    const items = (order.order_items ?? []) as { product_id: string | null; quantity: number }[];
+    for (const it of items) {
+      if (it.product_id)
+        await admin.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: it.quantity });
+    }
+  }
+
+  const { error: delErr } = await admin.from("orders").delete().eq("id", orderId);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function createManualOrderAction(
+  input: Omit<CreateOrderInput, "confirm" | "is_manual"> & { payment_pending?: boolean }
+) {
   const actor = await requireRole(["admin"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
+  const { payment_pending, ...orderInput } = input;
+
   // Walk-in orders are handed over on the spot: create confirmed + paid, then
   // mark completed so it lands fully done (no OTP — manual orders skip it).
-  const res = await createOrder({ ...input, is_manual: true, confirm: true });
+  const res = await createOrder({ ...orderInput, is_manual: true, confirm: true });
   if (!res.ok || !res.order) return res;
 
   await updateOrderStatus(res.order.id, "delivered");
+
+  // The goods are handed over, but the admin couldn't collect payment yet (e.g.
+  // the UPI app/server was down). Flip it back to pending so it can be marked
+  // paid from the orders page once the payment actually goes through.
+  if (payment_pending) {
+    const admin = createAdminClient();
+    await admin
+      .from("orders")
+      .update({ payment_status: "pending", updated_at: new Date().toISOString() })
+      .eq("id", res.order.id);
+  }
   // Remember the walk-in customer (best-effort) so the name auto-suggests next
   // time. Matched by name (case-insensitive): a new name is added, an existing
   // one is merged — filling in a phone/room we didn't have before.

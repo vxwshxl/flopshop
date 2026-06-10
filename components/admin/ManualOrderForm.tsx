@@ -59,6 +59,9 @@ export function ManualOrderForm({
     setNameFocused(false);
   }
   const [payment, setPayment] = useState<PaymentMethod>("cash");
+  // Goods handed over but payment not collected yet (e.g. UPI/server down) —
+  // the order completes but stays "Unpaid" until marked paid on the orders page.
+  const [paymentPending, setPaymentPending] = useState(false);
   // Split payment: how much of the total was paid in cash (UPI = total − cash).
   const [cashAmount, setCashAmount] = useState("");
   const [notes, setNotes] = useState("");
@@ -125,6 +128,7 @@ export function ManualOrderForm({
       customer_room: customer.room,
       payment_method: payment,
       ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
+      payment_pending: paymentPending,
       notes,
     });
     setSaving(false);
@@ -133,10 +137,13 @@ export function ManualOrderForm({
     setQuery("");
     setCustomer({ name: "", phone: "", room: "" });
     setPayment("cash");
+    setPaymentPending(false);
     setCashAmount("");
     setNotes("");
     setOrderType("pickup");
-    toast.success(`Order ${res.order.order_number} completed`);
+    toast.success(
+      `Order ${res.order.order_number} completed${paymentPending ? " · payment pending" : ""}`
+    );
     // Stay on the manual-order page (fields already reset above) so the admin
     // can ring up the next walk-in immediately. refresh() re-pulls live stock.
     router.refresh();
@@ -309,6 +316,20 @@ export function ManualOrderForm({
                 </p>
               </div>
             )}
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
+              <input
+                type="checkbox"
+                checked={paymentPending}
+                onChange={(e) => setPaymentPending(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-amber-500"
+              />
+              <span className="text-sm text-stone-700 dark:text-stone-200">
+                Payment pending
+                <span className="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
+                  Hand over the goods now but collect later (e.g. UPI/server down). Mark it paid from the Orders page.
+                </span>
+              </span>
+            </label>
           </div>
         </AdminCard>
 

@@ -3,11 +3,19 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { setOrderStatusAction, assignDeliveryAction } from "@/app/admin/orders/actions";
+import {
+  setOrderStatusAction,
+  assignDeliveryAction,
+  setPaymentStatusAction,
+  deleteOrderAction,
+} from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { PageHeader } from "@/components/admin/StatCard";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
@@ -15,10 +23,10 @@ import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/compo
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDateTime, formatPaymentMethod, paymentMethodLabel } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
-import type { Order, OrderStatus, Profile } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentStatus, Product, Profile } from "@/lib/types";
 
 type Row = Order & {
-  order_items?: { id: string; product_name: string }[];
+  order_items?: OrderItem[];
   delivery_person?: Pick<Profile, "id" | "full_name"> | null;
 };
 
@@ -35,10 +43,12 @@ const PAY_FILTERS: { key: PayFilter; label: string }[] = [
 export function OrdersTable({
   orders,
   deliveryPeople,
+  products,
   currency,
 }: {
   orders: Row[];
   deliveryPeople: Pick<Profile, "id" | "full_name" | "role">[];
+  products: Pick<Product, "id" | "name" | "selling_price">[];
   currency: string;
 }) {
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
@@ -49,6 +59,54 @@ export function OrdersTable({
   // (and survives a flaky revalidation) until fresh server data arrives.
   const [overrides, setOverrides] = useState<Record<string, OrderStatus>>({});
   const statusOf = (o: Row) => overrides[o.id] ?? o.status;
+  // Optimistic payment status (same idea) so "Mark paid" reflects instantly.
+  const [payStatusOverrides, setPayStatusOverrides] = useState<Record<string, PaymentStatus>>({});
+  const payStatusOf = (o: Row) => payStatusOverrides[o.id] ?? o.payment_status;
+  // Edit-items modal target + delete-confirm target.
+  const [editTarget, setEditTarget] = useState<Row | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function markPaid(id: string) {
+    setPayStatusOverrides((m) => ({ ...m, [id]: "paid" }));
+    startTransition(async () => {
+      try {
+        const res = await setPaymentStatusAction(id, "paid");
+        if (!res.ok) {
+          setPayStatusOverrides((m) => {
+            const n = { ...m };
+            delete n[id];
+            return n;
+          });
+          toast.error(res.error ?? "Failed");
+          return;
+        }
+        toast.success("Marked paid");
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await deleteOrderAction(deleteTarget.id);
+      if (!res.ok) {
+        toast.error(res.error ?? "Failed to delete");
+        return;
+      }
+      toast.success("Order deleted");
+      setDeleteTarget(null);
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: orders.length };
@@ -218,12 +276,13 @@ export function OrdersTable({
               <SortHeader label="Date" sortKey="date" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Update</th>
               <th className="p-3">Delivery</th>
+              <th className="p-3">Actions</th>
             </tr>
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
             {ctl.rows.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-black/50 dark:text-white/50">
+                <td colSpan={11} className="p-8 text-center text-black/50 dark:text-white/50">
                   No orders.
                 </td>
               </tr>
@@ -242,8 +301,19 @@ export function OrdersTable({
                 <td className="p-3 capitalize">{o.order_type}</td>
                 <td className="p-3">{o.order_items?.length ?? 0}</td>
                 <td className="p-3">{formatCurrency(o.total_amount, currency)}</td>
-                <td className="p-3 whitespace-nowrap" title={formatPaymentMethod(o, currency)}>
-                  {paymentMethodLabel(o.payment_method)}
+                <td className="p-3 whitespace-nowrap">
+                  <div className="flex flex-col gap-1">
+                    <span title={formatPaymentMethod(o, currency)}>{paymentMethodLabel(o.payment_method)}</span>
+                    <span
+                      className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                        payStatusOf(o) === "paid"
+                          ? "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/15 dark:text-emerald-200"
+                          : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/15 dark:text-amber-200"
+                      }`}
+                    >
+                      {payStatusOf(o) === "paid" ? "Paid" : "Unpaid"}
+                    </span>
+                  </div>
                 </td>
                 <td className="p-3">
                   <OrderStatusBadge status={statusOf(o)} />
@@ -291,6 +361,37 @@ export function OrdersTable({
                     <span className="text-xs text-black/40 dark:text-white/40">—</span>
                   )}
                 </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
+                    {payStatusOf(o) === "pending" && (
+                      <button
+                        onClick={() => markPaid(o.id)}
+                        disabled={pending}
+                        className="rounded-md bg-emerald-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        Mark paid
+                      </button>
+                    )}
+                    {o.status !== "cancelled" && (o.order_items?.length ?? 0) > 0 && (
+                      <button
+                        onClick={() => setEditTarget(o)}
+                        disabled={pending}
+                        title="Edit items"
+                        className="grid h-7 w-7 place-items-center rounded-md border border-black/10 text-black/60 transition hover:bg-black/5 hover:text-black disabled:opacity-50 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setDeleteTarget(o)}
+                      disabled={pending}
+                      title="Delete order"
+                      className="grid h-7 w-7 place-items-center rounded-md border border-black/10 text-red-500 transition hover:bg-red-500/10 disabled:opacity-50 dark:border-white/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -300,6 +401,34 @@ export function OrdersTable({
           <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
         </div>
       </div>
+
+      {editTarget && (
+        <EditOrderItemsModal
+          order={editTarget}
+          products={products}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            router.refresh();
+          }}
+        />
+      )}
+
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete order?">
+        <p className="mb-4 text-sm text-gray-300">
+          This permanently deletes order{" "}
+          <span className="font-semibold text-white">{deleteTarget?.order_number}</span> and its items.
+          Any stock it was holding is returned to inventory. This cannot be undone.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={confirmDelete} disabled={deleting} loading={deleting}>
+            Delete order
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
