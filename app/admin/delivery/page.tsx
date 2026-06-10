@@ -4,10 +4,15 @@ import { StatCard, PageHeader } from "@/components/admin/StatCard";
 import { tablePageClass } from "@/components/admin/TableShell";
 import { Truck, Users, Clock, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/formatters";
-import type { Profile, Order } from "@/lib/types";
+import type { Profile, Order, DeliverySettlement } from "@/lib/types";
 import { AdminDeliveryRefresh } from "@/components/admin/AdminDeliveryRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { DeliveryPartnersTable, type DeliveryPartnerRow } from "@/components/admin/DeliveryPartnersTable";
+import {
+  DeliverySettlements,
+  type PendingSettlement,
+  type SettlementHistoryRow,
+} from "@/components/admin/DeliverySettlements";
 
 export const dynamic = "force-dynamic";
 
@@ -19,17 +24,30 @@ export default async function AdminDeliveryPage() {
   const currency = settings.currency_symbol;
   const now = new Date();
 
-  const [{ data: partners }, { data: ordersRaw }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, phone, room_number, hostel_block, is_online, last_active_at, created_at")
-      .in("role", ["delivery", "admin"]),
-    supabase
-      .from("orders")
-      .select("id, order_number, customer_name, delivery_person_id, status, delivery_person_earning, total_amount, updated_at")
-      .eq("order_type", "delivery")
-      .not("status", "in", "(cancelled)"),
-  ]);
+  const [{ data: partners }, { data: ordersRaw }, { data: unsettledRaw }, { data: settlementsRaw }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, room_number, hostel_block, is_online, last_active_at, created_at")
+        .in("role", ["delivery", "admin"]),
+      supabase
+        .from("orders")
+        .select("id, order_number, customer_name, delivery_person_id, status, delivery_person_earning, total_amount, updated_at")
+        .eq("order_type", "delivery")
+        .not("status", "in", "(cancelled)"),
+      // Delivered, not-yet-settled delivery orders → drive the pending payouts.
+      supabase
+        .from("orders")
+        .select("delivery_person_id, payment_method, total_amount, delivery_person_earning")
+        .eq("order_type", "delivery")
+        .eq("status", "delivered")
+        .is("settlement_id", null),
+      supabase
+        .from("delivery_settlements")
+        .select("id, delivery_person_id, order_count, net_amount, created_at, confirmed, confirmed_at")
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
 
   const deliveryPartners = (partners as Profile[]) ?? [];
   const orders = (ordersRaw as Pick<Order, "id" | "order_number" | "customer_name" | "delivery_person_id" | "status" | "delivery_person_earning" | "total_amount" | "updated_at">[]) ?? [];
@@ -78,11 +96,58 @@ export default async function AdminDeliveryPage() {
     .filter((o) => o.status === "delivered")
     .reduce((s, o) => s + Number(o.delivery_person_earning), 0);
 
+  // ---- Settlements: pending payouts per partner + recent history ----
+  const nameById = new Map(deliveryPartners.map((p) => [p.id, p.full_name ?? "Partner"]));
+
+  const unsettled =
+    (unsettledRaw as {
+      delivery_person_id: string | null;
+      payment_method: string;
+      total_amount: number;
+      delivery_person_earning: number;
+    }[]) ?? [];
+
+  const pendingMap = new Map<string, PendingSettlement>();
+  for (const o of unsettled) {
+    if (!o.delivery_person_id) continue;
+    const e =
+      pendingMap.get(o.delivery_person_id) ??
+      {
+        partnerId: o.delivery_person_id,
+        name: nameById.get(o.delivery_person_id) ?? "Partner",
+        orderCount: 0,
+        cashToCollect: 0,
+        upiPayout: 0,
+        net: 0,
+      };
+    const total = Number(o.total_amount);
+    const earning = Number(o.delivery_person_earning);
+    e.orderCount += 1;
+    if ((o.payment_method ?? "").toLowerCase() === "upi") e.upiPayout += earning;
+    else e.cashToCollect += total - earning;
+    e.net = e.cashToCollect - e.upiPayout;
+    pendingMap.set(o.delivery_person_id, e);
+  }
+  const pendingSettlements = Array.from(pendingMap.values()).sort((a, b) => b.orderCount - a.orderCount);
+
+  const settlementHistory: SettlementHistoryRow[] = (
+    (settlementsRaw as DeliverySettlement[]) ?? []
+  ).map((s) => ({
+    id: s.id,
+    name: nameById.get(s.delivery_person_id) ?? "Partner",
+    order_count: s.order_count,
+    net_amount: Number(s.net_amount),
+    created_at: s.created_at,
+    confirmed: s.confirmed,
+    confirmed_at: s.confirmed_at,
+  }));
+
   return (
     <div className={tablePageClass}>
       <AdminDeliveryRefresh />
       <RealtimeRefresh table="orders" channel="admin:delivery:orders" />
       <RealtimeRefresh table="profiles" channel="admin:delivery:profiles" />
+      <RealtimeRefresh table="delivery_settlements" channel="admin:delivery:settlements" />
       <PageHeader title="Delivery Partners" />
 
       <div className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
@@ -117,6 +182,8 @@ export default async function AdminDeliveryPage() {
           <DeliveryPartnersTable partners={partnerStats} currency={currency} />
         </div>
       </div>
+
+      <DeliverySettlements pending={pendingSettlements} history={settlementHistory} currency={currency} />
     </div>
   );
 }

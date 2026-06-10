@@ -141,10 +141,31 @@ export interface Order {
   is_manual: boolean;
   invoice_number: string | null;
   cancel_reason: string | null;
+  /** Set once this delivery order is rolled into a partner settlement batch. */
+  settlement_id: string | null;
   created_at: string;
   updated_at: string;
   order_items?: OrderItem[];
   delivery_person?: Pick<Profile, "id" | "full_name"> | null;
+}
+
+/**
+ * A batch reconciliation between the shop and a delivery partner. Captures the
+ * COD cash the partner owes the shop and the shop's UPI-order payout owed to the
+ * partner. `net_amount` > 0 ⇒ partner pays shop, < 0 ⇒ shop pays partner.
+ * The admin creates it ("marked paid"); the partner confirms receipt (two-step).
+ */
+export interface DeliverySettlement {
+  id: string;
+  delivery_person_id: string;
+  order_count: number;
+  cash_to_collect: number;
+  upi_payout: number;
+  net_amount: number;
+  created_by: string | null;
+  created_at: string;
+  confirmed: boolean;
+  confirmed_at: string | null;
 }
 
 export interface Purchase {

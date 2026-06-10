@@ -29,6 +29,7 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Customer | null>(null);
   // Multi-select for merging duplicates (case variants / typos).
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showMerge, setShowMerge] = useState(false);
@@ -93,18 +94,20 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
     router.refresh();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this customer?")) return;
-    setDeleting(id);
-    const res = await deleteCustomerAction(id);
+  async function handleDelete() {
+    const c = confirmDelete;
+    if (!c) return;
+    setDeleting(c.id);
+    const res = await deleteCustomerAction(c.id);
     setDeleting(null);
     if (!res.ok) return toast.error(res.error ?? "Failed to delete customer.");
-    setCustomers((list) => list.filter((c) => c.id !== id));
+    setCustomers((list) => list.filter((x) => x.id !== c.id));
     setSelected((s) => {
       const n = new Set(s);
-      n.delete(id);
+      n.delete(c.id);
       return n;
     });
+    setConfirmDelete(null);
     toast.success("Customer deleted.");
     router.refresh();
   }
@@ -219,9 +222,10 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(c.id)}
+                        onClick={() => setConfirmDelete(c)}
                         disabled={deleting === c.id}
                         className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black disabled:opacity-50 dark:text-white/50"
+                        aria-label="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -323,6 +327,31 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
           </Button>
           <Button type="button" onClick={handleMerge} loading={merging}>
             Merge into selected
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete customer?">
+        <p className="mb-4 text-sm text-black/60 dark:text-white/60">
+          Delete <span className="font-semibold text-black dark:text-white">{confirmDelete?.name}</span>? This
+          can&apos;t be undone.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setConfirmDelete(null)}
+            disabled={deleting === confirmDelete?.id}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleDelete}
+            loading={deleting === confirmDelete?.id}
+          >
+            Delete
           </Button>
         </div>
       </Modal>

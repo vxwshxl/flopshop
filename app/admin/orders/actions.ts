@@ -264,6 +264,34 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
 }
 
 /**
+ * Edit an order's (walk-in) customer details — name, phone, room. Admin only.
+ * Updates the denormalised fields stored on the order itself.
+ */
+export async function updateOrderCustomerAction(
+  orderId: string,
+  data: { customer_name: string; customer_phone?: string | null; customer_room?: string | null }
+) {
+  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  const name = data.customer_name?.trim();
+  if (!name) return { ok: false, error: "Customer name is required." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("orders")
+    .update({
+      customer_name: name,
+      customer_phone: data.customer_phone?.trim() || null,
+      customer_room: data.customer_room?.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
  * Change an order's payment method (admin only). Switching to any single method
  * clears the split breakdown so reports attribute the whole amount to one bucket.
  */

@@ -11,6 +11,14 @@ import type { Role } from "@/lib/types";
  *  - incomplete profiles    → redirected to /profile until phone/room/hostel set
  */
 export async function updateSession(request: NextRequest) {
+  // Site-wide maintenance switch (ops env var). Serve a friendly 503 on every
+  // route except the maintenance page itself.
+  if (process.env.MAINTENANCE_MODE === "1" && request.nextUrl.pathname !== "/maintenance") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/maintenance";
+    return NextResponse.rewrite(url, { status: 503 });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -71,8 +79,8 @@ export async function updateSession(request: NextRequest) {
     // A non-banned user landing on /banned doesn't belong there.
     if (path === "/banned") return redirectTo("/");
 
-    if (needsAdmin && role !== "admin") return redirectTo("/");
-    if (needsDelivery && role !== "delivery" && role !== "admin") return redirectTo("/");
+    if (needsAdmin && role !== "admin") return redirectTo("/403");
+    if (needsDelivery && role !== "delivery" && role !== "admin") return redirectTo("/403");
 
     // Profile completion gate: regular customers must fill phone + room + hostel
     // before they can use any page. Staff (admin/delivery) are exempt. API routes

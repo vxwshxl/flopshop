@@ -8,10 +8,11 @@ import {
   assignDeliveryAction,
   setPaymentStatusAction,
   setPaymentMethodAction,
+  updateOrderCustomerAction,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
 import {
@@ -49,6 +50,12 @@ export function OrderManagePanel({
   const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
   const [showItems, setShowItems] = useState(false);
+  const [showCustomer, setShowCustomer] = useState(false);
+  const [custForm, setCustForm] = useState({
+    customer_name: order.customer_name ?? "",
+    customer_phone: order.customer_phone ?? "",
+    customer_room: order.customer_room ?? "",
+  });
   const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
@@ -127,6 +134,24 @@ export function OrderManagePanel({
         toast.error("Something went wrong. Please try again.");
       }
     });
+  }
+
+  function saveCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!custForm.customer_name.trim()) {
+      toast.error("Customer name is required.");
+      return;
+    }
+    run(
+      () =>
+        updateOrderCustomerAction(order.id, {
+          customer_name: custForm.customer_name,
+          customer_phone: custForm.customer_phone,
+          customer_room: custForm.customer_room,
+        }),
+      "Customer updated"
+    );
+    setShowCustomer(false);
   }
 
   const isDelivery = order.order_type === "delivery";
@@ -216,6 +241,28 @@ export function OrderManagePanel({
           </div>
         )}
 
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Customer</p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => {
+              setCustForm({
+                customer_name: order.customer_name ?? "",
+                customer_phone: order.customer_phone ?? "",
+                customer_room: order.customer_room ?? "",
+              });
+              setShowCustomer(true);
+            }}
+          >
+            Edit customer
+          </Button>
+          <p className="mt-2 text-xs text-black/50 dark:text-white/50">
+            Fix a walk-in customer&apos;s name, phone or room on this order.
+          </p>
+        </div>
+
         {order.status !== "cancelled" && (order.order_items?.length ?? 0) > 0 && (
           <div>
             <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Items</p>
@@ -265,6 +312,49 @@ export function OrderManagePanel({
           </div>
         </div>
       </div>
+
+      <Modal open={showCustomer} onClose={() => setShowCustomer(false)} title="Edit customer">
+        <form onSubmit={saveCustomer} className="space-y-4">
+          <div>
+            <Label htmlFor="oc-name">Name *</Label>
+            <Input
+              id="oc-name"
+              value={custForm.customer_name}
+              onChange={(e) => setCustForm((f) => ({ ...f, customer_name: e.target.value }))}
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="oc-phone">Phone</Label>
+              <Input
+                id="oc-phone"
+                value={custForm.customer_phone}
+                inputMode="numeric"
+                onChange={(e) =>
+                  setCustForm((f) => ({ ...f, customer_phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="oc-room">Room</Label>
+              <Input
+                id="oc-room"
+                value={custForm.customer_room}
+                onChange={(e) => setCustForm((f) => ({ ...f, customer_room: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowCustomer(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={pending}>
+              Save
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal open={showOtpModal} onClose={() => setShowOtpModal(false)} title="Enter order OTP">
         <p className="mb-4 text-sm text-gray-300">

@@ -5,11 +5,12 @@ import { AvailableDeliveryCard } from "@/components/delivery/AvailableDeliveryCa
 import { DeliveryRealtime } from "@/components/delivery/DeliveryRealtime";
 import { DeliveryNav } from "@/components/delivery/DeliveryNav";
 import { OnlineToggle } from "@/components/delivery/OnlineToggle";
+import { MySettlements } from "@/components/delivery/MySettlements";
 import { formatCurrency, getISTTimeBounds } from "@/lib/utils/formatters";
 import { Truck, IndianRupee, Package } from "lucide-react";
 import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
 import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
-import type { Order } from "@/lib/types";
+import type { Order, DeliverySettlement } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,12 @@ export default async function DeliveryDashboard({
 
   const { since, until: now } = getISTTimeBounds(rangeDays, offsetDays ?? 0);
 
-  const [{ data: assignedOrders }, { data: availableOrders }, { data: deliveredTodayOrders }] =
-    await Promise.all([
+  const [
+    { data: assignedOrders },
+    { data: availableOrders },
+    { data: deliveredTodayOrders },
+    { data: settlementsRaw },
+  ] = await Promise.all([
       supabase
         .from("orders")
         .select("*, order_items(*)")
@@ -54,6 +59,12 @@ export default async function DeliveryDashboard({
         .eq("status", "delivered")
         .gte("updated_at", since.toISOString())
         .lt("updated_at", now.toISOString()),
+      supabase
+        .from("delivery_settlements")
+        .select("*")
+        .eq("delivery_person_id", profile?.id ?? "")
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
 
   const active = (assignedOrders as Order[]) ?? [];
@@ -61,6 +72,8 @@ export default async function DeliveryDashboard({
 
   const deliveredToday = (deliveredTodayOrders as Pick<Order, "delivery_person_earning">[]) ?? [];
   const earningsToday = deliveredToday.reduce((s, o) => s + Number(o.delivery_person_earning), 0);
+
+  const settlements = (settlementsRaw as DeliverySettlement[]) ?? [];
 
   return (
     <div>
@@ -100,6 +113,9 @@ export default async function DeliveryDashboard({
           <p className="mt-1 text-xs text-stone-500">{deliveredToday.length} delivered {rangeLabel.toLowerCase()}</p>
         </div>
       </div>
+
+      {/* Settlements awaiting confirmation + history */}
+      <MySettlements settlements={settlements} currency={currency} />
 
       {/* Available orders */}
       <section className="mt-7">

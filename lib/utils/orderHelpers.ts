@@ -3,6 +3,10 @@ import type { OrderStatus, OrderType, SettingsMap } from "@/lib/types";
 /** Methods an admin can switch an order to. Stored lowercase to match how the
  *  reports bucket income (Cash / UPI / Bank Transfer / Other). */
 export const EDITABLE_PAYMENT_METHODS = ["cash", "upi", "bank transfer", "other"] as const;
+
+/** Cash-on-delivery ceiling. Delivery orders above this must be paid by UPI —
+ *  we don't want partners carrying large cash amounts / risking non-payment. */
+export const COD_MAX = 1000;
 export type EditablePaymentMethod = (typeof EDITABLE_PAYMENT_METHODS)[number];
 
 export const ORDER_STATUSES: OrderStatus[] = [

@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
 import { generateOrderNumber, generateInvoiceNumber, invoiceDatePrefix } from "@/lib/utils/invoice";
-import { deliverySplit, statusDeductsStock } from "@/lib/utils/orderHelpers";
+import { deliverySplit, statusDeductsStock, COD_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { Order, OrderStatus, OrderType, PaymentMethod } from "@/lib/types";
 
@@ -90,6 +90,17 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   const split = deliverySplit(settings, input.order_type);
   const total_amount = subtotal + split.delivery_fee;
+
+  // Cash-on-delivery ceiling: large delivery orders must be paid by UPI. Admin
+  // walk-in (manual) orders are exempt — they're paid on the spot at the counter.
+  if (
+    !input.is_manual &&
+    input.order_type === "delivery" &&
+    total_amount > COD_MAX &&
+    (input.payment_method ?? "cash") !== "upi"
+  ) {
+    return { ok: false, error: `Orders over ₹${COD_MAX} must be paid by UPI.` };
+  }
 
   // Invoice sequence: the next number after the highest invoice already issued
   // for today's prefix. Derived from the real invoice numbers (not a row count)

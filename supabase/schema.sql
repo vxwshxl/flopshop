@@ -428,6 +428,37 @@ ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE purchases;
 
 -- ============================================================
+-- DELIVERY SETTLEMENTS: batch reconciliation between shop & partner.
+-- net_amount > 0 ⇒ partner pays shop; < 0 ⇒ shop pays partner.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.delivery_settlements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  delivery_person_id UUID NOT NULL REFERENCES public.profiles(id),
+  order_count INTEGER NOT NULL DEFAULT 0,
+  cash_to_collect DECIMAL(10,2) NOT NULL DEFAULT 0,
+  upi_payout DECIMAL(10,2) NOT NULL DEFAULT 0,
+  net_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  created_by UUID REFERENCES public.profiles(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  confirmed BOOLEAN NOT NULL DEFAULT false,
+  confirmed_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS settlement_id UUID REFERENCES public.delivery_settlements(id);
+
+CREATE INDEX IF NOT EXISTS idx_orders_settlement ON public.orders(settlement_id);
+CREATE INDEX IF NOT EXISTS idx_settlements_partner ON public.delivery_settlements(delivery_person_id);
+
+ALTER TABLE public.delivery_settlements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Partner views own settlements" ON public.delivery_settlements
+  FOR SELECT USING (delivery_person_id = auth.uid());
+CREATE POLICY "Staff manage settlements" ON public.delivery_settlements
+  FOR ALL USING (public.is_staff());
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.delivery_settlements;
+
+-- ============================================================
 -- STORAGE: product images bucket (run after creating schema)
 -- ============================================================
 INSERT INTO storage.buckets (id, name, public)

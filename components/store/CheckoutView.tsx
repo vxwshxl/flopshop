@@ -2,17 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCart } from "@/lib/hooks/useCart";
 import { useUser } from "@/lib/hooks/useUser";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { COD_MAX } from "@/lib/utils/orderHelpers";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import type { PaymentMethod, SettingsMap, Profile } from "@/lib/types";
 import { useSettings } from "@/lib/hooks/useSettings";
 
 export function CheckoutView({ settings, initialProfile }: { settings: SettingsMap; initialProfile: Profile | null }) {
+  const router = useRouter();
   const { isAuthenticated, loading: userLoading, user } = useUser();
   const hydrated = useCart((s) => s.hydrated);
   const items = useCart((s) => s.items);
@@ -45,6 +48,13 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
     }
   }, [user?.name]);
 
+  // After an order is placed, auto-redirect to its tracking page after 5s.
+  useEffect(() => {
+    if (!placed) return;
+    const t = setTimeout(() => router.push(`/orders/${placed.id}`), 5000);
+    return () => clearTimeout(t);
+  }, [placed, router]);
+
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     let val = e.target.value;
     if (k === "customer_phone") {
@@ -56,6 +66,8 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const fee = orderType === "delivery" ? deliveryFee : 0;
   const total = subtotal + fee;
+  // COD isn't allowed above the ceiling — the customer must commit to paying UPI.
+  const mustUseUpi = total > COD_MAX;
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -71,9 +83,9 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,
         customer_room: form.customer_room,
-        // Delivery is always cash-on-delivery at checkout; the delivery partner
-        // switches it to UPI at the door if the customer pays the shop QR.
-        payment_method: orderType === "delivery" ? "cash" : form.payment_method,
+        // Delivery is cash-on-delivery up to the COD ceiling; above it the
+        // customer must pay UPI (collected at the door via the shop QR).
+        payment_method: orderType === "delivery" ? (mustUseUpi ? "upi" : "cash") : form.payment_method,
         notes: form.notes,
       }),
     });
@@ -128,12 +140,13 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
             <Link href="/" className="w-full sm:w-auto">
               <Button variant="outline" className="w-full">Back to shop</Button>
             </Link>
-            {isAuthenticated && (
-              <Link href={`/orders/${placed.id}`} className="w-full sm:w-auto">
-                <Button className="w-full">Track order</Button>
-              </Link>
-            )}
+            <Link href={`/orders/${placed.id}`} className="w-full sm:w-auto">
+              <Button className="w-full">Track order</Button>
+            </Link>
           </div>
+          <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
+            Taking you to your order…
+          </p>
         </div>
       </div>
     );
@@ -191,12 +204,22 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
             </div>
             <div>
               <Label>Payment method</Label>
-              <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
-                Cash on delivery
-                <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
-                  Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
-                </span>
-              </div>
+              {mustUseUpi ? (
+                <div className="rounded-lg border border-lime-500 bg-lime-50 px-3 py-2 text-sm font-medium text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
+                  UPI at the door (required)
+                  <span className="mt-0.5 block text-xs font-normal text-lime-700/80 dark:text-lime-300/70">
+                    Orders over {formatCurrency(COD_MAX, currency)} can&apos;t be cash on delivery. Pay the shop QR the
+                    partner shows on arrival.
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
+                  Cash on delivery
+                  <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
+                    Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
+                  </span>
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="notes">Notes (optional)</Label>
