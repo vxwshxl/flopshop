@@ -10,7 +10,7 @@ import {
   deleteCustomerAction,
   mergeCustomersAction,
 } from "@/app/admin/customers/actions";
-import { PageHeader, AdminCard } from "@/components/admin/StatCard";
+import { PageHeader } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -142,7 +142,7 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
   }
 
   return (
-    <div>
+    <div className="flex h-[calc(100dvh-6rem)] flex-col md:h-[calc(100dvh-8rem)]">
       <PageHeader
         title="Customers"
         subtitle="Walk-in customers for manual orders"
@@ -160,21 +160,23 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
         }
       />
 
-      <AdminCard>
-        <TableToolbar
-          query={ctl.query}
-          onQuery={ctl.setQuery}
-          placeholder="Search name, phone or room…"
-          from={ctl.from}
-          to={ctl.to}
-          onFrom={ctl.setFrom}
-          onTo={ctl.setTo}
-          hasDateFilter={ctl.hasDateFilter}
-          onClearDates={ctl.clearDates}
-        />
-        <div className="overflow-hidden rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
+      <div className="glass flex min-h-0 flex-1 flex-col rounded-2xl p-4">
+        <div className="shrink-0">
+          <TableToolbar
+            query={ctl.query}
+            onQuery={ctl.setQuery}
+            placeholder="Search name, phone or room…"
+            from={ctl.from}
+            to={ctl.to}
+            onFrom={ctl.setFrom}
+            onTo={ctl.setTo}
+            hasDateFilter={ctl.hasDateFilter}
+            onClearDates={ctl.clearDates}
+          />
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-black/15 bg-white dark:border-white/15 dark:bg-black">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 [&_th]:bg-white dark:[&_th]:bg-black">
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
                 <th className="w-10 p-3"></th>
                 <SortHeader label="Name" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -226,8 +228,10 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
             </tbody>
           </table>
         </div>
-        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
-      </AdminCard>
+        <div className="shrink-0">
+          <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
+        </div>
+      </div>
 
       <Modal open={showModal} onClose={() => { setShowModal(false); setEditing(null); }} title={editing ? "Edit customer" : "Add customer"}>
         <form onSubmit={handleSubmit} className="space-y-4">
