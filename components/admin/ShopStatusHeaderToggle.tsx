@@ -52,12 +52,16 @@ export function ShopStatusHeaderToggle() {
       disabled={saving}
       aria-pressed={open}
       title={open ? "Shop is open — tap to close" : "Shop is closed — tap to open"}
-      className="flex items-center gap-2 rounded-full border border-yellow-400/40 bg-yellow-400/10 px-2.5 py-1 text-[11px] font-bold tracking-wide text-yellow-300 transition hover:bg-yellow-400/20 disabled:opacity-60"
+      className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide transition disabled:opacity-60 ${
+        open
+          ? "border-green-500/40 bg-green-500/10 text-green-400 hover:bg-green-500/20"
+          : "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+      }`}
     >
       <span>{open ? "OPEN" : "CLOSED"}</span>
-      <span className={`relative h-4 w-7 rounded-full transition ${open ? "bg-yellow-400" : "bg-white/25"}`}>
+      <span className={`relative h-4 w-7 rounded-full transition ${open ? "bg-green-500" : "bg-red-500"}`}>
         <span
-          className={`absolute top-0.5 h-3 w-3 rounded-full bg-black shadow transition-all ${open ? "left-3.5" : "left-0.5"}`}
+          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${open ? "left-3.5" : "left-0.5"}`}
         />
       </span>
     </button>

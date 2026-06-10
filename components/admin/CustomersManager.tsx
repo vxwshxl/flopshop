@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Merge } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   createCustomerAction,
   updateCustomerAction,
   deleteCustomerAction,
+  mergeCustomersAction,
 } from "@/app/admin/customers/actions";
 import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,11 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  // Multi-select for merging duplicates (case variants / typos).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showMerge, setShowMerge] = useState(false);
+  const [primaryId, setPrimaryId] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
   const router = useRouter();
   const ctl = useTableControls(customers, {
     searchFields: (c) => [c.name, c.phone, c.room_number, c.hostel_block],
@@ -93,7 +99,45 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
     setDeleting(null);
     if (!res.ok) return toast.error(res.error ?? "Failed to delete customer.");
     setCustomers((list) => list.filter((c) => c.id !== id));
+    setSelected((s) => {
+      const n = new Set(s);
+      n.delete(id);
+      return n;
+    });
     toast.success("Customer deleted.");
+    router.refresh();
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  const selectedCustomers = customers.filter((c) => selected.has(c.id));
+
+  function openMerge() {
+    if (selected.size < 2) return toast.error("Select 2 or more customers to merge.");
+    // Default to keeping the first selected (admin can change it in the modal).
+    setPrimaryId(selectedCustomers[0]?.id ?? null);
+    setShowMerge(true);
+  }
+
+  async function handleMerge() {
+    if (!primaryId) return toast.error("Pick a customer to keep.");
+    const duplicateIds = selectedCustomers.map((c) => c.id).filter((id) => id !== primaryId);
+    setMerging(true);
+    const res = await mergeCustomersAction(primaryId, duplicateIds);
+    setMerging(false);
+    if (!res.ok) return toast.error(res.error ?? "Failed to merge customers.");
+    setCustomers((list) => list.filter((c) => !duplicateIds.includes(c.id)));
+    setSelected(new Set());
+    setShowMerge(false);
+    setPrimaryId(null);
+    toast.success(`Merged ${res.mergedCount} duplicate${res.mergedCount === 1 ? "" : "s"}.`);
     router.refresh();
   }
 
@@ -103,9 +147,16 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
         title="Customers"
         subtitle="Walk-in customers for manual orders"
         action={
-          <Button onClick={openAdd}>
-            <Plus className="h-4 w-4" /> Add customer
-          </Button>
+          <div className="flex gap-2">
+            {selected.size >= 2 && (
+              <Button variant="outline" onClick={openMerge}>
+                <Merge className="h-4 w-4" /> Merge ({selected.size})
+              </Button>
+            )}
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4" /> Add customer
+            </Button>
+          </div>
         }
       />
 
@@ -125,6 +176,7 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
+                <th className="w-10 p-3"></th>
                 <SortHeader label="Name" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
                 <th className="p-3">Phone</th>
                 <SortHeader label="Room" sortKey="room" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -135,13 +187,22 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
             <tbody className="text-black/75 dark:text-white/75">
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-black/50 dark:text-white/50">
+                  <td colSpan={6} className="p-8 text-center text-black/50 dark:text-white/50">
                     No customers yet.
                   </td>
                 </tr>
               )}
               {pageItems.map((c) => (
                 <tr key={c.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(c.id)}
+                      onChange={() => toggleSelect(c.id)}
+                      className="h-4 w-4 accent-yellow-400"
+                      aria-label={`Select ${c.name}`}
+                    />
+                  </td>
                   <td className="p-3 font-medium text-white">{c.name}</td>
                   <td className="p-3">{c.phone}</td>
                   <td className="p-3 text-black/50 dark:text-white/50">{c.room_number ?? "—"}</td>
@@ -214,6 +275,48 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={showMerge} onClose={() => setShowMerge(false)} title="Merge customers">
+        <p className="mb-3 text-sm text-black/60 dark:text-white/60">
+          Choose the record to <span className="font-semibold text-black dark:text-white">keep</span>. The others
+          are deleted, their details fill any blanks on the kept record, and past orders are re-pointed to its name.
+        </p>
+        <div className="space-y-2">
+          {selectedCustomers.map((c) => (
+            <label
+              key={c.id}
+              className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition ${
+                primaryId === c.id
+                  ? "border-yellow-400 bg-yellow-400/10"
+                  : "border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+              }`}
+            >
+              <input
+                type="radio"
+                name="merge-primary"
+                checked={primaryId === c.id}
+                onChange={() => setPrimaryId(c.id)}
+                className="h-4 w-4 accent-yellow-400"
+              />
+              <span>
+                <span className="block font-medium text-black dark:text-white">{c.name}</span>
+                <span className="block text-xs text-black/50 dark:text-white/50">
+                  {c.phone || "no phone"}
+                  {c.room_number ? ` · Room ${c.room_number}` : ""}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => setShowMerge(false)} disabled={merging}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleMerge} loading={merging}>
+            Merge into selected
+          </Button>
+        </div>
       </Modal>
     </div>
   );

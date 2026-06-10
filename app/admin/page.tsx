@@ -3,7 +3,6 @@ import { ShoppingBag, IndianRupee, Package, AlertTriangle, Clock, Truck, Users }
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, AdminCard } from "@/components/admin/StatCard";
-import { ShopStatusToggle } from "@/components/admin/ShopStatusToggle";
 import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
 import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
 import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
@@ -151,17 +150,9 @@ export default async function AdminDashboard({
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        {/* Left side: Dashboard title and range selector */}
-        <div className="flex w-full items-center justify-between gap-3 order-2 md:order-1 md:w-auto md:justify-start">
-          <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white mr-2">Dashboard</h1>
-          <DashboardRangeSelect value={range} />
-        </div>
-
-        {/* Right side: Shop Status Toggle */}
-        <div className="w-full order-1 md:order-2 md:w-80">
-          <ShopStatusToggle initialOpen={settings.shop_is_open !== "false"} />
-        </div>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-extrabold text-stone-950 dark:text-white">Dashboard</h1>
+        <DashboardRangeSelect value={range} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">

@@ -61,13 +61,16 @@ export function Navbar({
             </button>
           )}
           <Brand shopName={shopName} textClassName="text-white" />
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide ${
-              isOpen ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
-            }`}
-          >
-            {isOpen ? "OPEN" : "CLOSED"}
-          </span>
+          {/* Storefront shows the status badge; admin uses the toggle on the right. */}
+          {!isAdminMode && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide ${
+                isOpen ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+              }`}
+            >
+              {isOpen ? "OPEN" : "CLOSED"}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
