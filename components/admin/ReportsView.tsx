@@ -179,6 +179,33 @@ export function ReportsView({
   const stockValue = products.reduce((s, p) => s + p.current_stock * Number(p.cost_price), 0);
   const lowStock = products.filter((p) => p.current_stock <= p.minimum_stock);
 
+  // Current stock levels — searchable, sortable, paginated.
+  const stockRows = useMemo(
+    () =>
+      products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        stock: p.current_stock,
+        min: p.minimum_stock,
+        cost: Number(p.cost_price),
+        value: p.current_stock * Number(p.cost_price),
+      })),
+    [products]
+  );
+  const invCtl = useTableControls(stockRows, {
+    searchFields: (p) => [p.name],
+    sorters: {
+      name: byText((p) => p.name),
+      stock: byNum((p) => p.stock),
+      min: byNum((p) => p.min),
+      cost: byNum((p) => p.cost),
+      value: byNum((p) => p.value),
+    },
+    initialSort: "name",
+    initialDir: "asc",
+  });
+  const invPag = usePagination(invCtl.rows);
+
   function exportCSV() {
     const rows = [
       ["Date", "Orders", "Revenue"],
@@ -375,30 +402,49 @@ export function ReportsView({
           </div>
 
           <AdminCard title="Current Stock Levels">
-            <table className="w-full text-sm text-gray-300">
-              <thead>
-                <tr className="text-left text-xs text-gray-500">
-                  <th className="pb-2">Product</th>
-                  <th className="pb-2 text-right">Stock</th>
-                  <th className="pb-2 text-right">Min</th>
-                  <th className="pb-2 text-right">Cost</th>
-                  <th className="pb-2 text-right">Stock Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p.id} className="border-t border-[#222]">
-                    <td className="py-2">{p.name}</td>
-                    <td className={`py-2 text-right font-medium ${p.current_stock <= 0 ? "text-red-400" : p.current_stock <= p.minimum_stock ? "text-amber-400" : "text-green-400"}`}>
-                      {p.current_stock}
-                    </td>
-                    <td className="py-2 text-right text-gray-500">{p.minimum_stock}</td>
-                    <td className="py-2 text-right">{formatCurrency(p.cost_price, currency)}</td>
-                    <td className="py-2 text-right">{formatCurrency(p.current_stock * Number(p.cost_price), currency)}</td>
+            <TableToolbar
+              query={invCtl.query}
+              onQuery={invCtl.setQuery}
+              placeholder="Search product…"
+              showDateRange={false}
+            />
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-gray-300">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500">
+                    <SortHeader label="Product" sortKey="name" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2" />
+                    <SortHeader label="Stock" sortKey="stock" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
+                    <SortHeader label="Min" sortKey="min" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
+                    <SortHeader label="Cost" sortKey="cost" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
+                    <SortHeader label="Stock Value" sortKey="value" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {invPag.pageItems.length === 0 && (
+                    <tr><td colSpan={5} className="py-6 text-center text-gray-500">No products</td></tr>
+                  )}
+                  {invPag.pageItems.map((p) => (
+                    <tr key={p.id} className="border-t border-[#222]">
+                      <td className="py-2">{p.name}</td>
+                      <td className={`py-2 text-right font-medium ${p.stock <= 0 ? "text-red-400" : p.stock <= p.min ? "text-amber-400" : "text-green-400"}`}>
+                        {p.stock}
+                      </td>
+                      <td className="py-2 text-right text-gray-500">{p.min}</td>
+                      <td className="py-2 text-right">{formatCurrency(p.cost, currency)}</td>
+                      <td className="py-2 text-right">{formatCurrency(p.value, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={invPag.page}
+              totalPages={invPag.totalPages}
+              perPage={invPag.perPage}
+              total={invPag.total}
+              onPage={invPag.setPage}
+              onPerPage={invPag.setPerPage}
+            />
           </AdminCard>
         </div>
       )}

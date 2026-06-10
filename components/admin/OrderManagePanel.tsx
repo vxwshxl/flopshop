@@ -15,14 +15,18 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
-import type { Order, OrderItem, OrderStatus, Profile } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, Product, Profile } from "@/lib/types";
+
+type PickerProduct = Pick<Product, "id" | "name" | "selling_price">;
 
 export function OrderManagePanel({
   order,
   deliveryPeople,
+  products,
 }: {
   order: Order;
   deliveryPeople: Pick<Profile, "id" | "full_name">[];
+  products: PickerProduct[];
 }) {
   const [pending, startTransition] = useTransition();
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -253,6 +257,7 @@ export function OrderManagePanel({
       {showItems && (
         <EditItemsModal
           order={order}
+          products={products}
           onClose={() => setShowItems(false)}
           onSaved={() => {
             setShowItems(false);
@@ -287,10 +292,12 @@ export function OrderManagePanel({
 
 function EditItemsModal({
   order,
+  products,
   onClose,
   onSaved,
 }: {
   order: Order;
+  products: PickerProduct[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -307,6 +314,19 @@ function EditItemsModal({
 
   const set = (id: string, key: "product_name" | "quantity" | "unit_price", value: string) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
+
+  // Pick a product from the catalogue: swap the name and refresh the unit price
+  // to that product's selling price (admin can still tweak qty/price below).
+  const selectProduct = (id: string, productName: string) =>
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.id !== id) return r;
+        const p = products.find((x) => x.name === productName);
+        return p
+          ? { ...r, product_name: p.name, unit_price: String(p.selling_price) }
+          : { ...r, product_name: productName };
+      })
+    );
 
   const total = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unit_price) || 0), 0);
 
@@ -333,7 +353,16 @@ function EditItemsModal({
         {rows.map((r) => (
           <div key={r.id} className="rounded-lg border border-white/10 p-3">
             <Label className="text-gray-300">Item</Label>
-            <Input value={r.product_name} onChange={(e) => set(r.id, "product_name", e.target.value)} className="mb-2" />
+            <Select value={r.product_name} onChange={(e) => selectProduct(r.id, e.target.value)} className="mb-2">
+              {!products.some((p) => p.name === r.product_name) && (
+                <option value={r.product_name}>{r.product_name}</option>
+              )}
+              {products.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-gray-300">Qty</Label>

@@ -86,8 +86,8 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
               onClick={() => {
                 if (!isOpen) return toast.error("The shop is currently closed.");
                 addItem(product);
-                // Top so it doesn't sit under the bottom cart/checkout bar.
-                toast.success(`${product.name} added`, { position: "top-center" });
+                // Sit just above the fixed bottom cart/checkout bar for clarity.
+                toast.success(`${product.name} added`, { position: "bottom-center", style: { marginBottom: "4.75rem" } });
               }}
               className={`rounded-full px-5 py-1.5 text-xs font-extrabold shadow-sm ring-1 ring-black/5 transition active:scale-95 ${
                 isOpen ? "bg-lime-400 text-stone-900 hover:bg-lime-300" : "bg-white/5 text-white/30 cursor-not-allowed"

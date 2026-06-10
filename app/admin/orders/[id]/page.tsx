@@ -10,7 +10,7 @@ import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { Invoice } from "@/components/Invoice";
 import { formatCurrency, formatDateTime, formatPaymentMethod } from "@/lib/utils/formatters";
-import type { Order, Profile } from "@/lib/types";
+import type { Order, Product, Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +20,10 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   const settings = await getSettings();
   const currency = settings.currency_symbol;
 
-  const [{ data }, { data: people }] = await Promise.all([
+  const [{ data }, { data: people }, { data: productList }] = await Promise.all([
     supabase.from("orders").select("*, order_items(*)").eq("id", id).single(),
     supabase.from("profiles").select("id, full_name").in("role", ["delivery", "admin"]),
+    supabase.from("products").select("id, name, selling_price").eq("is_active", true).order("name"),
   ]);
 
   if (!data) notFound();
@@ -110,7 +111,11 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         </div>
 
         <div>
-          <OrderManagePanel order={order} deliveryPeople={(people as Pick<Profile, "id" | "full_name">[]) ?? []} />
+          <OrderManagePanel
+            order={order}
+            deliveryPeople={(people as Pick<Profile, "id" | "full_name">[]) ?? []}
+            products={(productList as Pick<Product, "id" | "name" | "selling_price">[]) ?? []}
+          />
         </div>
       </div>
 
