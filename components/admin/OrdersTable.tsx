@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/admin/StatCard";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
-import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
+import { formatCurrency, formatDateTime, formatPaymentMethod, paymentMethodLabel } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 
@@ -23,6 +23,14 @@ type Row = Order & {
 };
 
 const TABS: ("all" | OrderStatus)[] = ["all", ...ORDER_STATUSES];
+
+type PayFilter = "all" | "cash" | "upi" | "split";
+const PAY_FILTERS: { key: PayFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "cash", label: "Cash" },
+  { key: "upi", label: "UPI" },
+  { key: "split", label: "Split" },
+];
 
 export function OrdersTable({
   orders,
@@ -34,6 +42,7 @@ export function OrdersTable({
   currency: string;
 }) {
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
+  const [payFilter, setPayFilter] = useState<PayFilter>("all");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   // Optimistic status per row so the table reflects the change immediately
@@ -47,10 +56,18 @@ export function OrdersTable({
     return c;
   }, [orders]);
 
-  const tabbed = useMemo(
-    () => (tab === "all" ? orders : orders.filter((o) => o.status === tab)),
-    [orders, tab]
-  );
+  const payCounts = useMemo(() => {
+    const c: Record<string, number> = { all: orders.length };
+    PAY_FILTERS.forEach(({ key }) => {
+      if (key !== "all") c[key] = orders.filter((o) => o.payment_method === key).length;
+    });
+    return c;
+  }, [orders]);
+
+  const tabbed = useMemo(() => {
+    const byStatus = tab === "all" ? orders : orders.filter((o) => o.status === tab);
+    return payFilter === "all" ? byStatus : byStatus.filter((o) => o.payment_method === payFilter);
+  }, [orders, tab, payFilter]);
   const ctl = useTableControls(tabbed, {
     searchFields: (o) => [
       o.order_number,
@@ -69,6 +86,12 @@ export function OrdersTable({
     initialDir: "desc",
   });
   const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
+
+  // Revenue of the currently-filtered rows (status + payment + search + date).
+  const filteredRevenue = useMemo(
+    () => ctl.rows.reduce((s, o) => s + Number(o.total_amount), 0),
+    [ctl.rows]
+  );
 
   function changeStatus(id: string, status: OrderStatus) {
     const prev = overrides[id];
@@ -142,6 +165,30 @@ export function OrdersTable({
         ))}
       </div>
 
+      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-2 lg:justify-between">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {PAY_FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setPayFilter(key)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                payFilter === key
+                  ? "bg-emerald-500 text-white"
+                  : "border border-black/10 bg-white text-black/60 hover:text-black dark:border-white/10 dark:bg-black dark:text-white/60 dark:hover:text-white"
+              }`}
+            >
+              {label} <span className="opacity-60">({payCounts[key] ?? 0})</span>
+            </button>
+          ))}
+        </div>
+        <div className="text-sm text-black/60 dark:text-white/60">
+          Revenue:{" "}
+          <span className="font-semibold text-black dark:text-white">
+            {formatCurrency(filteredRevenue, currency)}
+          </span>
+        </div>
+      </div>
+
       <div className="shrink-0">
         <TableToolbar
           query={ctl.query}
@@ -166,6 +213,7 @@ export function OrdersTable({
               <th className="p-3">Type</th>
               <th className="p-3">Items</th>
               <SortHeader label="Total" sortKey="total" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
+              <th className="p-3">Payment</th>
               <th className="p-3">Status</th>
               <SortHeader label="Date" sortKey="date" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
               <th className="p-3">Update</th>
@@ -175,7 +223,7 @@ export function OrdersTable({
           <tbody className="text-black/75 dark:text-white/75">
             {ctl.rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-8 text-center text-black/50 dark:text-white/50">
+                <td colSpan={10} className="p-8 text-center text-black/50 dark:text-white/50">
                   No orders.
                 </td>
               </tr>
@@ -194,6 +242,9 @@ export function OrdersTable({
                 <td className="p-3 capitalize">{o.order_type}</td>
                 <td className="p-3">{o.order_items?.length ?? 0}</td>
                 <td className="p-3">{formatCurrency(o.total_amount, currency)}</td>
+                <td className="p-3 whitespace-nowrap" title={formatPaymentMethod(o, currency)}>
+                  {paymentMethodLabel(o.payment_method)}
+                </td>
                 <td className="p-3">
                   <OrderStatusBadge status={statusOf(o)} />
                 </td>

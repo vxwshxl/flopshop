@@ -21,7 +21,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
-import { formatCurrency, toISODate } from "@/lib/utils/formatters";
+import { formatCurrency, toISODate, paymentSplit } from "@/lib/utils/formatters";
 import type { Category, Product, Purchase, SettingsMap } from "@/lib/types";
 
 interface ReportOrder {
@@ -34,6 +34,9 @@ interface ReportOrder {
   delivery_fee: number;
   delivery_person_earning: number;
   admin_delivery_earning: number;
+  payment_method: string;
+  paid_cash: number;
+  paid_upi: number;
   order_items: {
     quantity: number;
     total_price: number;
@@ -47,6 +50,7 @@ const tabs = ["Sales", "Profit", "Inventory"] as const;
 type Tab = (typeof tabs)[number];
 
 const PIE_COLORS = ["#f59e0b", "#3b82f6", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"];
+const INCOME_COLORS: Record<string, string> = { Cash: "#10b981", UPI: "#3b82f6", Other: "#6b7280" };
 const tooltipStyle = { backgroundColor: "#0a0a0a", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
 
 export function ReportsView({
@@ -99,6 +103,31 @@ export function ReportsView({
     0
   );
   const aov = validOrders.length ? totalRevenue / validOrders.length : 0;
+
+  // Income by payment method — split orders contribute to both cash & UPI.
+  const income = useMemo(
+    () =>
+      validOrders.reduce(
+        (acc, o) => {
+          const s = paymentSplit(o);
+          acc.cash += s.cash;
+          acc.upi += s.upi;
+          acc.other += s.other;
+          return acc;
+        },
+        { cash: 0, upi: 0, other: 0 }
+      ),
+    [validOrders]
+  );
+  const incomePie = useMemo(
+    () =>
+      [
+        { name: "Cash", value: income.cash },
+        { name: "UPI", value: income.upi },
+        { name: "Other", value: income.other },
+      ].filter((d) => d.value > 0),
+    [income]
+  );
 
   const dailySeries = useMemo(() => {
     const map = new Map<string, { revenue: number; orders: number }>();
@@ -252,6 +281,37 @@ export function ReportsView({
             <StatCard label="Items Sold" value={totalItems} />
             <StatCard label="Avg Order Value" value={formatCurrency(aov, currency)} />
           </div>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <StatCard label="Cash Income" value={formatCurrency(income.cash, currency)} />
+            <StatCard label="UPI Income" value={formatCurrency(income.upi, currency)} />
+            <StatCard label="Other Income" value={formatCurrency(income.other, currency)} hint="Bank transfer / imported" />
+          </div>
+
+          <AdminCard title="Income by Payment Method">
+            {incomePie.length === 0 ? (
+              <p className="py-10 text-center text-sm text-gray-500">No income in range.</p>
+            ) : (
+              <div className="grid items-center gap-4 sm:grid-cols-2">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={incomePie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                      {incomePie.map((d) => (
+                        <Cell key={d.name} fill={INCOME_COLORS[d.name] ?? "#8b5cf6"} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(Number(v), currency)} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-2 text-sm">
+                  <Line label="Cash" value={formatCurrency(income.cash, currency)} />
+                  <Line label="UPI" value={formatCurrency(income.upi, currency)} />
+                  {income.other > 0 && <Line label="Other" value={formatCurrency(income.other, currency)} />}
+                </div>
+              </div>
+            )}
+          </AdminCard>
 
           <AdminCard
             title="Daily Sales"

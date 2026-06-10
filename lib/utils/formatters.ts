@@ -19,6 +19,36 @@ export function formatPaymentMethod(
   return order.payment_method.toUpperCase();
 }
 
+/** Short, capitalised label for a payment method (e.g. "Cash", "UPI", "Split"). */
+export function paymentMethodLabel(method: string): string {
+  if (method === "cash") return "Cash";
+  if (method === "upi") return "UPI";
+  if (method === "split") return "Split";
+  return method.charAt(0).toUpperCase() + method.slice(1);
+}
+
+/**
+ * Splits an order's total into the cash / UPI / other portions it contributed.
+ * Split orders use their paid_cash / paid_upi breakdown; cash & upi orders go
+ * wholly to their bucket; anything else (imported "Other", "Bank Transfer") is "other".
+ */
+export function paymentSplit(order: {
+  payment_method: string;
+  total_amount: number | string;
+  paid_cash?: number | string;
+  paid_upi?: number | string;
+}): { cash: number; upi: number; other: number } {
+  const total = Number(order.total_amount ?? 0);
+  if (order.payment_method === "split") {
+    const cash = Number(order.paid_cash ?? 0);
+    const upi = Number(order.paid_upi ?? 0);
+    return { cash, upi, other: Math.max(total - cash - upi, 0) };
+  }
+  if (order.payment_method === "cash") return { cash: total, upi: 0, other: 0 };
+  if (order.payment_method === "upi") return { cash: 0, upi: total, other: 0 };
+  return { cash: 0, upi: 0, other: total };
+}
+
 export function formatDate(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleDateString("en-IN", {

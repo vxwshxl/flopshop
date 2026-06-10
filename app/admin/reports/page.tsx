@@ -15,7 +15,7 @@ export default async function ReportsPage() {
       supabase
         .from("orders")
         .select(
-          "id, status, order_type, created_at, subtotal, total_amount, delivery_fee, delivery_person_earning, admin_delivery_earning, order_items(quantity, total_price, product_name, cost_price, product:products(category_id))"
+          "id, status, order_type, created_at, subtotal, total_amount, delivery_fee, delivery_person_earning, admin_delivery_earning, payment_method, paid_cash, paid_upi, order_items(quantity, total_price, product_name, cost_price, product:products(category_id))"
         )
         .order("created_at", { ascending: false }),
       supabase.from("products").select("*").order("name"),
