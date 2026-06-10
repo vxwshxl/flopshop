@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader, AdminCard } from "@/components/admin/StatCard";
 import { OrderManagePanel } from "@/components/admin/OrderManagePanel";
+import { OrderCustomerEdit } from "@/components/admin/OrderCustomerEdit";
+import { OrderItemsEdit } from "@/components/admin/OrderItemsEdit";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { DeleteOrderButton } from "@/components/admin/DeleteOrderButton";
 import { PrintButton } from "@/components/PrintButton";
@@ -49,7 +51,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <AdminCard title="Customer">
+          <AdminCard title="Customer" action={<OrderCustomerEdit order={order} />}>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Field label="Name" value={order.customer_name} />
               <Field label="Phone" value={order.customer_phone ?? "—"} />
@@ -66,7 +68,15 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
             )}
           </AdminCard>
 
-          <AdminCard title="Items">
+          <AdminCard
+            title="Items"
+            action={
+              <OrderItemsEdit
+                order={order}
+                products={(productList as Pick<Product, "id" | "name" | "selling_price">[]) ?? []}
+              />
+            }
+          >
             <table className="w-full text-sm text-gray-300">
               <thead>
                 <tr className="text-left text-xs text-gray-500">
@@ -116,7 +126,6 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           <OrderManagePanel
             order={order}
             deliveryPeople={(people as Pick<Profile, "id" | "full_name">[]) ?? []}
-            products={(productList as Pick<Product, "id" | "name" | "selling_price">[]) ?? []}
           />
         </div>
       </div>

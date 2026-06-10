@@ -8,13 +8,11 @@ import {
   assignDeliveryAction,
   setPaymentStatusAction,
   setPaymentMethodAction,
-  updateOrderCustomerAction,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
 import {
   adminSettableStatuses,
   statusLabel,
@@ -22,9 +20,7 @@ import {
   EDITABLE_PAYMENT_METHODS,
   type EditablePaymentMethod,
 } from "@/lib/utils/orderHelpers";
-import type { Order, OrderStatus, Product, Profile } from "@/lib/types";
-
-type PickerProduct = Pick<Product, "id" | "name" | "selling_price">;
+import type { Order, OrderStatus, Profile } from "@/lib/types";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -37,11 +33,9 @@ const METHOD_LABELS: Record<string, string> = {
 export function OrderManagePanel({
   order,
   deliveryPeople,
-  products,
 }: {
   order: Order;
   deliveryPeople: Pick<Profile, "id" | "full_name">[];
-  products: PickerProduct[];
 }) {
   const [pending, startTransition] = useTransition();
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -49,13 +43,6 @@ export function OrderManagePanel({
   const [otp, setOtp] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
-  const [showItems, setShowItems] = useState(false);
-  const [showCustomer, setShowCustomer] = useState(false);
-  const [custForm, setCustForm] = useState({
-    customer_name: order.customer_name ?? "",
-    customer_phone: order.customer_phone ?? "",
-    customer_room: order.customer_room ?? "",
-  });
   const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
@@ -134,24 +121,6 @@ export function OrderManagePanel({
         toast.error("Something went wrong. Please try again.");
       }
     });
-  }
-
-  function saveCustomer(e: React.FormEvent) {
-    e.preventDefault();
-    if (!custForm.customer_name.trim()) {
-      toast.error("Customer name is required.");
-      return;
-    }
-    run(
-      () =>
-        updateOrderCustomerAction(order.id, {
-          customer_name: custForm.customer_name,
-          customer_phone: custForm.customer_phone,
-          customer_room: custForm.customer_room,
-        }),
-      "Customer updated"
-    );
-    setShowCustomer(false);
   }
 
   const isDelivery = order.order_type === "delivery";
@@ -242,40 +211,6 @@ export function OrderManagePanel({
         )}
 
         <div>
-          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Customer</p>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() => {
-              setCustForm({
-                customer_name: order.customer_name ?? "",
-                customer_phone: order.customer_phone ?? "",
-                customer_room: order.customer_room ?? "",
-              });
-              setShowCustomer(true);
-            }}
-          >
-            Edit customer
-          </Button>
-          <p className="mt-2 text-xs text-black/50 dark:text-white/50">
-            Fix a walk-in customer&apos;s name, phone or room on this order.
-          </p>
-        </div>
-
-        {order.status !== "cancelled" && (order.order_items?.length ?? 0) > 0 && (
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Items</p>
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => setShowItems(true)}>
-              Edit items
-            </Button>
-            <p className="mt-2 text-xs text-black/50 dark:text-white/50">
-              Swap a flavour or fix quantity/price — the customer sees the update live.
-            </p>
-          </div>
-        )}
-
-        <div>
           <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment method</p>
           <Select
             value={paymentMethod}
@@ -313,49 +248,6 @@ export function OrderManagePanel({
         </div>
       </div>
 
-      <Modal open={showCustomer} onClose={() => setShowCustomer(false)} title="Edit customer">
-        <form onSubmit={saveCustomer} className="space-y-4">
-          <div>
-            <Label htmlFor="oc-name">Name *</Label>
-            <Input
-              id="oc-name"
-              value={custForm.customer_name}
-              onChange={(e) => setCustForm((f) => ({ ...f, customer_name: e.target.value }))}
-              autoFocus
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="oc-phone">Phone</Label>
-              <Input
-                id="oc-phone"
-                value={custForm.customer_phone}
-                inputMode="numeric"
-                onChange={(e) =>
-                  setCustForm((f) => ({ ...f, customer_phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="oc-room">Room</Label>
-              <Input
-                id="oc-room"
-                value={custForm.customer_room}
-                onChange={(e) => setCustForm((f) => ({ ...f, customer_room: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setShowCustomer(false)} disabled={pending}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={pending}>
-              Save
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
       <Modal open={showOtpModal} onClose={() => setShowOtpModal(false)} title="Enter order OTP">
         <p className="mb-4 text-sm text-gray-300">
           Ask the customer for their 4-digit order OTP and enter it here to complete the order.
@@ -381,17 +273,6 @@ export function OrderManagePanel({
         </div>
       </Modal>
 
-      {showItems && (
-        <EditOrderItemsModal
-          order={order}
-          products={products}
-          onClose={() => setShowItems(false)}
-          onSaved={() => {
-            setShowItems(false);
-            router.refresh();
-          }}
-        />
-      )}
 
       <Modal open={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancellation reason">
         <p className="mb-4 text-sm text-gray-300">
