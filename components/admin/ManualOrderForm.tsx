@@ -40,6 +40,9 @@ export function ManualOrderForm({
   const [customer, setCustomer] = useState({ name: "", phone: "", room: "" });
   // Whether the name field is focused — controls the suggestions dropdown.
   const [nameFocused, setNameFocused] = useState(false);
+  // Keyboard-highlighted row in each dropdown (↑/↓ to move, Enter to pick).
+  const [custActive, setCustActive] = useState(0);
+  const [productActive, setProductActive] = useState(0);
 
   // Live name suggestions from the saved customer directory.
   const customerMatches = useMemo(() => {
@@ -157,19 +160,41 @@ export function ManualOrderForm({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setProductActive(0);
+              }}
+              onKeyDown={(e) => {
+                if (!results.length) return;
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setProductActive((i) => Math.min(i + 1, results.length - 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setProductActive((i) => Math.max(i - 1, 0));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  const p = results[productActive];
+                  if (p && p.current_stock > 0) add(p);
+                } else if (e.key === "Escape") {
+                  setQuery("");
+                }
+              }}
               placeholder="Search products to add…"
               className={`h-10 w-full rounded-lg border pl-9 pr-3 text-sm ${inputTheme}`}
             />
             {results.length > 0 && (
               <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
-                {results.map((p) => (
+                {results.map((p, i) => (
                   <button
                     type="button"
                     key={p.id}
                     onClick={() => add(p)}
+                    onMouseEnter={() => setProductActive(i)}
                     disabled={p.current_stock <= 0}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 disabled:opacity-40"
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 disabled:opacity-40 ${
+                      i === productActive ? "bg-black/5 dark:bg-white/10" : ""
+                    }`}
                   >
                     <span>{p.name}</span>
                     <span className="text-xs text-gray-500">
@@ -231,7 +256,26 @@ export function ManualOrderForm({
               <Input
                 required
                 value={customer.name}
-                onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))}
+                onChange={(e) => {
+                  setCustomer((c) => ({ ...c, name: e.target.value }));
+                  setCustActive(0);
+                }}
+                onKeyDown={(e) => {
+                  if (!nameFocused || customerMatches.length === 0) return;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setCustActive((i) => Math.min(i + 1, customerMatches.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setCustActive((i) => Math.max(i - 1, 0));
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    const c = customerMatches[custActive];
+                    if (c) pickCustomer(c);
+                  } else if (e.key === "Escape") {
+                    setNameFocused(false);
+                  }
+                }}
                 onFocus={() => setNameFocused(true)}
                 // Delay so a click on a suggestion registers before it closes.
                 onBlur={() => setTimeout(() => setNameFocused(false), 150)}
@@ -241,13 +285,16 @@ export function ManualOrderForm({
               />
               {nameFocused && customerMatches.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
-                  {customerMatches.map((c) => (
+                  {customerMatches.map((c, i) => (
                     <button
                       type="button"
                       key={c.id}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => pickCustomer(c)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10"
+                      onMouseEnter={() => setCustActive(i)}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 ${
+                        i === custActive ? "bg-black/5 dark:bg-white/10" : ""
+                      }`}
                     >
                       <span>{c.name}</span>
                       <span className="text-xs text-gray-500">{c.phone || "no phone"}</span>
