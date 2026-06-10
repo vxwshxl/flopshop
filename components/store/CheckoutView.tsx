@@ -150,14 +150,14 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
     );
   }
 
-  // Delivery requires auth. Only show the sign-in gate once we actually know
-  // the user is signed out (not while the auth check is still in flight).
-  if (orderType === "delivery" && !isAuthenticated && !userLoading) {
+  // Ordering requires an account. Only show the sign-in gate once we actually
+  // know the user is signed out (not while the auth check is still in flight).
+  if (!isAuthenticated && !userLoading) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center">
-        <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">Sign in for delivery</h1>
+        <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">Sign in to order</h1>
         <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
-          Delivery orders require an account so we can reach you. Pickup is available as a guest.
+          Orders require an account so we can reach you for delivery.
         </p>
         <div className="mt-6 flex justify-center">
           <Link href="/login?redirect=/checkout">
@@ -173,9 +173,7 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
       <h1 className="mb-4 text-xl font-extrabold text-stone-950 dark:text-white">Checkout</h1>
       <form onSubmit={placeOrder} className="space-y-5">
         <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
-          <p className="mb-3 text-sm font-semibold text-stone-700 dark:text-stone-300">
-            {orderType === "delivery" ? "Delivery details" : "Pickup details"}
-          </p>
+          <p className="mb-3 text-sm font-semibold text-stone-700 dark:text-stone-300">Delivery details</p>
           <div className="space-y-3">
             <div>
               <Label htmlFor="name">Name</Label>
@@ -186,40 +184,19 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
                 <Label htmlFor="phone">Phone</Label>
                 <Input id="phone" value={form.customer_phone} onChange={set("customer_phone")} inputMode="numeric" />
               </div>
-              {orderType === "delivery" && (
-                <div>
-                  <Label htmlFor="checkout-room">Hostel & Room</Label>
-                  <Input id="checkout-room" required value={form.customer_room} onChange={set("customer_room")} />
-                </div>
-              )}
+              <div>
+                <Label htmlFor="checkout-room">Hostel & Room</Label>
+                <Input id="checkout-room" required value={form.customer_room} onChange={set("customer_room")} />
+              </div>
             </div>
             <div>
               <Label>Payment method</Label>
-              {orderType === "delivery" ? (
-                <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
-                  Cash on delivery
-                  <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
-                    Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
-                  </span>
-                </div>
-              ) : (
-                <div className="flex gap-3">
-                  {(["cash", "upi"] as PaymentMethod[]).map((m) => (
-                    <button
-                      type="button"
-                      key={m}
-                      onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
-                        form.payment_method === m
-                          ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
-                          : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
-                      }`}
-                    >
-                      {m === "cash" ? "Cash" : "UPI"}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
+                Cash on delivery
+                <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
+                  Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
+                </span>
+              </div>
             </div>
             <div>
               <Label htmlFor="notes">Notes (optional)</Label>

@@ -16,7 +16,6 @@ export function CartView({ settings }: { settings: SettingsMap }) {
   const hydrated = useCart((s) => s.hydrated);
   const items = useCart((s) => s.items);
   const orderType = useCart((s) => s.orderType);
-  const setOrderType = useCart((s) => s.setOrderType);
   const increment = useCart((s) => s.increment);
   const decrement = useCart((s) => s.decrement);
   const removeItem = useCart((s) => s.removeItem);
@@ -86,32 +85,12 @@ export function CartView({ settings }: { settings: SettingsMap }) {
         ))}
       </div>
 
-      {/* Order type */}
+      {/* Order type — delivery only */}
       <div className="mt-6">
         <p className="mb-2 text-sm font-semibold text-stone-700 dark:text-stone-300">Order Type</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setOrderType("pickup")}
-            className={`rounded-lg border p-3 text-left text-sm ${
-              orderType === "pickup"
-                ? "border-lime-500 bg-lime-50 dark:bg-lime-400/10"
-                : "border-black/10 bg-white dark:border-white/10 dark:bg-stone-900"
-            }`}
-          >
-            <p className="font-semibold text-stone-950 dark:text-white">Pickup</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400">Collect yourself · Free</p>
-          </button>
-          <button
-            onClick={() => setOrderType("delivery")}
-            className={`rounded-lg border p-3 text-left text-sm ${
-              orderType === "delivery"
-                ? "border-lime-500 bg-lime-50 dark:bg-lime-400/10"
-                : "border-black/10 bg-white dark:border-white/10 dark:bg-stone-900"
-            }`}
-          >
-            <p className="font-semibold text-stone-950 dark:text-white">Delivery</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400">To your room · +{formatCurrency(deliveryFee, currency)}</p>
-          </button>
+        <div className="rounded-lg border border-lime-500 bg-lime-50 p-3 text-sm dark:bg-lime-400/10">
+          <p className="font-semibold text-stone-950 dark:text-white">Delivery</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">To your room · +{formatCurrency(deliveryFee, currency)}</p>
         </div>
       </div>
 

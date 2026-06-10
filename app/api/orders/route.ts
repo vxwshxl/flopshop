@@ -31,12 +31,17 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Delivery orders require an account.
-  if (order_type === "delivery" && !user) {
-    return NextResponse.json({ error: "Please sign in to place a delivery order." }, { status: 401 });
+  // Ordering now requires an account (no guest checkout).
+  if (!user) {
+    return NextResponse.json({ error: "Please sign in to place an order." }, { status: 401 });
   }
 
-  if (order_type === "delivery" && !customer_room?.trim()) {
+  // The store is delivery-only — pickup is reserved for admin walk-in orders.
+  if (order_type !== "delivery") {
+    return NextResponse.json({ error: "Only delivery orders can be placed online." }, { status: 400 });
+  }
+
+  if (!customer_room?.trim()) {
     return NextResponse.json({ error: "Room number is required for delivery." }, { status: 400 });
   }
 
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
     customer_room,
     payment_method,
     notes,
-    user_id: user?.id ?? null,
+    user_id: user.id,
     is_manual: false,
     confirm: false,
   });

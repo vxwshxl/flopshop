@@ -1,4 +1,4 @@
-export type Role = "user" | "delivery" | "admin";
+export type Role = "user" | "delivery" | "admin" | "banned";
 
 export type OrderType = "pickup" | "delivery";
 

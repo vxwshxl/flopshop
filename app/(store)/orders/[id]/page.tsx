@@ -8,6 +8,7 @@ import { Invoice } from "@/components/Invoice";
 import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import { CancelOrderButton } from "@/components/store/CancelOrderButton";
 import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/utils/orderHelpers";
 import type { Order } from "@/lib/types";
 
@@ -28,6 +29,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   // Only the customer who placed the order sees the OTP — delivery staff and
   // admins must ask for it to verify handover.
   const isOwner = !!auth.user && order.user_id === auth.user.id;
+  // The customer can call off their own order while it's still pending/confirmed.
+  const canCancel = isOwner && (order.status === "pending" || order.status === "confirmed");
 
   // Build a simple progress timeline (skips cancelled which is terminal).
   const flow =
@@ -48,7 +51,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">{order.order_number}</h1>
           <OrderStatusBadge status={order.status} />
         </div>
-        <PrintButton label="Print invoice" />
+        <div className="flex items-center gap-2">
+          {canCancel && <CancelOrderButton orderId={order.id} />}
+          <PrintButton label="Print invoice" />
+        </div>
       </div>
 
       {order.status !== "cancelled" && (

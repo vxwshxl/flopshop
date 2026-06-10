@@ -27,6 +27,10 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    // Phone, room and hostel are mandatory — orders can't be delivered without them.
+    if (!form.phone.trim() || !form.room_number.trim() || !form.hostel_block.trim()) {
+      return toast.error("Please fill in your phone, room number, and hostel.");
+    }
     setSaving(true);
     try {
       const response = await fetch("/api/profile", {
@@ -34,9 +38,9 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: form.full_name || null,
-          phone: form.phone || null,
-          room_number: form.room_number || null,
-          hostel_block: form.hostel_block || null,
+          phone: form.phone.trim(),
+          room_number: form.room_number.trim(),
+          hostel_block: form.hostel_block.trim(),
         }),
       });
 
@@ -44,11 +48,11 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
       if (!response.ok) {
         toast.error(result.error || "Unable to save profile.");
       } else {
-        toast.success("Profile saved");
-        router.refresh();
+        toast.success("Saved Changes");
+        router.push("/");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "An unexpected error occurred");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setSaving(false);
     }
@@ -66,16 +70,16 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Phone</Label>
+            <Label>Phone *</Label>
             <Input value={form.phone} onChange={set("phone")} inputMode="numeric" />
           </div>
           <div>
-            <Label>Room No.</Label>
+            <Label>Room No. *</Label>
             <Input value={form.room_number} onChange={set("room_number")} />
           </div>
         </div>
         <div>
-          <Label>Hostel</Label>
+          <Label>Hostel *</Label>
           <Select value={form.hostel_block} onChange={set("hostel_block")}>
             <option value="">Select hostel</option>
             {hostels.map((h) => (
@@ -90,7 +94,7 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
           <span className="font-semibold capitalize text-white">{profile.role}</span>
         </div>
         <Button type="submit" loading={saving} className="w-full">
-          Save changes
+          Complete Profile
         </Button>
       </form>
     </div>

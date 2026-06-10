@@ -11,7 +11,7 @@ CREATE TABLE profiles (
   phone TEXT,
   room_number TEXT,
   hostel_block TEXT,
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'delivery', 'admin')),
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'delivery', 'admin', 'banned')),
   is_active BOOLEAN DEFAULT true,
   is_online BOOLEAN DEFAULT false,
   last_active_at TIMESTAMPTZ,

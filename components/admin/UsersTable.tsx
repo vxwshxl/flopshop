@@ -15,7 +15,7 @@ import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import type { Order, Profile, Role } from "@/lib/types";
 
-const ROLES: Role[] = ["user", "delivery", "admin"];
+const ROLES: Role[] = ["user", "delivery", "admin", "banned"];
 
 export function UsersTable({
   users,

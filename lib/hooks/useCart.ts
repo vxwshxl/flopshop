@@ -24,7 +24,8 @@ export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
-      orderType: "pickup",
+      // The store is delivery-only — pickup is reserved for admin walk-in orders.
+      orderType: "delivery",
       hydrated: false,
 
       addItem: (product) => {
@@ -104,7 +105,9 @@ export const useCart = create<CartState>()(
       name: "flopshop-cart",
       // Only persist the actual cart — never the transient `hydrated` flag,
       // or a persisted `false` would clobber it on rehydrate.
-      partialize: (s) => ({ items: s.items, orderType: s.orderType }),
+      // Don't persist orderType — the store is delivery-only, so it always
+      // starts (and stays) "delivery" on every load.
+      partialize: (s) => ({ items: s.items }),
       // Flip `hydrated` via a real store update (not a silent mutation) so
       // every subscriber re-renders. queueMicrotask defers past store creation
       // so `useCart` is assigned before we reference it.
