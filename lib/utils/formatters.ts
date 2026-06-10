@@ -28,25 +28,29 @@ export function paymentMethodLabel(method: string): string {
 }
 
 /**
- * Splits an order's total into the cash / UPI / other portions it contributed.
- * Split orders use their paid_cash / paid_upi breakdown; cash & upi orders go
- * wholly to their bucket; anything else (imported "Other", "Bank Transfer") is "other".
+ * Splits an order's total into the cash / UPI / bank-transfer / other portions it
+ * contributed. Split orders use their paid_cash / paid_upi breakdown; cash, upi &
+ * bank-transfer orders go wholly to their bucket; anything else is "other".
+ * Method matching is case-insensitive so imported rows ("Cash", "Bank Transfer",
+ * "Other") bucket the same as app-created ones ("cash", "upi", "split").
  */
 export function paymentSplit(order: {
   payment_method: string;
   total_amount: number | string;
   paid_cash?: number | string;
   paid_upi?: number | string;
-}): { cash: number; upi: number; other: number } {
+}): { cash: number; upi: number; bank: number; other: number } {
   const total = Number(order.total_amount ?? 0);
-  if (order.payment_method === "split") {
+  const method = (order.payment_method ?? "").trim().toLowerCase();
+  if (method === "split") {
     const cash = Number(order.paid_cash ?? 0);
     const upi = Number(order.paid_upi ?? 0);
-    return { cash, upi, other: Math.max(total - cash - upi, 0) };
+    return { cash, upi, bank: 0, other: Math.max(total - cash - upi, 0) };
   }
-  if (order.payment_method === "cash") return { cash: total, upi: 0, other: 0 };
-  if (order.payment_method === "upi") return { cash: 0, upi: total, other: 0 };
-  return { cash: 0, upi: 0, other: total };
+  if (method === "cash") return { cash: total, upi: 0, bank: 0, other: 0 };
+  if (method === "upi") return { cash: 0, upi: total, bank: 0, other: 0 };
+  if (method === "bank transfer") return { cash: 0, upi: 0, bank: total, other: 0 };
+  return { cash: 0, upi: 0, bank: 0, other: total };
 }
 
 export function formatDate(date: string | Date): string {

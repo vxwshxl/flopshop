@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
-import { generateOrderNumber, generateInvoiceNumber } from "@/lib/utils/invoice";
+import { generateOrderNumber, generateInvoiceNumber, invoiceDatePrefix } from "@/lib/utils/invoice";
 import { deliverySplit, statusDeductsStock } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { Order, OrderStatus, OrderType, PaymentMethod } from "@/lib/types";
@@ -91,16 +91,21 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const split = deliverySplit(settings, input.order_type);
   const total_amount = subtotal + split.delivery_fee;
 
-  // Invoice sequence: count orders already invoiced today.
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const { count } = await supabase
+  // Invoice sequence: the next number after the highest invoice already issued
+  // for today's prefix. Derived from the real invoice numbers (not a row count)
+  // so deleted/cancelled orders and historical imports never cause a collision.
+  const prefix = invoiceDatePrefix();
+  const { data: todayInvoices } = await supabase
     .from("orders")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", startOfDay.toISOString());
+    .select("invoice_number")
+    .like("invoice_number", `${prefix}-%`);
+  let seq = 0;
+  for (const row of todayInvoices ?? []) {
+    const m = /-(\d+)$/.exec(row.invoice_number ?? "");
+    if (m) seq = Math.max(seq, Number(m[1]));
+  }
 
   const order_number = generateOrderNumber();
-  const invoice_number = generateInvoiceNumber(count ?? 0);
   const status: OrderStatus = input.confirm ? "confirmed" : "pending";
   // Every order gets an OTP (the column is NOT NULL). Manual / walk-in orders
   // simply never require it at completion — that's gated on `is_manual`.
@@ -108,7 +113,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   const orderPayload = {
     order_number,
-    invoice_number,
+    invoice_number: "",
     user_id: input.user_id ?? null,
     customer_name: input.customer_name.trim(),
     customer_phone: input.customer_phone || null,
@@ -129,13 +134,27 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     otp_code,
   };
 
-  const { data: result, error: rpcErr } = await supabase.rpc("checkout_order", {
-    p_order: orderPayload,
-    p_items: lineItems,
-  });
+  // Retry on the unique-invoice constraint: a concurrent order may have grabbed
+  // the same sequence between our read and the insert. Bump and try again.
+  let payload: { ok: boolean; error?: string; order_id?: string } | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    orderPayload.invoice_number = generateInvoiceNumber(seq + 1 + attempt);
+    const { data: result, error: rpcErr } = await supabase.rpc("checkout_order", {
+      p_order: orderPayload,
+      p_items: lineItems,
+    });
 
-  if (rpcErr) return { ok: false, error: rpcErr.message };
-  const payload = result as { ok: boolean; error?: string; order_id?: string };
+    if (rpcErr) {
+      if (rpcErr.message.includes("orders_invoice_number_key")) continue;
+      return { ok: false, error: rpcErr.message };
+    }
+    payload = result as { ok: boolean; error?: string; order_id?: string };
+    break;
+  }
+
+  if (!payload) {
+    return { ok: false, error: "Could not allocate an invoice number. Please retry." };
+  }
   if (!payload.ok) {
     if (payload.error?.includes("Insufficient stock")) {
       return { ok: false, error: "Not enough stock for one or more items." };

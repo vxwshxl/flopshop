@@ -50,7 +50,12 @@ const tabs = ["Sales", "Profit", "Inventory"] as const;
 type Tab = (typeof tabs)[number];
 
 const PIE_COLORS = ["#f59e0b", "#3b82f6", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"];
-const INCOME_COLORS: Record<string, string> = { Cash: "#10b981", UPI: "#3b82f6", Other: "#6b7280" };
+const INCOME_COLORS: Record<string, string> = {
+  Cash: "#10b981",
+  UPI: "#3b82f6",
+  "Bank Transfer": "#f59e0b",
+  Other: "#6b7280",
+};
 const tooltipStyle = { backgroundColor: "#0a0a0a", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
 
 export function ReportsView({
@@ -112,10 +117,11 @@ export function ReportsView({
           const s = paymentSplit(o);
           acc.cash += s.cash;
           acc.upi += s.upi;
+          acc.bank += s.bank;
           acc.other += s.other;
           return acc;
         },
-        { cash: 0, upi: 0, other: 0 }
+        { cash: 0, upi: 0, bank: 0, other: 0 }
       ),
     [validOrders]
   );
@@ -124,6 +130,7 @@ export function ReportsView({
       [
         { name: "Cash", value: income.cash },
         { name: "UPI", value: income.upi },
+        { name: "Bank Transfer", value: income.bank },
         { name: "Other", value: income.other },
       ].filter((d) => d.value > 0),
     [income]
@@ -282,10 +289,11 @@ export function ReportsView({
             <StatCard label="Avg Order Value" value={formatCurrency(aov, currency)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard label="Cash Income" value={formatCurrency(income.cash, currency)} />
             <StatCard label="UPI Income" value={formatCurrency(income.upi, currency)} />
-            <StatCard label="Other Income" value={formatCurrency(income.other, currency)} hint="Bank transfer / imported" />
+            <StatCard label="Bank Transfer" value={formatCurrency(income.bank, currency)} />
+            <StatCard label="Other Income" value={formatCurrency(income.other, currency)} />
           </div>
 
           <AdminCard title="Income by Payment Method">
@@ -307,6 +315,7 @@ export function ReportsView({
                 <div className="space-y-2 text-sm">
                   <Line label="Cash" value={formatCurrency(income.cash, currency)} />
                   <Line label="UPI" value={formatCurrency(income.upi, currency)} />
+                  {income.bank > 0 && <Line label="Bank Transfer" value={formatCurrency(income.bank, currency)} />}
                   {income.other > 0 && <Line label="Other" value={formatCurrency(income.other, currency)} />}
                 </div>
               </div>

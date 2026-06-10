@@ -14,11 +14,15 @@ export function generateOrderNumber(date = new Date()): string {
   return `ORD-${yymmdd(date)}-${rand}`;
 }
 
+/** The shared per-day prefix for invoice numbers, e.g. `INV-260607`. */
+export function invoiceDatePrefix(date = new Date()): string {
+  return `INV-${yymmdd(date)}`;
+}
+
 /**
- * Builds an invoice number given how many invoices already exist for today.
- * `todayCount` is the count of orders that already have an invoice for the day.
+ * Builds an invoice number for the given 1-based daily sequence.
+ * e.g. seq 1 → INV-260607-001.
  */
-export function generateInvoiceNumber(todayCount: number, date = new Date()): string {
-  const seq = String(todayCount + 1).padStart(3, "0");
-  return `INV-${yymmdd(date)}-${seq}`;
+export function generateInvoiceNumber(seq: number, date = new Date()): string {
+  return `${invoiceDatePrefix(date)}-${String(seq).padStart(3, "0")}`;
 }
