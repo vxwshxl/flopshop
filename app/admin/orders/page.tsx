@@ -1,7 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
-import { PageHeader } from "@/components/admin/StatCard";
-import { tablePageClass } from "@/components/admin/TableShell";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Order, Profile } from "@/lib/types";
@@ -21,14 +19,13 @@ export default async function AdminOrdersPage() {
   ]);
 
   return (
-    <div className={tablePageClass}>
+    <>
       <RealtimeRefresh table="orders" channel="admin:orders" />
-      <PageHeader title="Orders" subtitle={`${orders?.length ?? 0} total orders`} />
       <OrdersTable
         orders={(orders as Order[]) ?? []}
         deliveryPeople={(people as Pick<Profile, "id" | "full_name" | "role">[]) ?? []}
         currency={settings.currency_symbol}
       />
-    </div>
+    </>
   );
 }

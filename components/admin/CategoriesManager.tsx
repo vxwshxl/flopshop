@@ -10,8 +10,9 @@ import { Input, Label } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/admin/StatCard";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
-import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
+import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import type { Category } from "@/lib/types";
 
@@ -104,16 +105,23 @@ export function CategoriesManager({
   }
 
   return (
-    <div className={tableCardClass}>
-      <div className="shrink-0">
-        <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search category…" showDateRange={false}>
+    <div className={tablePageClass}>
+      <PageHeader
+        title="Categories"
+        subtitle={<span className="hidden lg:inline">{categories.length} categories</span>}
+        action={
           <Button variant="dark" onClick={openNew}>
             <Plus className="h-4 w-4" /> Add category
           </Button>
-        </TableToolbar>
-      </div>
+        }
+      />
 
-      <TableScroll>
+      <div className={tableCardClass}>
+        <div className="shrink-0">
+          <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search category…" showDateRange={false} />
+        </div>
+
+        <TableScroll>
         <table className="w-full text-sm">
           <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
@@ -135,7 +143,7 @@ export function CategoriesManager({
                 </td>
                 <td className="p-3">
                   <span
-                    className="inline-flex items-center gap-2 rounded-full border border-yellow-400 bg-yellow-400 px-2.5 py-0.5 font-medium text-black"
+                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-yellow-400 bg-yellow-400 px-2.5 py-0.5 font-medium text-black"
                   >
                     {c.icon} {c.name}
                   </span>
@@ -166,8 +174,9 @@ export function CategoriesManager({
           </tbody>
         </table>
       </TableScroll>
-      <div className="shrink-0">
-        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
+        <div className="shrink-0">
+          <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
+        </div>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit Category" : "New Category"}>

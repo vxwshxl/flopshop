@@ -102,7 +102,7 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
             className={`h-10 w-full rounded-lg border pl-9 pr-3 text-sm ${inputDark}`}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2 sm:justify-start">
           <DatePicker value={from} onChange={setFrom} className="w-36" />
           <span className="text-white/40">→</span>
           <DatePicker value={to} onChange={setTo} className="w-36" />

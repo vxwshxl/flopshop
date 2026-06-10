@@ -3,6 +3,7 @@
 import { Search, ArrowUpDown } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils/cn";
 import type { SortDir } from "@/lib/hooks/useTableControls";
 
 const inputDark =
@@ -20,6 +21,7 @@ export function TableToolbar({
   hasDateFilter,
   onClearDates,
   showDateRange = true,
+  searchHiddenOnMobile = false,
   children,
 }: {
   query: string;
@@ -32,15 +34,21 @@ export function TableToolbar({
   hasDateFilter?: boolean;
   onClearDates?: () => void;
   showDateRange?: boolean;
+  /** Hide the search box below `lg` (the page renders its own compact search). */
+  searchHiddenOnMobile?: boolean;
   children?: React.ReactNode;
 }) {
   return (
     <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center">
-      <div className="relative min-w-[200px] flex-1">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-        <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} className={inputDark} />
+      {/* Search + first control share a row on mobile; `lg:contents` lets them
+          flow as normal flex items in the desktop row. */}
+      <div className="flex gap-2 lg:contents">
+        <div className={cn("relative min-w-0 flex-1 lg:min-w-[200px]", searchHiddenOnMobile && "hidden lg:block")}>
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} className={inputDark} />
+        </div>
+        {children}
       </div>
-      {children}
       {showDateRange && onFrom && onTo && (
         <div className="flex items-center justify-center gap-2 lg:justify-start">
           <DatePicker value={from ?? ""} onChange={onFrom} className="w-36" />

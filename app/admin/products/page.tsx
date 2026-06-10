@@ -1,7 +1,10 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { tablePageClass } from "@/components/admin/TableShell";
+import { Button } from "@/components/ui/button";
 import { ProductsTable } from "@/components/admin/ProductsTable";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category, Product } from "@/lib/types";
@@ -21,7 +24,17 @@ export default async function AdminProductsPage() {
     <div className={tablePageClass}>
       <RealtimeRefresh table="products" channel="admin:products" />
       <RealtimeRefresh table="categories" channel="admin:categories" />
-      <PageHeader title="Products" subtitle={`${products?.length ?? 0} products`} />
+      <PageHeader
+        title="Products"
+        subtitle={<span className="hidden lg:inline">{products?.length ?? 0} products</span>}
+        action={
+          <Link href="/admin/products/new">
+            <Button variant="dark">
+              <Plus className="h-4 w-4" /> Add product
+            </Button>
+          </Link>
+        }
+      />
       <ProductsTable
         products={(products as Product[]) ?? []}
         categories={(categories as Category[]) ?? []}

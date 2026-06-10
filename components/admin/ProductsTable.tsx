@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Check } from "lucide-react";
+import { Pencil, Trash2, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { imagePositionStyle } from "@/lib/utils/image";
 import { Pagination, usePagination } from "@/components/ui/pagination";
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
@@ -148,7 +147,7 @@ export function ProductsTable({
           hasDateFilter={ctl.hasDateFilter}
           onClearDates={ctl.clearDates}
         >
-          <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-48">
+          <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-40 lg:w-48">
             <option value="all">All categories</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -156,11 +155,6 @@ export function ProductsTable({
               </option>
             ))}
           </Select>
-          <Link href="/admin/products/new">
-            <Button variant="dark">
-              <Plus className="h-4 w-4" /> Add product
-            </Button>
-          </Link>
         </TableToolbar>
       </div>
 

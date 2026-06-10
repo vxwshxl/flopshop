@@ -1,6 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/admin/StatCard";
-import { tablePageClass } from "@/components/admin/TableShell";
 import { CategoriesManager } from "@/components/admin/CategoriesManager";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category } from "@/lib/types";
@@ -20,10 +18,9 @@ export default async function AdminCategoriesPage() {
   });
 
   return (
-    <div className={tablePageClass}>
+    <>
       <RealtimeRefresh table="categories" channel="admin:categories" />
-      <PageHeader title="Categories" subtitle={`${categories?.length ?? 0} categories`} />
       <CategoriesManager categories={(categories as Category[]) ?? []} counts={counts} />
-    </div>
+    </>
   );
 }

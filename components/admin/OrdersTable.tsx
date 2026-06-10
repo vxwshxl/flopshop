@@ -3,13 +3,15 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction, assignDeliveryAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Select } from "@/components/ui/input";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/admin/StatCard";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
-import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
+import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
@@ -104,9 +106,27 @@ export function OrdersTable({
   }
 
   return (
-    <div className={tableCardClass}>
-      <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2">
-        {TABS.map((t) => (
+    <div className={tablePageClass}>
+      <PageHeader
+        title="Orders"
+        subtitle={<span className="hidden lg:inline">{orders.length} total orders</span>}
+        action={
+          // Compact search sits beside the title on mobile/tablet to save vertical space.
+          <div className="relative w-44 sm:w-64 lg:hidden">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <input
+              value={ctl.query}
+              onChange={(e) => ctl.setQuery(e.target.value)}
+              placeholder="Search…"
+              className="h-10 w-full rounded-lg border border-[#333] bg-[#1a1a1a] pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
+        }
+      />
+
+      <div className={tableCardClass}>
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-2 lg:justify-start">
+          {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -133,6 +153,7 @@ export function OrdersTable({
           onTo={ctl.setTo}
           hasDateFilter={ctl.hasDateFilter}
           onClearDates={ctl.clearDates}
+          searchHiddenOnMobile
         />
       </div>
 
@@ -223,9 +244,10 @@ export function OrdersTable({
             ))}
           </tbody>
         </table>
-      </TableScroll>
-      <div className="shrink-0">
-        <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
+        </TableScroll>
+        <div className="shrink-0">
+          <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
+        </div>
       </div>
     </div>
   );

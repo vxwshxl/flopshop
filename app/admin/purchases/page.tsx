@@ -31,7 +31,11 @@ export default async function PurchasesPage() {
       <RealtimeRefresh table="purchases" channel="admin:purchases" />
       <PageHeader
         title="Purchases"
-        subtitle={`${list.length} purchases · ${formatCurrency(totalSpent, currency)} spent`}
+        subtitle={
+          <span className="hidden lg:inline">
+            {list.length} purchases · {formatCurrency(totalSpent, currency)} spent
+          </span>
+        }
         action={
           <Link href="/admin/purchases/new">
             <Button variant="dark">
