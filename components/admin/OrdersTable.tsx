@@ -32,13 +32,35 @@ type Row = Order & {
 
 const TABS: ("all" | OrderStatus)[] = ["all", ...ORDER_STATUSES];
 
-type PayFilter = "all" | "cash" | "upi" | "split";
+type PayFilter = "all" | "cash" | "upi" | "split" | "bank" | "other" | "paid" | "unpaid";
 const PAY_FILTERS: { key: PayFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "cash", label: "Cash" },
   { key: "upi", label: "UPI" },
   { key: "split", label: "Split" },
+  { key: "bank", label: "Bank Transfer" },
+  { key: "other", label: "Other" },
+  { key: "paid", label: "Paid" },
+  { key: "unpaid", label: "Unpaid" },
 ];
+
+// Normalised payment method so imported rows ("Cash", "Bank Transfer") match
+// app-created ones ("cash", "bank transfer").
+const payMethod = (o: { payment_method: string }) =>
+  (o.payment_method ?? "").trim().toLowerCase();
+const KNOWN_METHODS = ["cash", "upi", "split", "bank transfer"];
+
+// Predicate per filter chip. Cash/UPI/Split/Bank/Other key off the payment
+// method; Paid/Unpaid key off the payment status (Unpaid = still pending).
+const PAY_MATCHERS: Record<Exclude<PayFilter, "all">, (o: Row) => boolean> = {
+  cash: (o) => payMethod(o) === "cash",
+  upi: (o) => payMethod(o) === "upi",
+  split: (o) => payMethod(o) === "split",
+  bank: (o) => payMethod(o) === "bank transfer",
+  other: (o) => !KNOWN_METHODS.includes(payMethod(o)),
+  paid: (o) => o.payment_status === "paid",
+  unpaid: (o) => o.payment_status === "pending",
+};
 
 export function OrdersTable({
   orders,
@@ -119,14 +141,14 @@ export function OrdersTable({
   const payCounts = useMemo(() => {
     const c: Record<string, number> = { all: orders.length };
     PAY_FILTERS.forEach(({ key }) => {
-      if (key !== "all") c[key] = orders.filter((o) => o.payment_method === key).length;
+      if (key !== "all") c[key] = orders.filter(PAY_MATCHERS[key]).length;
     });
     return c;
   }, [orders]);
 
   const tabbed = useMemo(() => {
     const byStatus = tab === "all" ? orders : orders.filter((o) => o.status === tab);
-    return payFilter === "all" ? byStatus : byStatus.filter((o) => o.payment_method === payFilter);
+    return payFilter === "all" ? byStatus : byStatus.filter(PAY_MATCHERS[payFilter]);
   }, [orders, tab, payFilter]);
   const ctl = useTableControls(tabbed, {
     searchFields: (o) => [
