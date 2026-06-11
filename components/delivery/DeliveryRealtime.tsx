@@ -26,6 +26,8 @@ export function DeliveryRealtime() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders", filter: "order_type=eq.delivery" },
         (payload: RealtimePostgresInsertPayload<NewOrderInfo>) => {
+          // Only ring for customer checkout orders, not admin walk-in/manual ones.
+          if (payload.new.is_manual) return;
           playOrderChime();
           notifyNewOrder(payload.new);
         }

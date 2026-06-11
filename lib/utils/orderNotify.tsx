@@ -9,6 +9,7 @@ export interface NewOrderInfo {
   customer_name?: string | null;
   customer_room?: string | null;
   total_amount?: number | null;
+  is_manual?: boolean | null;
 }
 
 /**

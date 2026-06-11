@@ -26,7 +26,8 @@ export function AdminRealtime() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
         (payload: RealtimePostgresInsertPayload<NewOrderInfo>) => {
-          // Ring loudly for every new order the open dashboard receives.
+          // Only ring for customer checkout orders, not admin walk-in/manual ones.
+          if (payload.new.is_manual) return;
           playOrderChime();
           notifyNewOrder(payload.new);
         }
