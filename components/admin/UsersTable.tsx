@@ -5,31 +5,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import toast from "react-hot-toast";
-import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 import { setUserRoleAction, toggleUserActiveAction } from "@/app/admin/users/actions";
-import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatDate } from "@/lib/utils/formatters";
 import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
-import type { Order, Profile, Role } from "@/lib/types";
+import type { Profile, Role } from "@/lib/types";
 
 const ROLES: Role[] = ["user", "delivery", "admin", "banned"];
 
 export function UsersTable({
   users,
   orderCounts,
-  currency,
 }: {
   users: Profile[];
   orderCounts: Record<string, number>;
-  currency: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-  const [historyFor, setHistoryFor] = useState<Profile | null>(null);
-  const [history, setHistory] = useState<Order[] | null>(null);
 
   const ctl = useTableControls(users, {
     searchFields: (u) => [u.full_name, u.email, u.room_number],
@@ -60,18 +54,6 @@ export function UsersTable({
     if (!res.ok) return toast.error(res.error ?? "Failed to update status.");
     toast.success(u.is_active ? "User deactivated" : "User activated");
     router.refresh();
-  }
-
-  async function openHistory(u: Profile) {
-    setHistoryFor(u);
-    setHistory(null);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", u.id)
-      .order("created_at", { ascending: false });
-    setHistory((data as Order[]) ?? []);
   }
 
   return (
@@ -106,12 +88,16 @@ export function UsersTable({
           </thead>
           <tbody className="text-black/75 dark:text-white/75">
             {pageItems.map((u) => (
-              <tr key={u.id} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
+              <tr
+                key={u.id}
+                onClick={() => router.push(`/admin/users/${u.id}`)}
+                className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+              >
                 <td className="p-3 font-medium text-black dark:text-white">{u.full_name ?? "—"}</td>
                 <td className="p-3 text-black/60 dark:text-white/60">{u.email}</td>
                 <td className="p-3">{u.room_number ?? "—"}</td>
                 <td className="p-3">{orderCounts[u.id] ?? 0}</td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={u.role}
                     disabled={busy === u.id}
@@ -125,7 +111,7 @@ export function UsersTable({
                     ))}
                   </Select>
                 </td>
-                <td className="p-3">
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => toggleActive(u)}
                     disabled={busy === u.id}
@@ -139,10 +125,13 @@ export function UsersTable({
                   </button>
                 </td>
                 <td className="p-3 text-xs text-black/50 dark:text-white/50">{formatDate(u.created_at)}</td>
-                <td className="p-3 text-right">
-                  <button onClick={() => openHistory(u)} className="text-xs text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
-                    View orders
-                  </button>
+                <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <Link
+                    href={`/admin/users/${u.id}`}
+                    className="text-xs text-black underline decoration-yellow-400 underline-offset-4 dark:text-white"
+                  >
+                    View
+                  </Link>
                 </td>
               </tr>
             ))}
@@ -152,51 +141,6 @@ export function UsersTable({
       <div className="shrink-0">
         <Pagination page={page} totalPages={totalPages} perPage={perPage} total={total} onPage={setPage} onPerPage={setPerPage} />
       </div>
-
-      <Modal open={!!historyFor} onClose={() => setHistoryFor(null)} title={`${historyFor?.full_name ?? "User"} — Orders`}>
-        {history === null ? (
-          <p className="py-6 text-center text-sm text-black/50 dark:text-white/50">Loading...</p>
-        ) : history.length === 0 ? (
-          <p className="py-6 text-center text-sm text-black/50 dark:text-white/50">No orders.</p>
-        ) : (
-          <PaginatedOrders orders={history} currency={currency} />
-        )}
-      </Modal>
-    </div>
-  );
-}
-
-function PaginatedOrders({ orders, currency }: { orders: Order[]; currency: string }) {
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(orders, 5);
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        {pageItems.map((o) => (
-          <Link
-            key={o.id}
-            href={`/admin/orders/${o.id}`}
-            className="flex items-center justify-between rounded-lg border border-black/10 p-2.5 text-sm transition hover:border-yellow-400 hover:bg-yellow-400/10 dark:border-white/10"
-          >
-            <div>
-              <p className="font-medium text-black dark:text-white">{o.order_number}</p>
-              <p className="text-xs text-black/50 dark:text-white/50">
-                {formatDate(o.created_at)} · {o.status}
-              </p>
-            </div>
-            <span className="font-semibold text-black dark:text-white">{formatCurrency(o.total_amount, currency)}</span>
-          </Link>
-        ))}
-      </div>
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        perPage={perPage}
-        total={total}
-        onPage={setPage}
-        onPerPage={setPerPage}
-        pageSizes={[5, 10, 20]}
-      />
     </div>
   );
 }

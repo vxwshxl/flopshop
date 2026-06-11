@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { AdminCard } from "@/components/admin/StatCard";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import type { OrderStatus } from "@/lib/types";
 
@@ -30,6 +33,8 @@ export function ProductBuyers({ buyers, currency }: { buyers: BuyerRow[]; curren
     sold.map((b) => (b.customer_phone?.trim() || b.customer_name.trim().toLowerCase()))
   ).size;
 
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(buyers, 10);
+
   return (
     <AdminCard title="Who bought this">
       {buyers.length === 0 ? (
@@ -55,7 +60,7 @@ export function ProductBuyers({ buyers, currency }: { buyers: BuyerRow[]; curren
                 </tr>
               </thead>
               <tbody className="text-black/75 dark:text-white/75">
-                {buyers.map((b, i) => (
+                {pageItems.map((b, i) => (
                   <tr key={`${b.order_id}-${i}`} className="border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10">
                     <td className="p-3">
                       <Link href={`/admin/orders/${b.order_id}`} className="font-medium text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
@@ -79,6 +84,15 @@ export function ProductBuyers({ buyers, currency }: { buyers: BuyerRow[]; curren
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            perPage={perPage}
+            total={total}
+            onPage={setPage}
+            onPerPage={setPerPage}
+            pageSizes={[10, 20, 50]}
+          />
         </>
       )}
     </AdminCard>

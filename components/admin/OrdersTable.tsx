@@ -258,46 +258,42 @@ export function OrdersTable({
       />
 
       <div className={tableCardClass}>
-        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-2 lg:justify-start">
-          {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-              tab === t
-                ? "bg-yellow-400 text-black"
-                : "border border-black/10 bg-white text-black/60 hover:text-black dark:border-white/10 dark:bg-black dark:text-white/60 dark:hover:text-white"
-            }`}
-          >
-            {t === "all" ? "All" : STATUS_LABELS[t]}{" "}
-            <span className="opacity-60">({counts[t] ?? 0})</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-2 lg:justify-between">
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {PAY_FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setPayFilter(key)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                payFilter === key
-                  ? "bg-emerald-500 text-white"
-                  : "border border-black/10 bg-white text-black/60 hover:text-black dark:border-white/10 dark:bg-black dark:text-white/60 dark:hover:text-white"
-              }`}
+        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs font-medium text-black/60 dark:text-white/60">
+            <span className="hidden sm:inline">Status</span>
+            <Select
+              value={tab}
+              onChange={(e) => setTab(e.target.value as "all" | OrderStatus)}
+              className="min-w-36"
             >
-              {label} <span className="opacity-60">({payCounts[key] ?? 0})</span>
-            </button>
-          ))}
+              {TABS.map((t) => (
+                <option key={t} value={t}>
+                  {t === "all" ? "All" : STATUS_LABELS[t]} ({counts[t] ?? 0})
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-black/60 dark:text-white/60">
+            <span className="hidden sm:inline">Payment</span>
+            <Select
+              value={payFilter}
+              onChange={(e) => setPayFilter(e.target.value as PayFilter)}
+              className="min-w-36"
+            >
+              {PAY_FILTERS.map(({ key, label }) => (
+                <option key={key} value={key}>
+                  {label} ({payCounts[key] ?? 0})
+                </option>
+              ))}
+            </Select>
+          </label>
+          <div className="ml-auto text-sm text-black/60 dark:text-white/60">
+            Revenue:{" "}
+            <span className="font-semibold text-black dark:text-white">
+              {formatCurrency(filteredRevenue, currency)}
+            </span>
+          </div>
         </div>
-        <div className="text-sm text-black/60 dark:text-white/60">
-          Revenue:{" "}
-          <span className="font-semibold text-black dark:text-white">
-            {formatCurrency(filteredRevenue, currency)}
-          </span>
-        </div>
-      </div>
 
       <div className="shrink-0">
         <TableToolbar

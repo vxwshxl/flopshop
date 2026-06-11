@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { tablePageClass } from "@/components/admin/TableShell";
 import { UsersTable } from "@/components/admin/UsersTable";
@@ -10,7 +9,6 @@ export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
   const supabase = await createClient();
-  const settings = await getSettings();
 
   const [{ data: users }, { data: orders }] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at", { ascending: false }),
@@ -26,11 +24,7 @@ export default async function UsersPage() {
     <div className={tablePageClass}>
       <RealtimeRefresh table="profiles" channel="admin:profiles" />
       <PageHeader title="Users" subtitle={`${users?.length ?? 0} users`} />
-      <UsersTable
-        users={(users as Profile[]) ?? []}
-        orderCounts={orderCounts}
-        currency={settings.currency_symbol}
-      />
+      <UsersTable users={(users as Profile[]) ?? []} orderCounts={orderCounts} />
     </div>
   );
 }
