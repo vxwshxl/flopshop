@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { sendTestNotificationAction } from "@/app/admin/settings/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -13,6 +14,15 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
   const router = useRouter();
   const [form, setForm] = useState<SettingsMap>({ ...settings });
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  async function sendTest() {
+    setTesting(true);
+    const res = await sendTestNotificationAction();
+    setTesting(false);
+    if (!res.ok) return toast.error(res.error ?? "Could not send test.");
+    toast.success("Test notification sent — check your device.");
+  }
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -130,6 +140,16 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
               <Input value="Asia/Kolkata (IST)" disabled readOnly />
               <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
                 All dates &amp; times across the app use India Standard Time.
+              </p>
+            </div>
+            <div>
+              <Label>Order alerts</Label>
+              <Button type="button" variant="outline" onClick={sendTest} loading={testing} className="w-full">
+                Send test notification
+              </Button>
+              <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                Enable alerts with the bell icon in the top bar first. The push contact email comes from the Email
+                field above.
               </p>
             </div>
           </div>

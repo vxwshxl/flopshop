@@ -2,17 +2,24 @@ import "server-only";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/server";
 
-let configured = false;
+type AdminClient = ReturnType<typeof createAdminClient>;
 
-/** Lazily configure web-push with the VAPID keys (no-op if env is missing). */
-function ensureConfigured(): boolean {
-  if (configured) return true;
+function getKeys(): { publicKey: string; privateKey: string } | null {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
-  if (!publicKey || !privateKey) return false;
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:admin@flopshop.app", publicKey, privateKey);
-  configured = true;
-  return true;
+  if (!publicKey || !privateKey) return null;
+  return { publicKey, privateKey };
+}
+
+/**
+ * VAPID "subject" — a contact for the push service. Uses the shop's configured
+ * email (Settings → Email) when set, otherwise falls back to env / a default.
+ */
+async function getSubject(admin: AdminClient): Promise<string> {
+  const { data } = await admin.from("settings").select("value").eq("key", "shop_email").single();
+  const email = (data?.value ?? "").trim();
+  if (email) return `mailto:${email}`;
+  return process.env.VAPID_SUBJECT || "mailto:admin@flopshop.app";
 }
 
 export type PushPayload = {
@@ -27,7 +34,8 @@ export type PushPayload = {
  * Dead subscriptions (410/404) are pruned. Never throws — best-effort.
  */
 export async function sendPushToUsers(userIds: string[], payload: PushPayload): Promise<void> {
-  if (!userIds.length || !ensureConfigured()) return;
+  const keys = getKeys();
+  if (!userIds.length || !keys) return;
   const admin = createAdminClient();
   const { data: subs } = await admin
     .from("push_subscriptions")
@@ -36,13 +44,16 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
 
   if (!subs?.length) return;
   const body = JSON.stringify(payload);
+  const subject = await getSubject(admin);
+  const options = { vapidDetails: { subject, publicKey: keys.publicKey, privateKey: keys.privateKey } };
 
   await Promise.all(
     subs.map(async (s) => {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          body
+          body,
+          options
         );
       } catch (err) {
         const status = (err as { statusCode?: number })?.statusCode;

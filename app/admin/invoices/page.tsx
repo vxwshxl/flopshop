@@ -13,13 +13,13 @@ export default async function InvoicesPage() {
 
   const { data: orders } = await supabase
     .from("orders")
-    .select("*, order_items(id)")
+    .select("*, order_items(*)")
     .order("created_at", { ascending: false });
 
   return (
     <div className={tablePageClass}>
       <PageHeader title="Invoices" subtitle={`${orders?.length ?? 0} invoices`} />
-      <InvoicesList orders={(orders as Order[]) ?? []} currency={settings.currency_symbol} />
+      <InvoicesList orders={(orders as Order[]) ?? []} settings={settings} />
     </div>
   );
 }
