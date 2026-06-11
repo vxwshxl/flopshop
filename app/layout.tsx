@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   },
   description: "Order snacks, drinks and noodles for pickup or delivery to your hostel room.",
   applicationName: "FlopShop",
+  manifest: "/manifest.json",
   openGraph: {
     title: "FlopShop — Your Hostel Snack Shop",
     description: "Midnight cravings, delivered to your hostel room.",

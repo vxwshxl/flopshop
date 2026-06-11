@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { ShoppingCart, Package, User as UserIcon, LogOut, LayoutDashboard, Truck, Menu } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { ShopStatusHeaderToggle } from "@/components/admin/ShopStatusHeaderToggle";
+import { PushBell } from "@/components/PushBell";
 import { useCart } from "@/lib/hooks/useCart";
 import { useSettings } from "@/lib/hooks/useSettings";
-import { createClient } from "@/lib/supabase/client";
 import type { Role } from "@/lib/types";
 
 export interface NavUser {
@@ -74,6 +74,7 @@ export function Navbar({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {(role === "admin" || role === "delivery") && <PushBell />}
           {isAdminMode && <ShopStatusHeaderToggle />}
 
           {!isAdminMode && (

@@ -11,7 +11,7 @@ export type OrderStatus =
   | "cancelled";
 
 export type PaymentMethod = "cash" | "upi" | "split";
-export type PaymentStatus = "pending" | "paid";
+export type PaymentStatus = "pending" | "paid" | "partial";
 
 export interface Hostel {
   id: string;
@@ -137,6 +137,8 @@ export interface Order {
   paid_cash: number;
   paid_upi: number;
   payment_status: PaymentStatus;
+  /** How much of total_amount has been collected so far (partial payments). */
+  amount_paid: number;
   notes: string | null;
   is_manual: boolean;
   invoice_number: string | null;

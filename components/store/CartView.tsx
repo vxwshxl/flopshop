@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Button } from "@/components/ui/button";
-import type { SettingsMap } from "@/lib/types";
+import type { OrderType, SettingsMap } from "@/lib/types";
 import toast from "react-hot-toast";
 import { useSettings } from "@/lib/hooks/useSettings";
 
@@ -16,6 +17,7 @@ export function CartView({ settings }: { settings: SettingsMap }) {
   const hydrated = useCart((s) => s.hydrated);
   const items = useCart((s) => s.items);
   const orderType = useCart((s) => s.orderType);
+  const setOrderType = useCart((s) => s.setOrderType);
   const increment = useCart((s) => s.increment);
   const decrement = useCart((s) => s.decrement);
   const removeItem = useCart((s) => s.removeItem);
@@ -25,6 +27,18 @@ export function CartView({ settings }: { settings: SettingsMap }) {
   const deliveryShare = Number(settings.delivery_person_share ?? 8);
   const adminShare = Number(settings.admin_delivery_share ?? 2);
   const { isOpen } = useSettings();
+
+  // Which order types the admin has enabled (defaults to both).
+  const enabledTypes = ((settings.order_types_enabled ?? "pickup,delivery").split(",").filter(Boolean) as OrderType[]);
+  const canPickup = enabledTypes.includes("pickup");
+  const canDelivery = enabledTypes.includes("delivery");
+
+  // Keep the cart's order type valid for what's enabled.
+  useEffect(() => {
+    if (!enabledTypes.includes(orderType) && enabledTypes.length > 0) {
+      setOrderType(enabledTypes[0]);
+    }
+  }, [enabledTypes, orderType, setOrderType]);
 
   if (!hydrated) return <div className="p-10 text-center text-stone-400">Loading cart...</div>;
 
@@ -85,13 +99,46 @@ export function CartView({ settings }: { settings: SettingsMap }) {
         ))}
       </div>
 
-      {/* Order type — delivery only */}
+      {/* Order type — shows only the enabled options */}
       <div className="mt-6">
         <p className="mb-2 text-sm font-semibold text-stone-700 dark:text-stone-300">Order Type</p>
-        <div className="rounded-lg border border-lime-500 bg-lime-50 p-3 text-sm dark:bg-lime-400/10">
-          <p className="font-semibold text-stone-950 dark:text-white">Delivery</p>
-          <p className="text-xs text-stone-500 dark:text-stone-400">To your room · +{formatCurrency(deliveryFee, currency)}</p>
-        </div>
+        {canPickup && canDelivery ? (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setOrderType("pickup")}
+              className={`rounded-lg border p-3 text-left text-sm ${
+                orderType === "pickup"
+                  ? "border-lime-500 bg-lime-50 dark:bg-lime-400/10"
+                  : "border-black/10 bg-white dark:border-white/10 dark:bg-stone-900"
+              }`}
+            >
+              <p className="font-semibold text-stone-950 dark:text-white">Pickup</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Collect yourself · Free</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderType("delivery")}
+              className={`rounded-lg border p-3 text-left text-sm ${
+                orderType === "delivery"
+                  ? "border-lime-500 bg-lime-50 dark:bg-lime-400/10"
+                  : "border-black/10 bg-white dark:border-white/10 dark:bg-stone-900"
+              }`}
+            >
+              <p className="font-semibold text-stone-950 dark:text-white">Delivery</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">To your room · +{formatCurrency(deliveryFee, currency)}</p>
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-lime-500 bg-lime-50 p-3 text-sm dark:bg-lime-400/10">
+            <p className="font-semibold text-stone-950 dark:text-white capitalize">{orderType}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              {orderType === "delivery"
+                ? `To your room · +${formatCurrency(deliveryFee, currency)}`
+                : "Collect yourself · Free"}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Summary */}

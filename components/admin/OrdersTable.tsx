@@ -13,7 +13,7 @@ import {
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { EditOrderItemsModal } from "@/components/admin/EditOrderItemsModal";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { PageHeader } from "@/components/admin/StatCard";
@@ -65,6 +65,9 @@ export function OrdersTable({
   const [editTarget, setEditTarget] = useState<Row | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Cancel-with-reason target (so a reason can be captured from the list itself).
+  const [cancelTarget, setCancelTarget] = useState<Row | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   function markPaid(id: string) {
     setPayStatusOverrides((m) => ({ ...m, [id]: "paid" }));
@@ -151,6 +154,13 @@ export function OrdersTable({
   );
 
   function changeStatus(id: string, status: OrderStatus) {
+    // Cancelling needs a reason — capture it in a popup right from the list.
+    if (status === "cancelled") {
+      const row = orders.find((o) => o.id === id) ?? null;
+      setCancelReason("");
+      setCancelTarget(row);
+      return;
+    }
     const prev = overrides[id];
     const revert = () =>
       setOverrides((m) => {
@@ -174,6 +184,27 @@ export function OrdersTable({
         revert();
         toast.error("Something went wrong. Please try again.");
       }
+    });
+  }
+
+  function confirmCancel() {
+    const target = cancelTarget;
+    if (!target) return;
+    if (!cancelReason.trim()) {
+      toast.error("Please provide a cancellation reason.");
+      return;
+    }
+    startTransition(async () => {
+      const res = await setOrderStatusAction(target.id, "cancelled", undefined, cancelReason.trim());
+      if (!res.ok) {
+        toast.error(res.error ?? "Failed");
+        return;
+      }
+      setOverrides((m) => ({ ...m, [target.id]: "cancelled" }));
+      toast.success("Order cancelled");
+      setCancelTarget(null);
+      setCancelReason("");
+      router.refresh();
     });
   }
 
@@ -314,7 +345,11 @@ export function OrdersTable({
                           : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/15 dark:text-amber-200"
                       }`}
                     >
-                      {payStatusOf(o) === "paid" ? "Paid" : "Unpaid"}
+                      {payStatusOf(o) === "paid"
+                        ? "Paid"
+                        : payStatusOf(o) === "partial"
+                          ? `Partial · ${formatCurrency(Math.max(Number(o.total_amount) - Number(o.amount_paid ?? 0), 0), currency)} left`
+                          : "Unpaid"}
                     </span>
                   </div>
                 </td>
@@ -366,7 +401,7 @@ export function OrdersTable({
                 </td>
                 <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    {payStatusOf(o) === "pending" && (
+                    {payStatusOf(o) !== "paid" && (
                       <button
                         onClick={() => markPaid(o.id)}
                         disabled={pending}
@@ -429,6 +464,28 @@ export function OrdersTable({
           </Button>
           <Button variant="danger" onClick={confirmDelete} disabled={deleting} loading={deleting}>
             Delete order
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={!!cancelTarget} onClose={() => setCancelTarget(null)} title="Cancel order">
+        <p className="mb-3 text-sm text-gray-300">
+          Cancelling order <span className="font-semibold text-white">{cancelTarget?.order_number}</span> returns its
+          stock to inventory. Tell the customer why — this reason is saved with the order.
+        </p>
+        <Input
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          placeholder="e.g. item out of stock"
+          className="mb-4 w-full"
+          autoFocus
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setCancelTarget(null)} disabled={pending}>
+            Back
+          </Button>
+          <Button variant="danger" onClick={confirmCancel} disabled={pending || !cancelReason.trim()} loading={pending}>
+            Cancel order
           </Button>
         </div>
       </Modal>

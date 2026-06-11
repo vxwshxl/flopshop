@@ -76,6 +76,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
       )}
 
+      {order.order_type === "pickup" && settings.shop_address?.trim() && (
+        <div className="mb-6 rounded-lg border border-lime-500/60 bg-lime-50 p-4 text-sm text-stone-700 dark:bg-lime-400/10 dark:text-stone-200">
+          <span className="font-semibold">Pickup — collect from:</span> {settings.shop_address}
+        </div>
+      )}
+
       <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
         {/* OTP only for the owner, and only until handover (delivered/cancelled). */}
         <Invoice

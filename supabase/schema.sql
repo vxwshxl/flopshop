@@ -127,7 +127,9 @@ CREATE TABLE orders (
   -- For split payments: how much of the total was paid by each method.
   paid_cash DECIMAL(10,2) DEFAULT 0,
   paid_upi DECIMAL(10,2) DEFAULT 0,
-  payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid')),
+  payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'partial')),
+  -- How much of total_amount has actually been collected (for partial payments).
+  amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
   otp_code TEXT,
   notes TEXT,
   is_manual BOOLEAN DEFAULT false,
@@ -185,7 +187,9 @@ INSERT INTO settings (key, value, label) VALUES
   ('admin_delivery_share', '2', 'Admin Share from Delivery (₹)'),
   ('currency_symbol', '₹', 'Currency Symbol'),
   ('min_order_for_delivery', '0', 'Min Order Amount for Delivery'),
-  ('shop_is_open', 'true', 'Shop Status');
+  ('shop_is_open', 'true', 'Shop Status'),
+  ('timezone', 'Asia/Kolkata', 'Timezone'),
+  ('order_types_enabled', 'pickup,delivery', 'Enabled Order Types');
 
 -- ============================================================
 -- STOCK HELPERS (atomic increment / decrement)

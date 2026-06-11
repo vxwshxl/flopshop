@@ -57,7 +57,14 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               <Field label="Phone" value={order.customer_phone ?? "—"} />
               <Field label="Room" value={order.customer_room ?? "—"} />
               <Field label="Type" value={order.order_type} />
-              <Field label="Payment" value={`${formatPaymentMethod(order, currency)} · ${order.payment_status}`} />
+              <Field
+                label="Payment"
+                value={
+                  order.payment_status === "partial"
+                    ? `${formatPaymentMethod(order, currency)} · paid ${formatCurrency(order.amount_paid, currency)} / ${formatCurrency(order.total_amount, currency)} (${formatCurrency(Math.max(order.total_amount - order.amount_paid, 0), currency)} due)`
+                    : `${formatPaymentMethod(order, currency)} · ${order.payment_status}`
+                }
+              />
               <Field label="Source" value={order.is_manual ? "Walk-in (manual)" : "Online"} />
               {order.status === "cancelled" && order.cancel_reason && (
                 <Field label="Cancelled because" value={order.cancel_reason} />

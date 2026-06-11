@@ -17,4 +17,8 @@ export const DEFAULT_SETTINGS: SettingsMap = {
   admin_delivery_share: "2",
   min_order_for_delivery: "0",
   shop_is_open: "true",
+  // The whole app runs on India Standard Time (display + invoice/day logic).
+  timezone: "Asia/Kolkata",
+  // Which order types customers may choose in the cart (comma-separated).
+  order_types_enabled: "pickup,delivery",
 };

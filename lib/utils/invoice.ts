@@ -3,10 +3,15 @@
 //   Order:   ORD-{YYMMDD}-{4-digit random}     e.g. ORD-260607-4829
 
 function yymmdd(date = new Date()): string {
-  const yy = String(date.getFullYear()).slice(-2);
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yy}${mm}${dd}`;
+  // Always in IST, so the daily sequence rolls at IST midnight (not the server's
+  // UTC midnight). en-CA renders YYYY-MM-DD; strip dashes and drop the century.
+  const ist = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+  return ist.replace(/-/g, "").slice(2);
 }
 
 export function generateOrderNumber(date = new Date()): string {

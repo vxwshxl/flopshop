@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getSettings } from "@/lib/supabase/queries";
 import { createOrder } from "@/lib/server/orders";
 import type { OrderType, PaymentMethod } from "@/lib/types";
 
@@ -36,12 +37,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please sign in to place an order." }, { status: 401 });
   }
 
-  // The store is delivery-only — pickup is reserved for admin walk-in orders.
-  if (order_type !== "delivery") {
-    return NextResponse.json({ error: "Only delivery orders can be placed online." }, { status: 400 });
+  // Only order types the admin has enabled may be placed online.
+  const settings = await getSettings();
+  const enabled = (settings.order_types_enabled ?? "pickup,delivery").split(",").filter(Boolean);
+  if (!enabled.includes(order_type)) {
+    return NextResponse.json({ error: "That order type isn't available right now." }, { status: 400 });
   }
 
-  if (!customer_room?.trim()) {
+  if (order_type === "delivery" && !customer_room?.trim()) {
     return NextResponse.json({ error: "Room number is required for delivery." }, { status: 400 });
   }
 

@@ -21,7 +21,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
-import { formatCurrency, toISODate, paymentSplit } from "@/lib/utils/formatters";
+import { formatCurrency, istDateString, paymentSplit } from "@/lib/utils/formatters";
 import type { Category, Product, Purchase, SettingsMap } from "@/lib/types";
 
 interface ReportOrder {
@@ -89,15 +89,16 @@ export function ReportsView({
   const [from, setFrom] = useState(() => {
     let earliest = "";
     for (const o of orders) {
-      const day = o.created_at.slice(0, 10);
+      const day = istDateString(o.created_at);
       if (!earliest || day < earliest) earliest = day;
     }
     if (earliest) return earliest;
     const d = new Date();
     d.setDate(d.getDate() - 29);
-    return toISODate(d);
+    return istDateString(d);
   });
-  const [to, setTo] = useState(toISODate(new Date()));
+  // End the range at "today" in IST so the latest sales are always included.
+  const [to, setTo] = useState(istDateString());
 
   const catName = useMemo(
     () => new Map(categories.map((c) => [c.id, `${c.icon} ${c.name}`])),
@@ -106,7 +107,7 @@ export function ReportsView({
 
   const inRange = useCallback(
     (d: string) => {
-      const day = d.slice(0, 10);
+      const day = istDateString(d);
       return day >= from && day <= to;
     },
     [from, to]
@@ -159,7 +160,7 @@ export function ReportsView({
   const dailySeries = useMemo(() => {
     const map = new Map<string, { revenue: number; orders: number }>();
     validOrders.forEach((o) => {
-      const key = o.created_at.slice(0, 10);
+      const key = istDateString(o.created_at);
       const e = map.get(key) ?? { revenue: 0, orders: 0 };
       e.revenue += Number(o.total_amount);
       e.orders += 1;
@@ -215,7 +216,7 @@ export function ReportsView({
   // start date (item gross margin + the shop's delivery share). Pure
   // calculation, no stored column; reduces net profit only.
   const devFeeBase = validOrders.reduce((sum, o) => {
-    if (o.created_at.slice(0, 10) < DEV_FEE_START) return sum;
+    if (istDateString(o.created_at) < DEV_FEE_START) return sum;
     const itemsCost = o.order_items.reduce(
       (a, it) => a + it.quantity * Number(it.cost_price ?? 0),
       0

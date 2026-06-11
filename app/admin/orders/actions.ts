@@ -4,8 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
-import { statusDeductsStock, EDITABLE_PAYMENT_METHODS, type EditablePaymentMethod } from "@/lib/utils/orderHelpers";
-import type { OrderStatus, PaymentStatus, Role } from "@/lib/types";
+import {
+  statusDeductsStock,
+  deliverySplit,
+  EDITABLE_PAYMENT_METHODS,
+  type EditablePaymentMethod,
+} from "@/lib/utils/orderHelpers";
+import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
+import type { OrderStatus, OrderType, PaymentStatus, Role } from "@/lib/types";
 
 async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | null> {
   const supabase = await createClient();
@@ -254,12 +260,55 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
   const actor = await requireRole(["admin", "delivery"]);
   if (!actor) return { ok: false, error: "Not authorized." };
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("orders")
-    .update({ payment_status: status, updated_at: new Date().toISOString() })
-    .eq("id", orderId);
+  // Keep amount_paid consistent: full when marked paid, zero when reverted to
+  // pending. (Partial amounts are set via the manual-order / partial flow.)
+  const patch: Record<string, unknown> = { payment_status: status, updated_at: new Date().toISOString() };
+  if (status === "paid" || status === "pending") {
+    const { data: order } = await admin.from("orders").select("total_amount").eq("id", orderId).single();
+    patch.amount_paid = status === "paid" ? Number(order?.total_amount ?? 0) : 0;
+  }
+  const { error } = await admin.from("orders").update(patch).eq("id", orderId);
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
+ * Change an order's type (pickup ⇄ delivery). Admin only. Recomputes the
+ * delivery fee / earnings split and the order total to match the new type.
+ */
+export async function setOrderTypeAction(orderId: string, orderType: OrderType) {
+  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  if (orderType !== "pickup" && orderType !== "delivery") {
+    return { ok: false, error: "Invalid order type." };
+  }
+
+  const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select("id, subtotal")
+    .eq("id", orderId)
+    .single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  const settings = settingsToMap((await admin.from("settings").select("key, value")).data);
+  const split = deliverySplit({ ...DEFAULT_SETTINGS, ...settings }, orderType);
+
+  const { error } = await admin
+    .from("orders")
+    .update({
+      order_type: orderType,
+      delivery_fee: split.delivery_fee,
+      delivery_person_earning: split.delivery_person_earning,
+      admin_delivery_earning: split.admin_delivery_earning,
+      total_amount: Number(order.subtotal) + split.delivery_fee,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath(`/orders/${orderId}`);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
@@ -346,12 +395,16 @@ export async function deleteOrderAction(orderId: string) {
 }
 
 export async function createManualOrderAction(
-  input: Omit<CreateOrderInput, "confirm" | "is_manual"> & { payment_pending?: boolean }
+  input: Omit<CreateOrderInput, "confirm" | "is_manual"> & {
+    payment_pending?: boolean;
+    /** When payment is pending, how much the customer paid up front (0 = none). */
+    amount_paid?: number;
+  }
 ) {
   const actor = await requireRole(["admin"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
-  const { payment_pending, ...orderInput } = input;
+  const { payment_pending, amount_paid, ...orderInput } = input;
 
   // Walk-in orders are handed over on the spot: create confirmed + paid, then
   // mark completed so it lands fully done (no OTP — manual orders skip it).
@@ -360,14 +413,22 @@ export async function createManualOrderAction(
 
   await updateOrderStatus(res.order.id, "delivered");
 
-  // The goods are handed over, but the admin couldn't collect payment yet (e.g.
-  // the UPI app/server was down). Flip it back to pending so it can be marked
-  // paid from the orders page once the payment actually goes through.
+  const total = Number(res.order.total_amount);
+  const admin = createAdminClient();
   if (payment_pending) {
-    const admin = createAdminClient();
+    // The goods are handed over but payment isn't fully collected. Record how
+    // much was paid now (could be 0, or a partial amount) so the balance is clear.
+    const paid = Math.min(Math.max(Number(amount_paid) || 0, 0), total);
+    const status = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
     await admin
       .from("orders")
-      .update({ payment_status: "pending", updated_at: new Date().toISOString() })
+      .update({ payment_status: status, amount_paid: paid, updated_at: new Date().toISOString() })
+      .eq("id", res.order.id);
+  } else {
+    // Fully paid on the spot — record the whole total as collected.
+    await admin
+      .from("orders")
+      .update({ amount_paid: total, updated_at: new Date().toISOString() })
       .eq("id", res.order.id);
   }
   // Remember the walk-in customer (best-effort) so the name auto-suggests next

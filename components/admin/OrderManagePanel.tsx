@@ -8,6 +8,7 @@ import {
   assignDeliveryAction,
   setPaymentStatusAction,
   setPaymentMethodAction,
+  setOrderTypeAction,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import {
   EDITABLE_PAYMENT_METHODS,
   type EditablePaymentMethod,
 } from "@/lib/utils/orderHelpers";
-import type { Order, OrderStatus, Profile } from "@/lib/types";
+import type { Order, OrderStatus, OrderType, Profile } from "@/lib/types";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -166,6 +167,18 @@ export function OrderManagePanel({
               Dispatch &amp; delivery completion are done by the assigned delivery partner.
             </p>
           )}
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Order type</p>
+          <Select
+            value={order.order_type}
+            disabled={pending}
+            onChange={(e) => run(() => setOrderTypeAction(order.id, e.target.value as OrderType), "Order type updated")}
+          >
+            <option value="pickup">Pickup</option>
+            <option value="delivery">Delivery</option>
+          </Select>
         </div>
 
         <div>

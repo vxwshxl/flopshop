@@ -53,9 +53,13 @@ export function paymentSplit(order: {
   return { cash: 0, upi: 0, bank: 0, other: total };
 }
 
+/** The app runs on India Standard Time everywhere (display + date logic). */
+export const IST_TIMEZONE = "Asia/Kolkata";
+
 export function formatDate(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleDateString("en-IN", {
+    timeZone: IST_TIMEZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -65,6 +69,7 @@ export function formatDate(date: string | Date): string {
 export function formatDateTime(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleString("en-IN", {
+    timeZone: IST_TIMEZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -75,12 +80,24 @@ export function formatDateTime(date: string | Date): string {
 
 export function formatTime(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("en-IN", { timeZone: IST_TIMEZONE, hour: "2-digit", minute: "2-digit" });
 }
 
 /** YYYY-MM-DD for date inputs / range queries. */
 export function toISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+/** YYYY-MM-DD for a moment, in IST (so "today" rolls at IST midnight). */
+export function istDateString(date: string | Date = new Date()): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  // en-CA renders as YYYY-MM-DD; forcing the IST zone gives the IST calendar day.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: IST_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 export function getISTNow() {

@@ -38,6 +38,8 @@ export function Select({ className, value = "", onChange, disabled, children }: 
     { left: number; width: number; top?: number; bottom?: number } | null
   >(null);
   const [search, setSearch] = React.useState("");
+  // Keyboard-highlighted option while the menu is open (↑/↓ move, Enter selects).
+  const [activeIndex, setActiveIndex] = React.useState(-1);
   const searchTimeout = React.useRef<number | null>(null);
   const lastSearchKey = React.useRef<string | null>(null);
   const lastSearchTime = React.useRef<number>(0);
@@ -60,6 +62,20 @@ export function Select({ className, value = "", onChange, disabled, children }: 
     (value ? { value, label: value } : options[0]);
 
   const optionCount = options.length;
+  const selectedIndex = options.findIndex((option) => option.value === value);
+  const activeValue = activeIndex >= 0 ? options[activeIndex]?.value : undefined;
+
+  // Open the menu with the current selection pre-highlighted.
+  const openMenu = () => {
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    setOpen(true);
+  };
+  const commitOption = (index: number) => {
+    const option = options[index];
+    if (!option) return;
+    onChange?.({ target: { value: option.value } });
+    setOpen(false);
+  };
   const place = React.useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
@@ -114,6 +130,7 @@ export function Select({ className, value = "", onChange, disabled, children }: 
       if (matches.length) {
         const match = matches[(repeatCount.current - 1) % matches.length];
         onChange?.({ target: { value: match.value } });
+        setActiveIndex(options.findIndex((option) => option.value === match.value));
         if (open && optionRefs.current[match.value]) {
           optionRefs.current[match.value]?.scrollIntoView({ block: "nearest" });
         }
@@ -145,26 +162,50 @@ export function Select({ className, value = "", onChange, disabled, children }: 
     };
   }, [open, place]);
 
+  // Keep the keyboard-highlighted option scrolled into view.
+  React.useEffect(() => {
+    if (!open || activeValue == null) return;
+    optionRefs.current[activeValue]?.scrollIntoView({ block: "nearest" });
+  }, [open, activeValue]);
+
   return (
     <div className={cn("relative", className)}>
       <button
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((next) => !next)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={(event) => {
-          if (event.key.length === 1 && /^[a-z0-9]$/i.test(event.key)) {
+          if (event.key === "ArrowDown") {
             event.preventDefault();
-            selectMatchingOption(event.key);
-          } else if (event.key === "ArrowDown") {
-            event.preventDefault();
-            setOpen(true);
+            if (!open) openMenu();
+            else setActiveIndex((i) => Math.min(i + 1, optionCount - 1));
           } else if (event.key === "ArrowUp") {
             event.preventDefault();
-            setOpen(true);
+            if (!open) openMenu();
+            else setActiveIndex((i) => Math.max(i - 1, 0));
+          } else if (event.key === "Home") {
+            if (open) {
+              event.preventDefault();
+              setActiveIndex(0);
+            }
+          } else if (event.key === "End") {
+            if (open) {
+              event.preventDefault();
+              setActiveIndex(optionCount - 1);
+            }
           } else if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            setOpen((next) => !next);
+            if (!open) openMenu();
+            else commitOption(activeIndex);
+          } else if (event.key === "Escape") {
+            if (open) {
+              event.preventDefault();
+              setOpen(false);
+            }
+          } else if (event.key.length === 1 && /^[a-z0-9]$/i.test(event.key)) {
+            event.preventDefault();
+            selectMatchingOption(event.key);
           }
         }}
         className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-white/15 bg-white/5 px-3 text-left text-sm text-white transition hover:bg-white/10 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/30 disabled:pointer-events-none disabled:opacity-50"
@@ -188,18 +229,22 @@ export function Select({ className, value = "", onChange, disabled, children }: 
             }}
             className="max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-[#0c0c0c] p-1 text-sm text-white shadow-2xl"
           >
-            {options.map((option) => (
+            {options.map((option, i) => (
               <button
                 ref={(el) => {
                   optionRefs.current[option.value] = el;
                 }}
                 key={option.value}
                 type="button"
+                onMouseEnter={() => setActiveIndex(i)}
                 onClick={() => {
                   onChange?.({ target: { value: option.value } });
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left transition hover:bg-lime-400 hover:text-black"
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left transition hover:bg-lime-400 hover:text-black",
+                  i === activeIndex && "bg-lime-400 text-black"
+                )}
               >
                 <span className="truncate">{option.label}</span>
                 {option.value === value && <Check className="h-4 w-4" />}

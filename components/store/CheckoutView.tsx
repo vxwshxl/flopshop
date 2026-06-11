@@ -64,10 +64,12 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
   };
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const fee = orderType === "delivery" ? deliveryFee : 0;
+  const isDelivery = orderType === "delivery";
+  const fee = isDelivery ? deliveryFee : 0;
   const total = subtotal + fee;
-  // COD isn't allowed above the ceiling — the customer must commit to paying UPI.
-  const mustUseUpi = total > COD_MAX;
+  // COD isn't allowed above the ceiling on delivery — customer must pay UPI.
+  const mustUseUpi = isDelivery && total > COD_MAX;
+  const pickupAddress = settings.shop_address?.trim();
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -186,7 +188,14 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
       <h1 className="mb-4 text-xl font-extrabold text-stone-950 dark:text-white">Checkout</h1>
       <form onSubmit={placeOrder} className="space-y-5">
         <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
-          <p className="mb-3 text-sm font-semibold text-stone-700 dark:text-stone-300">Delivery details</p>
+          <p className="mb-3 text-sm font-semibold text-stone-700 dark:text-stone-300">
+            {isDelivery ? "Delivery details" : "Pickup details"}
+          </p>
+          {!isDelivery && pickupAddress && (
+            <div className="mb-3 rounded-lg border border-lime-500/60 bg-lime-50 px-3 py-2 text-sm text-stone-700 dark:bg-lime-400/10 dark:text-stone-200">
+              <span className="font-semibold">Collect from:</span> {pickupAddress}
+            </div>
+          )}
           <div className="space-y-3">
             <div>
               <Label htmlFor="name">Name</Label>
@@ -197,27 +206,48 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
                 <Label htmlFor="phone">Phone</Label>
                 <Input id="phone" value={form.customer_phone} onChange={set("customer_phone")} inputMode="numeric" />
               </div>
-              <div>
-                <Label htmlFor="checkout-room">Hostel & Room</Label>
-                <Input id="checkout-room" required value={form.customer_room} onChange={set("customer_room")} />
-              </div>
+              {isDelivery && (
+                <div>
+                  <Label htmlFor="checkout-room">Hostel & Room</Label>
+                  <Input id="checkout-room" required value={form.customer_room} onChange={set("customer_room")} />
+                </div>
+              )}
             </div>
             <div>
               <Label>Payment method</Label>
-              {mustUseUpi ? (
-                <div className="rounded-lg border border-lime-500 bg-lime-50 px-3 py-2 text-sm font-medium text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
-                  UPI at the door (required)
-                  <span className="mt-0.5 block text-xs font-normal text-lime-700/80 dark:text-lime-300/70">
-                    Orders over {formatCurrency(COD_MAX, currency)}{" "}
-                    can&apos;t be cash on delivery. Pay the shop QR the partner shows on arrival.
-                  </span>
-                </div>
+              {isDelivery ? (
+                mustUseUpi ? (
+                  <div className="rounded-lg border border-lime-500 bg-lime-50 px-3 py-2 text-sm font-medium text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
+                    UPI at the door (required)
+                    <span className="mt-0.5 block text-xs font-normal text-lime-700/80 dark:text-lime-300/70">
+                      Orders over {formatCurrency(COD_MAX, currency)}{" "}
+                      can&apos;t be cash on delivery. Pay the shop QR the partner shows on arrival.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
+                    Cash on delivery
+                    <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
+                      Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
+                    </span>
+                  </div>
+                )
               ) : (
-                <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
-                  Cash on delivery
-                  <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
-                    Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
-                  </span>
+                <div className="flex gap-3">
+                  {(["cash", "upi"] as PaymentMethod[]).map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                        form.payment_method === m
+                          ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                          : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
+                      }`}
+                    >
+                      {m === "cash" ? "Cash" : "UPI"}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

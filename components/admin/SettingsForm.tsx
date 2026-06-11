@@ -21,6 +21,20 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
   const deliveryShare = Number(form.delivery_person_share ?? 0);
   const adminShare = Math.max(deliveryFee - deliveryShare, 0);
 
+  // Which order types customers may pick in the cart.
+  const enabledTypes = new Set((form.order_types_enabled ?? "pickup,delivery").split(",").filter(Boolean));
+  function toggleType(type: "pickup" | "delivery") {
+    const next = new Set(enabledTypes);
+    if (next.has(type)) next.delete(type);
+    else next.add(type);
+    // Never allow zero enabled types — keep at least the one just toggled off's pair.
+    if (next.size === 0) {
+      toast.error("At least one order type must stay enabled.");
+      return;
+    }
+    setForm((f) => ({ ...f, order_types_enabled: ["pickup", "delivery"].filter((t) => next.has(t)).join(",") }));
+  }
+
   async function save() {
     setSaving(true);
     const supabase = createClient();
@@ -38,6 +52,7 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
       "admin_delivery_share",
       "min_order_for_delivery",
       "shop_is_open",
+      "order_types_enabled",
     ];
 
     for (const key of keys) {
@@ -64,7 +79,10 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
           <Field label="Tagline" value={form.shop_tagline ?? ""} onChange={set("shop_tagline")} />
           <Field label="Email" value={form.shop_email ?? ""} onChange={set("shop_email")} />
           <Field label="Phone" value={form.shop_phone ?? ""} onChange={set("shop_phone")} />
-          <Field label="Address" value={form.shop_address ?? ""} onChange={set("shop_address")} />
+          <Field label="Address (pickup location)" value={form.shop_address ?? ""} onChange={set("shop_address")} />
+          <p className="-mt-2 text-xs text-stone-500 dark:text-stone-400">
+            Shown to customers as the pickup point on checkout &amp; the order page.
+          </p>
         </div>
       </AdminCard>
 
@@ -79,6 +97,41 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
           <div className="mt-4 rounded-lg bg-stone-100 p-3 text-sm text-stone-600 dark:bg-stone-950 dark:text-stone-400">
             Split: {form.currency_symbol}{deliveryFee} total = {form.currency_symbol}{deliveryShare} delivery person +{" "}
             <span className="text-stone-950 dark:text-white">{form.currency_symbol}{adminShare} admin</span> (auto-calculated)
+          </div>
+        </AdminCard>
+
+        <AdminCard title="Storefront">
+          <div className="space-y-4">
+            <div>
+              <Label>Order types customers can choose</Label>
+              <div className="mt-1 flex gap-2">
+                {(["pickup", "delivery"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleType(t)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition ${
+                      enabledTypes.has(t)
+                        ? "border-yellow-400 bg-yellow-400/15 text-stone-950 dark:text-white"
+                        : "border-black/15 text-stone-500 dark:border-white/15 dark:text-stone-400"
+                    }`}
+                  >
+                    {enabledTypes.has(t) ? "✓ " : ""}
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                Only the enabled types appear in the customer&apos;s cart.
+              </p>
+            </div>
+            <div>
+              <Label>Timezone</Label>
+              <Input value="Asia/Kolkata (IST)" disabled readOnly />
+              <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                All dates &amp; times across the app use India Standard Time.
+              </p>
+            </div>
           </div>
         </AdminCard>
 

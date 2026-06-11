@@ -65,6 +65,8 @@ export function ManualOrderForm({
   // Goods handed over but payment not collected yet (e.g. UPI/server down) —
   // the order completes but stays "Unpaid" until marked paid on the orders page.
   const [paymentPending, setPaymentPending] = useState(false);
+  // When payment is pending, how much the customer paid up front (blank = none).
+  const [paidNow, setPaidNow] = useState("");
   // Split payment: how much of the total was paid in cash (UPI = total − cash).
   const [cashAmount, setCashAmount] = useState("");
   const [notes, setNotes] = useState("");
@@ -142,6 +144,7 @@ export function ManualOrderForm({
       payment_method: payment,
       ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
       payment_pending: paymentPending,
+      ...(paymentPending ? { amount_paid: Math.min(Math.max(Number(paidNow) || 0, 0), total) } : {}),
       notes,
     });
     setSaving(false);
@@ -151,6 +154,7 @@ export function ManualOrderForm({
     setCustomer({ name: "", phone: "", room: "" });
     setPayment("cash");
     setPaymentPending(false);
+    setPaidNow("");
     setCashAmount("");
     setNotes("");
     setOrderType("pickup");
@@ -395,6 +399,26 @@ export function ManualOrderForm({
                 </span>
               </span>
             </label>
+            {paymentPending && (
+              <div>
+                <Label className="text-stone-700 dark:text-stone-300">Paid now ({currency}) — optional</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  value={paidNow}
+                  onChange={(e) => setPaidNow(e.target.value)}
+                  placeholder="0"
+                  className={inputTheme}
+                />
+                <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                  Paid {formatCurrency(Math.min(Math.max(Number(paidNow) || 0, 0), total), currency)} ·{" "}
+                  Pending {formatCurrency(Math.max(total - (Number(paidNow) || 0), 0), currency)} of{" "}
+                  {formatCurrency(total, currency)}
+                </p>
+              </div>
+            )}
           </div>
         </AdminCard>
 

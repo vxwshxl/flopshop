@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { generateOrderNumber, generateInvoiceNumber, invoiceDatePrefix } from "@/lib/utils/invoice";
 import { deliverySplit, statusDeductsStock, COD_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
+import { notifyStaffNewOrder } from "@/lib/push/server";
 import type { Order, OrderStatus, OrderType, PaymentMethod } from "@/lib/types";
 
 function generateOtp(): string {
@@ -187,6 +188,18 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     .select("*, order_items(*)")
     .eq("id", payload.order_id)
     .single();
+
+  // Ping admins + delivery partners about a new customer order (best-effort, not
+  // for admin walk-in orders which the admin is creating themselves).
+  if (!input.is_manual && finalOrder) {
+    const o = finalOrder as Order;
+    void notifyStaffNewOrder({
+      order_number: o.order_number,
+      order_type: o.order_type,
+      total_amount: Number(o.total_amount),
+      customer_name: o.customer_name,
+    }).catch(() => {});
+  }
 
   return { ok: true, order: finalOrder as Order };
 }
