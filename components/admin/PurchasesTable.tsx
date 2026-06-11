@@ -7,19 +7,29 @@ import toast from "react-hot-toast";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { Autocomplete } from "@/components/ui/autocomplete";
 import { Modal } from "@/components/ui/modal";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TableScroll, tableCardClass } from "@/components/admin/TableShell";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { deletePurchaseAction, updatePurchaseAction } from "@/app/admin/purchases/actions";
-import type { Purchase } from "@/lib/types";
+import { createSupplierAction } from "@/app/admin/suppliers/actions";
+import type { Purchase, Supplier } from "@/lib/types";
 
 type SortKey = "purchase_date" | "product_name" | "total_cost";
 type SortDir = "asc" | "desc";
 
 const inputDark = "border-[#333] bg-[#0a0a0a] text-white";
 
-export function PurchasesTable({ purchases, currency }: { purchases: Purchase[]; currency: string }) {
+export function PurchasesTable({
+  purchases,
+  suppliers,
+  currency,
+}: {
+  purchases: Purchase[];
+  suppliers: Supplier[];
+  currency: string;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
@@ -175,6 +185,7 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
       {editing && (
         <EditPurchaseModal
           purchase={editing}
+          suppliers={suppliers}
           currency={currency}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); router.refresh(); }}
@@ -197,11 +208,13 @@ export function PurchasesTable({ purchases, currency }: { purchases: Purchase[];
 
 function EditPurchaseModal({
   purchase,
+  suppliers,
   currency,
   onClose,
   onSaved,
 }: {
   purchase: Purchase;
+  suppliers: Supplier[];
   currency: string;
   onClose: () => void;
   onSaved: () => void;
@@ -216,8 +229,27 @@ function EditPurchaseModal({
   const [saving, setSaving] = useState(false);
   const total = (Number(form.quantity) || 0) * (Number(form.unit_price) || 0);
 
+  // Live suggestions from the saved supplier directory.
+  const supplierMatches = useMemo(() => {
+    const q = form.supplier.trim().toLowerCase();
+    if (!q) return [];
+    return suppliers.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 6);
+  }, [suppliers, form.supplier]);
+
+  // Exact (case-insensitive) hit — typing this won't create a new supplier.
+  const matchedSupplier = useMemo(() => {
+    const q = form.supplier.trim().toLowerCase();
+    return q ? suppliers.find((s) => s.name.toLowerCase() === q) : undefined;
+  }, [suppliers, form.supplier]);
+
   async function save() {
     setSaving(true);
+    // A typed-in supplier that isn't on record yet is saved to the directory so
+    // it shows up in the dropdown next time — same as the New Purchase form.
+    const supplierName = form.supplier.trim();
+    if (supplierName && !matchedSupplier) {
+      await createSupplierAction(supplierName);
+    }
     const res = await updatePurchaseAction(purchase.id, {
       quantity: Number(form.quantity) || 1,
       unit_price: Number(form.unit_price) || 0,
@@ -250,7 +282,19 @@ function EditPurchaseModal({
         </div>
         <div>
           <Label className="text-gray-300">Supplier</Label>
-          <Input value={form.supplier} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} className={inputDark} />
+          <Autocomplete
+            value={form.supplier}
+            onChange={(v) => setForm((f) => ({ ...f, supplier: v }))}
+            items={supplierMatches}
+            getKey={(s) => s.id}
+            getLabel={(s) => s.name}
+            onPick={(s) => setForm((f) => ({ ...f, supplier: s.name }))}
+            placeholder="Type a supplier…"
+            inputClassName={inputDark}
+          />
+          {form.supplier.trim() && !matchedSupplier && (
+            <p className="mt-1.5 text-xs text-emerald-400">New supplier — saved on update.</p>
+          )}
         </div>
         <p className="text-sm text-gray-400">Total: <span className="font-semibold text-white">{formatCurrency(total, currency)}</span></p>
         <div className="grid grid-cols-2 gap-2.5 pt-1">

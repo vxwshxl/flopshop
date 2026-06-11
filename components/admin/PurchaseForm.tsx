@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createSupplierAction } from "@/app/admin/suppliers/actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Autocomplete } from "@/components/ui/autocomplete";
 import { DatePicker } from "@/components/ui/date-picker";
 import { AdminCard } from "@/components/admin/StatCard";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
@@ -28,9 +29,6 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
     notes: "",
   });
   const [saving, setSaving] = useState(false);
-  // Supplier autocomplete: dropdown visibility + keyboard-highlighted row.
-  const [supplierFocused, setSupplierFocused] = useState(false);
-  const [supplierActive, setSupplierActive] = useState(0);
 
   const product = products.find((p) => p.id === form.product_id);
   const totalCost = useMemo(
@@ -50,11 +48,6 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
     const q = form.supplier.trim().toLowerCase();
     return q ? suppliers.find((s) => s.name.toLowerCase() === q) : undefined;
   }, [suppliers, form.supplier]);
-
-  function pickSupplier(s: Supplier) {
-    setForm((f) => ({ ...f, supplier: s.name }));
-    setSupplierFocused(false);
-  }
 
   // Increment/decrement a numeric field via the +/- buttons.
   function bump(key: "quantity" | "unit_price", delta: number) {
@@ -159,55 +152,18 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
               </button>
             </div>
           </div>
-          <div className="relative">
+          <div>
             <Label className="text-gray-300">Supplier</Label>
-            <Input
+            <Autocomplete
               value={form.supplier}
-              onChange={(e) => {
-                set("supplier")(e);
-                setSupplierActive(0);
-              }}
-              onKeyDown={(e) => {
-                if (!supplierFocused || supplierMatches.length === 0) return;
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setSupplierActive((i) => Math.min(i + 1, supplierMatches.length - 1));
-                } else if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setSupplierActive((i) => Math.max(i - 1, 0));
-                } else if (e.key === "Enter") {
-                  e.preventDefault();
-                  const s = supplierMatches[supplierActive];
-                  if (s) pickSupplier(s);
-                } else if (e.key === "Escape") {
-                  setSupplierFocused(false);
-                }
-              }}
-              onFocus={() => setSupplierFocused(true)}
-              // Delay so a click on a suggestion registers before it closes.
-              onBlur={() => setTimeout(() => setSupplierFocused(false), 150)}
+              onChange={(v) => setForm((f) => ({ ...f, supplier: v }))}
+              items={supplierMatches}
+              getKey={(s) => s.id}
+              getLabel={(s) => s.name}
+              onPick={(s) => setForm((f) => ({ ...f, supplier: s.name }))}
               placeholder="Type a supplier…"
-              autoComplete="off"
-              className={inputDark}
+              inputClassName={inputDark}
             />
-            {supplierFocused && supplierMatches.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-[#333] bg-[#1a1a1a] text-white shadow-xl">
-                {supplierMatches.map((s, i) => (
-                  <button
-                    type="button"
-                    key={s.id}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pickSupplier(s)}
-                    onMouseEnter={() => setSupplierActive(i)}
-                    className={`flex w-full items-center px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/10 ${
-                      i === supplierActive ? "bg-white/10" : ""
-                    }`}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            )}
             {form.supplier.trim() && !matchedSupplier && (
               <p className="mt-1.5 text-xs text-emerald-400">New supplier — saved on purchase.</p>
             )}

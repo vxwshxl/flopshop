@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils/formatters";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { PurchasesTable } from "@/components/admin/PurchasesTable";
 import { tablePageClass } from "@/components/admin/TableShell";
-import type { Purchase } from "@/lib/types";
+import type { Purchase, Supplier } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +17,14 @@ export default async function PurchasesPage() {
   const settings = await getSettings();
   const currency = settings.currency_symbol;
 
-  const { data: purchases } = await supabase
-    .from("purchases")
-    .select("*")
-    .order("purchase_date", { ascending: false })
-    .order("created_at", { ascending: false });
+  const [{ data: purchases }, { data: suppliers }] = await Promise.all([
+    supabase
+      .from("purchases")
+      .select("*")
+      .order("purchase_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase.from("suppliers").select("*").eq("is_active", true).order("name"),
+  ]);
 
   const list = (purchases as Purchase[]) ?? [];
   const totalSpent = list.reduce((s, p) => s + Number(p.total_cost), 0);
@@ -45,7 +48,7 @@ export default async function PurchasesPage() {
         }
       />
 
-      <PurchasesTable purchases={list} currency={currency} />
+      <PurchasesTable purchases={list} suppliers={(suppliers as Supplier[]) ?? []} currency={currency} />
     </div>
   );
 }

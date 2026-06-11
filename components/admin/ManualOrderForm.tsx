@@ -8,6 +8,7 @@ import { createManualOrderAction } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Customer, OrderType, PaymentMethod, Product, SettingsMap } from "@/lib/types";
 
@@ -38,10 +39,7 @@ export function ManualOrderForm({
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("pickup");
   const [customer, setCustomer] = useState({ name: "", phone: "", room: "" });
-  // Whether the name field is focused — controls the suggestions dropdown.
-  const [nameFocused, setNameFocused] = useState(false);
-  // Keyboard-highlighted row in each dropdown (↑/↓ to move, Enter to pick).
-  const [custActive, setCustActive] = useState(0);
+  // Keyboard-highlighted row in the product search dropdown (↑/↓ move, Enter picks).
   const [productActive, setProductActive] = useState(0);
 
   // Live name suggestions from the saved customer directory.
@@ -59,7 +57,6 @@ export function ManualOrderForm({
 
   function pickCustomer(c: Customer) {
     setCustomer({ name: c.name, phone: c.phone ?? "", room: c.room_number ?? "" });
-    setNameFocused(false);
   }
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   // Goods handed over but payment not collected yet (e.g. UPI/server down) —
@@ -273,57 +270,20 @@ export function ManualOrderForm({
 
         <AdminCard title="Customer">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="relative">
+            <div>
               <Label className="text-stone-700 dark:text-stone-300">Name</Label>
-              <Input
+              <Autocomplete
                 required
                 value={customer.name}
-                onChange={(e) => {
-                  setCustomer((c) => ({ ...c, name: e.target.value }));
-                  setCustActive(0);
-                }}
-                onKeyDown={(e) => {
-                  if (!nameFocused || customerMatches.length === 0) return;
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setCustActive((i) => Math.min(i + 1, customerMatches.length - 1));
-                  } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setCustActive((i) => Math.max(i - 1, 0));
-                  } else if (e.key === "Enter") {
-                    e.preventDefault();
-                    const c = customerMatches[custActive];
-                    if (c) pickCustomer(c);
-                  } else if (e.key === "Escape") {
-                    setNameFocused(false);
-                  }
-                }}
-                onFocus={() => setNameFocused(true)}
-                // Delay so a click on a suggestion registers before it closes.
-                onBlur={() => setTimeout(() => setNameFocused(false), 150)}
+                onChange={(v) => setCustomer((c) => ({ ...c, name: v }))}
+                items={customerMatches}
+                getKey={(c) => c.id}
+                getLabel={(c) => c.name}
+                onPick={pickCustomer}
+                renderRight={(c) => c.phone || "no phone"}
                 placeholder="Type a name…"
-                autoComplete="off"
-                className={inputTheme}
+                inputClassName={inputTheme}
               />
-              {nameFocused && customerMatches.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
-                  {customerMatches.map((c, i) => (
-                    <button
-                      type="button"
-                      key={c.id}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => pickCustomer(c)}
-                      onMouseEnter={() => setCustActive(i)}
-                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 ${
-                        i === custActive ? "bg-black/5 dark:bg-white/10" : ""
-                      }`}
-                    >
-                      <span>{c.name}</span>
-                      <span className="text-xs text-gray-500">{c.phone || "no phone"}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
               {matchedCustomer && (
                 <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">
                   Merges with saved customer{matchedCustomer.phone ? ` · ${matchedCustomer.phone}` : ""}
