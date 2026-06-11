@@ -274,6 +274,30 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
 }
 
 /**
+ * Record exactly how much of an order has been collected (for "paid half now").
+ * Derives payment_status: paid when it covers the total, partial when some is in,
+ * pending when nothing. Admin/delivery only.
+ */
+export async function setAmountPaidAction(orderId: string, amount: number) {
+  if (!(await requireRole(["admin", "delivery"]))) return { ok: false, error: "Not authorized." };
+  const admin = createAdminClient();
+  const { data: order } = await admin.from("orders").select("total_amount").eq("id", orderId).single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  const total = Number(order.total_amount);
+  const paid = Math.min(Math.max(Number(amount) || 0, 0), total);
+  const status: PaymentStatus = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
+
+  const { error } = await admin
+    .from("orders")
+    .update({ amount_paid: paid, payment_status: status, updated_at: new Date().toISOString() })
+    .eq("id", orderId);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
  * Change an order's type (pickup ⇄ delivery). Admin only. Recomputes the
  * delivery fee / earnings split and the order total to match the new type.
  */

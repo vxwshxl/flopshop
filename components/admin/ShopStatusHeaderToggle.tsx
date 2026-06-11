@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -17,15 +17,24 @@ export function ShopStatusHeaderToggle() {
   const { isOpen } = useSettings();
   const [open, setOpen] = useState(isOpen);
   const [saving, setSaving] = useState(false);
+  // The value we just wrote. While set, we ignore the (briefly stale) live
+  // `isOpen` so the switch doesn't flicker back before realtime catches up.
+  const pendingRef = useRef<boolean | null>(null);
 
-  // Follow the live setting unless we're mid-save (keep the optimistic value).
   useEffect(() => {
-    if (!saving) setOpen(isOpen);
-  }, [isOpen, saving]);
+    if (pendingRef.current !== null) {
+      // Only adopt the live value once it agrees with what we wrote.
+      if (isOpen === pendingRef.current) pendingRef.current = null;
+      else return;
+    }
+    setOpen(isOpen);
+  }, [isOpen]);
 
   async function toggle() {
+    if (saving) return;
     const next = !open;
     setOpen(next);
+    pendingRef.current = next;
     setSaving(true);
 
     const supabase = createClient();
@@ -36,6 +45,7 @@ export function ShopStatusHeaderToggle() {
 
     setSaving(false);
     if (error) {
+      pendingRef.current = null;
       setOpen(!next);
       toast.error(`Could not update shop status: ${error.message}`);
       return;

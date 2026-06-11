@@ -24,8 +24,9 @@ export function AdminRealtime() {
       })
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: "order_type=eq.delivery" },
+        { event: "INSERT", schema: "public", table: "orders" },
         (payload: RealtimePostgresInsertPayload<NewOrderInfo>) => {
+          // Ring loudly for every new order the open dashboard receives.
           playOrderChime();
           notifyNewOrder(payload.new);
         }

@@ -9,9 +9,11 @@ import {
   setPaymentStatusAction,
   setPaymentMethodAction,
   setOrderTypeAction,
+  setAmountPaidAction,
 } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -44,6 +46,7 @@ export function OrderManagePanel({
   const [otp, setOtp] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
+  const [amountPaid, setAmountPaid] = useState(String(order.amount_paid ?? ""));
   const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
@@ -258,6 +261,29 @@ export function OrderManagePanel({
               Pending
             </Button>
           </div>
+
+          {/* Partial payment — record how much has actually been collected. */}
+          <div className="mt-3 flex items-end gap-2">
+            <div className="flex-1">
+              <p className="mb-1 text-xs text-black/50 dark:text-white/50">Amount paid (of {formatCurrency(order.total_amount)})</p>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <Button size="sm" disabled={pending} onClick={() => run(() => setAmountPaidAction(order.id, Number(amountPaid) || 0), "Payment recorded")}>
+              Save
+            </Button>
+          </div>
+          {order.payment_status === "partial" && (
+            <p className="mt-1.5 text-xs font-medium text-amber-500">
+              Partial: {formatCurrency(order.amount_paid)} paid ·{" "}
+              {formatCurrency(Math.max(Number(order.total_amount) - Number(order.amount_paid), 0))} pending
+            </p>
+          )}
         </div>
       </div>
 

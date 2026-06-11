@@ -65,20 +65,44 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
   );
 }
 
-/** Notify all admins + delivery partners that a new order came in. */
-export async function notifyStaffNewOrder(order: {
+/**
+ * Notify staff when a new customer order comes in:
+ *  - every admin gets it (pickup or delivery)
+ *  - delivery partners get delivery orders, framed as claimable
+ * Dynamic body names the customer + amount. Best-effort (never throws).
+ */
+export async function notifyNewOrder(order: {
+  id: string;
   order_number: string;
   order_type: string;
   total_amount: number;
   customer_name: string;
 }): Promise<void> {
-  const admin = createAdminClient();
-  const { data: staff } = await admin.from("profiles").select("id").in("role", ["admin", "delivery"]);
-  const ids = (staff ?? []).map((p) => p.id);
-  await sendPushToUsers(ids, {
-    title: `New ${order.order_type} order · ${order.order_number}`,
-    body: `${order.customer_name || "Customer"} · ₹${Number(order.total_amount).toFixed(0)}`,
-    url: "/admin/orders",
-    tag: `order-${order.order_number}`,
-  });
+  try {
+    const admin = createAdminClient();
+    const { data: people } = await admin.from("profiles").select("id, role").in("role", ["admin", "delivery"]);
+    const adminIds = (people ?? []).filter((p) => p.role === "admin").map((p) => p.id);
+    const deliveryIds = (people ?? []).filter((p) => p.role === "delivery").map((p) => p.id);
+
+    const who = order.customer_name?.trim() || "Someone";
+    const amount = `₹${Number(order.total_amount).toFixed(0)}`;
+
+    await sendPushToUsers(adminIds, {
+      title: `New ${order.order_type} order`,
+      body: `${who} · ${amount} · ${order.order_number}`,
+      url: `/admin/orders/${order.id}`,
+      tag: `order-${order.order_number}`,
+    });
+
+    if (order.order_type === "delivery") {
+      await sendPushToUsers(deliveryIds, {
+        title: "New delivery available 🛵",
+        body: `${who} · ${amount} — tap to claim`,
+        url: "/delivery",
+        tag: `order-${order.order_number}`,
+      });
+    }
+  } catch {
+    // Notifications are best-effort — never fail the order on a push error.
+  }
 }

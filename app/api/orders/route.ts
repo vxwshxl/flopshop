@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { createOrder } from "@/lib/server/orders";
+import { notifyNewOrder } from "@/lib/push/server";
 import type { OrderType, PaymentMethod } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -62,5 +63,17 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
+  // Ring the admins (and delivery partners for delivery orders). Best-effort.
+  if (result.order) {
+    await notifyNewOrder({
+      id: result.order.id,
+      order_number: result.order.order_number,
+      order_type: result.order.order_type,
+      total_amount: Number(result.order.total_amount),
+      customer_name: result.order.customer_name,
+    });
+  }
+
   return NextResponse.json({ order: result.order });
 }
