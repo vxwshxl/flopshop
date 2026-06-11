@@ -258,9 +258,9 @@ export function OrdersTable({
       />
 
       <div className={tableCardClass}>
-        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs font-medium text-black/60 dark:text-white/60">
-            <span className="hidden sm:inline">Status</span>
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-2 lg:justify-start">
+          <label className="flex flex-col gap-1 text-xs font-medium text-black/60 dark:text-white/60">
+            <span className="hidden lg:inline">Status</span>
             <Select
               value={tab}
               onChange={(e) => setTab(e.target.value as "all" | OrderStatus)}
@@ -273,8 +273,8 @@ export function OrdersTable({
               ))}
             </Select>
           </label>
-          <label className="flex items-center gap-1.5 text-xs font-medium text-black/60 dark:text-white/60">
-            <span className="hidden sm:inline">Payment</span>
+          <label className="flex flex-col gap-1 text-xs font-medium text-black/60 dark:text-white/60">
+            <span className="hidden lg:inline">Payment</span>
             <Select
               value={payFilter}
               onChange={(e) => setPayFilter(e.target.value as PayFilter)}
@@ -287,7 +287,7 @@ export function OrdersTable({
               ))}
             </Select>
           </label>
-          <div className="ml-auto text-sm text-black/60 dark:text-white/60">
+          <div className="w-full text-center text-sm text-black/60 dark:text-white/60 lg:ml-auto lg:w-auto lg:text-left">
             Revenue:{" "}
             <span className="font-semibold text-black dark:text-white">
               {formatCurrency(filteredRevenue, currency)}
