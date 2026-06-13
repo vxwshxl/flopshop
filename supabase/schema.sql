@@ -123,7 +123,7 @@ CREATE TABLE orders (
   admin_delivery_earning DECIMAL(10,2) DEFAULT 0,
   total_amount DECIMAL(10,2) NOT NULL,
   delivery_person_id UUID REFERENCES profiles(id),
-  payment_method TEXT DEFAULT 'cash' CHECK (payment_method IN ('cash', 'upi', 'split', 'credit')),
+  payment_method TEXT DEFAULT 'cash' CHECK (lower(payment_method) IN ('cash', 'upi', 'split', 'credit', 'bank transfer', 'other')),
   -- For split payments: how much of the total was paid by each method.
   paid_cash DECIMAL(10,2) DEFAULT 0,
   paid_upi DECIMAL(10,2) DEFAULT 0,

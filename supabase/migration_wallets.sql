@@ -142,10 +142,13 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- Allow 'credit' as an order payment method.
+-- Allow 'credit' as an order payment method. Imported/historical rows store
+-- capitalized values ('Cash', 'Other', 'Bank Transfer') while the app writes
+-- lowercase, so the check is case-insensitive — it must keep accepting every
+-- existing variant or this ALTER fails validating current data.
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
 ALTER TABLE public.orders ADD CONSTRAINT orders_payment_method_check
-  CHECK (payment_method IN ('cash', 'upi', 'split', 'credit'));
+  CHECK (lower(payment_method) IN ('cash', 'upi', 'split', 'credit', 'bank transfer', 'other'));
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -183,9 +186,10 @@ CREATE POLICY "Staff manage topups" ON public.wallet_topup_requests
 -- ============================================================
 -- REALTIME — owners/admin see balance & request changes live.
 -- ============================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.wallets;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.wallet_transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.wallet_topup_requests;
+-- Wrapped so re-running doesn't error if a table is already a publication member.
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.wallets; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.wallet_transactions; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.wallet_topup_requests; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ALTER TABLE public.wallets REPLICA IDENTITY FULL;
 ALTER TABLE public.wallet_transactions REPLICA IDENTITY FULL;
 ALTER TABLE public.wallet_topup_requests REPLICA IDENTITY FULL;
