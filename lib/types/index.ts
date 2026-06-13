@@ -10,8 +10,59 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
-export type PaymentMethod = "cash" | "upi" | "split";
+export type PaymentMethod = "cash" | "upi" | "split" | "credit";
 export type PaymentStatus = "pending" | "paid" | "partial";
+
+/** Store-credit wallet, owned by EITHER a login profile OR a walk-in customer. */
+export interface Wallet {
+  id: string;
+  profile_id: string | null;
+  customer_id: string | null;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WalletTxnType = "change" | "topup" | "order_payment" | "refund" | "adjustment";
+
+/** One movement on a wallet. `amount` is signed: + credit, − debit. */
+export interface WalletTransaction {
+  id: string;
+  wallet_id: string;
+  amount: number;
+  balance_after: number;
+  type: WalletTxnType;
+  order_id: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type TopupStatus = "pending" | "approved" | "rejected";
+
+/** A user-initiated wallet top-up awaiting manual admin verification. */
+export interface WalletTopupRequest {
+  id: string;
+  profile_id: string;
+  amount: number;
+  method: "cash" | "upi";
+  reference: string | null;
+  status: TopupStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+/** A batch settlement of the developer's accrued share. */
+export interface DeveloperSettlement {
+  id: string;
+  amount: number;
+  profit_base: number;
+  settled_through: string;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
 
 export interface Hostel {
   id: string;

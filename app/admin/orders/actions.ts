@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
+import { refundOrderCredit } from "@/lib/server/wallet";
 import {
   statusDeductsStock,
   deliverySplit,
@@ -391,7 +392,8 @@ export async function setPaymentMethodAction(orderId: string, method: string) {
  * restored first so inventory stays correct. Admin only — irreversible.
  */
 export async function deleteOrderAction(orderId: string) {
-  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+  const actor = await requireRole(["admin"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
   const admin = createAdminClient();
 
   const { data: order, error } = await admin
@@ -409,6 +411,10 @@ export async function deleteOrderAction(orderId: string) {
         await admin.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: it.quantity });
     }
   }
+
+  // Refund any store credit charged to this order BEFORE deleting it (the
+  // ledger's order_id link is cleared on delete, so we must reverse it first).
+  await refundOrderCredit(orderId, actor.id);
 
   const { error: delErr } = await admin.from("orders").delete().eq("id", orderId);
   if (delErr) return { ok: false, error: delErr.message };
@@ -439,6 +445,13 @@ export async function createManualOrderAction(
 
   const total = Number(res.order.total_amount);
   const admin = createAdminClient();
+  // Credit orders are already settled from the wallet (paid in full by createOrder).
+  if (orderInput.payment_method === "credit") {
+    await upsertCustomerByName(input.customer_name, input.customer_phone, input.customer_room);
+    revalidatePath("/admin/orders/new");
+    revalidatePath("/admin/orders");
+    return { ...res, order: { ...res.order, status: "delivered" as OrderStatus } };
+  }
   if (payment_pending) {
     // The goods are handed over but payment isn't fully collected. Record how
     // much was paid now (could be 0, or a partial amount) so the balance is clear.

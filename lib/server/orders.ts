@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { generateOrderNumber, generateInvoiceNumber, invoiceDatePrefix } from "@/lib/utils/invoice";
 import { deliverySplit, statusDeductsStock, COD_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
+import { getWalletBalance, adjustWallet, refundOrderCredit, type WalletOwner } from "@/lib/server/wallet";
 import type { Order, OrderStatus, OrderType, PaymentMethod } from "@/lib/types";
 
 function generateOtp(): string {
@@ -25,6 +26,11 @@ export interface CreateOrderInput {
   is_manual?: boolean;
   /** When true the order is created already confirmed and stock is deducted. */
   confirm?: boolean;
+  /**
+   * Wallet to charge when payment_method === "credit". Defaults to the signed-in
+   * user's wallet (`user_id`); manual orders pass a walk-in customer's wallet.
+   */
+  credit_owner?: WalletOwner;
 }
 
 export interface CreateOrderResult {
@@ -91,12 +97,28 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const split = deliverySplit(settings, input.order_type);
   const total_amount = subtotal + split.delivery_fee;
 
+  // Resolve the wallet owner for credit payment up front and verify the balance
+  // covers the order before we touch stock / create the order row.
+  const creditOwner: WalletOwner | null =
+    input.payment_method === "credit"
+      ? input.credit_owner ?? (input.user_id ? { profileId: input.user_id } : null)
+      : null;
+  if (input.payment_method === "credit") {
+    if (!creditOwner) return { ok: false, error: "No account to charge credit to." };
+    const balance = await getWalletBalance(creditOwner);
+    if (balance < total_amount) {
+      return { ok: false, error: "Insufficient credit balance." };
+    }
+  }
+
   // Cash-on-delivery ceiling: large delivery orders must be paid by UPI. Admin
   // walk-in (manual) orders are exempt — they're paid on the spot at the counter.
+  // Credit is also exempt — no cash is in transit (it's prepaid store credit).
   if (
     !input.is_manual &&
     input.order_type === "delivery" &&
     total_amount > COD_MAX &&
+    input.payment_method !== "credit" &&
     (input.payment_method ?? "cash") !== "upi"
   ) {
     return { ok: false, error: `Orders over ₹${COD_MAX} must be paid by UPI.` };
@@ -181,6 +203,35 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     if (payErr) return { ok: false, error: payErr.message };
   }
 
+  // Credit payment: debit the wallet now (the customer is paying from prepaid
+  // store credit). Balance was pre-checked, but the debit is atomic and will
+  // reject a concurrent overdraw — if so, undo the order so nothing is lost.
+  if (input.payment_method === "credit" && creditOwner) {
+    const debit = await adjustWallet({
+      owner: creditOwner,
+      amount: -total_amount,
+      type: "order_payment",
+      orderId: payload.order_id,
+      actorId: input.user_id ?? null,
+      note: `Order ${order_number}`,
+    });
+    if (!debit.ok) {
+      // Roll back: restore stock if it was deducted, then delete the order.
+      if (input.confirm) {
+        for (const it of lineItems) {
+          await supabase.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: it.quantity });
+        }
+      }
+      await supabase.from("orders").delete().eq("id", payload.order_id);
+      return { ok: false, error: debit.error };
+    }
+    // Wallet covered the order — mark it paid even when not auto-confirmed.
+    await supabase
+      .from("orders")
+      .update({ payment_status: "paid", amount_paid: total_amount, updated_at: new Date().toISOString() })
+      .eq("id", payload.order_id);
+  }
+
   // To return the full order object for the client, we fetch it back since the RPC just returns the ID
   const { data: finalOrder } = await supabase
     .from("orders")
@@ -254,5 +305,11 @@ export async function updateOrderStatus(
     .eq("id", orderId);
 
   if (updErr) return { ok: false, error: updErr.message };
+
+  // Cancelling a credit-paid order returns the credit to the wallet (no-op for
+  // other payment methods / already-refunded orders).
+  if (newStatus === "cancelled") {
+    await refundOrderCredit(orderId);
+  }
   return { ok: true };
 }

@@ -20,6 +20,8 @@ import {
   Store,
   Building2,
   Contact,
+  Wallet,
+  Code2,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { cn } from "@/lib/utils/cn";
@@ -63,6 +65,7 @@ const sections: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/invoices", label: "Invoices", icon: FileText },
       { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+      { href: "/admin/developer", label: "Developer", icon: Code2 },
     ],
   },
   {
@@ -70,6 +73,7 @@ const sections: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/customers", label: "Customers", icon: Contact },
+      { href: "/admin/wallet", label: "Wallet", icon: Wallet },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ],
   },

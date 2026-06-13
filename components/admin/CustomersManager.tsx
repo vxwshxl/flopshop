@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Merge } from "lucide-react";
+import { Pencil, Trash2, Plus, Merge, Wallet as WalletIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   createCustomerAction,
@@ -17,12 +17,22 @@ import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
+import { WalletPanel } from "@/components/admin/WalletPanel";
 import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
+import { formatCurrency } from "@/lib/utils/formatters";
 import type { Customer, Hostel } from "@/lib/types";
 
 const empty = { name: "", phone: "", email: "", room_number: "", hostel_block: "" };
 
-export function CustomersManager({ customers: initial, hostels }: { customers: Customer[]; hostels: Hostel[] }) {
+export function CustomersManager({
+  customers: initial,
+  hostels,
+  balances = {},
+}: {
+  customers: Customer[];
+  hostels: Hostel[];
+  balances?: Record<string, number>;
+}) {
   const [customers, setCustomers] = useState(initial);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -30,6 +40,8 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Customer | null>(null);
+  // Customer whose store-credit wallet is open for adjustment.
+  const [creditCustomer, setCreditCustomer] = useState<Customer | null>(null);
   // Multi-select for merging duplicates (case variants / typos).
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showMerge, setShowMerge] = useState(false);
@@ -186,13 +198,14 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
                 <th className="p-3">Phone</th>
                 <SortHeader label="Room" sortKey="room" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
                 <th className="p-3">Hostel</th>
+                <th className="p-3 text-right">Credit</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-black/75 dark:text-white/75">
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-black/50 dark:text-white/50">
+                  <td colSpan={7} className="p-8 text-center text-black/50 dark:text-white/50">
                     No customers yet.
                   </td>
                 </tr>
@@ -216,8 +229,18 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
                   <td className="p-3">{c.phone}</td>
                   <td className="p-3 text-black/50 dark:text-white/50">{c.room_number ?? "—"}</td>
                   <td className="p-3 text-black/50 dark:text-white/50">{c.hostel_block ?? "—"}</td>
+                  <td className="p-3 text-right font-medium">
+                    {balances[c.id] ? (
+                      <span className="text-lime-600 dark:text-lime-400">{formatCurrency(balances[c.id], "₹")}</span>
+                    ) : (
+                      <span className="text-black/30 dark:text-white/30">—</span>
+                    )}
+                  </td>
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
+                      <button onClick={() => setCreditCustomer(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50" aria-label="Credit">
+                        <WalletIcon className="h-4 w-4" />
+                      </button>
                       <button onClick={() => openEdit(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50" aria-label="Edit">
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -329,6 +352,20 @@ export function CustomersManager({ customers: initial, hostels }: { customers: C
             Merge into selected
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!creditCustomer}
+        onClose={() => setCreditCustomer(null)}
+        title={creditCustomer ? `Store credit — ${creditCustomer.name}` : "Store credit"}
+      >
+        {creditCustomer && (
+          <WalletPanel
+            owner={{ customerId: creditCustomer.id }}
+            initialBalance={balances[creditCustomer.id] ?? 0}
+            currency="₹"
+          />
+        )}
       </Modal>
 
       <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete customer?">

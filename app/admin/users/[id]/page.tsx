@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader, AdminCard, StatCard } from "@/components/admin/StatCard";
 import { UserOrdersTable } from "@/components/admin/UserOrdersTable";
+import { WalletPanel } from "@/components/admin/WalletPanel";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+import { getWalletWithTransactions } from "@/lib/server/wallet";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils/formatters";
 import type { Order, Profile } from "@/lib/types";
 
@@ -25,6 +27,8 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
   if (!profile) notFound();
   const user = profile as Profile;
   const orders = (orderData as Order[]) ?? [];
+
+  const { wallet, transactions } = await getWalletWithTransactions({ profileId: id });
 
   const completed = orders.filter((o) => o.status !== "cancelled");
   const totalSpent = completed.reduce((s, o) => s + o.total_amount, 0);
@@ -51,9 +55,10 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Orders" value={orders.length} />
         <StatCard label="Total spent" value={formatCurrency(totalSpent, currency)} hint="Excludes cancelled" />
+        <StatCard label="Wallet credit" value={formatCurrency(wallet ? Number(wallet.balance) : 0, currency)} />
         <StatCard label="Role" value={user.role} />
       </div>
 
@@ -73,6 +78,17 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
 
         <AdminCard title="Orders" className="lg:col-span-2">
           <UserOrdersTable orders={orders} currency={currency} />
+        </AdminCard>
+      </div>
+
+      <div className="mt-4">
+        <AdminCard title="Store Credit / Wallet">
+          <WalletPanel
+            owner={{ profileId: id }}
+            initialBalance={wallet ? Number(wallet.balance) : 0}
+            transactions={transactions}
+            currency={currency}
+          />
         </AdminCard>
       </div>
     </div>

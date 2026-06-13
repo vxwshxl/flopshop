@@ -14,7 +14,15 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import type { PaymentMethod, SettingsMap, Profile } from "@/lib/types";
 import { useSettings } from "@/lib/hooks/useSettings";
 
-export function CheckoutView({ settings, initialProfile }: { settings: SettingsMap; initialProfile: Profile | null }) {
+export function CheckoutView({
+  settings,
+  initialProfile,
+  walletBalance = 0,
+}: {
+  settings: SettingsMap;
+  initialProfile: Profile | null;
+  walletBalance?: number;
+}) {
   const router = useRouter();
   const { isAuthenticated, loading: userLoading, user } = useUser();
   const hydrated = useCart((s) => s.hydrated);
@@ -70,11 +78,15 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
   // COD isn't allowed above the ceiling on delivery — customer must pay UPI.
   const mustUseUpi = isDelivery && total > COD_MAX;
   const pickupAddress = settings.shop_address?.trim();
+  // Wallet credit can cover the whole order (any order type — it's prepaid).
+  const walletCovers = walletBalance >= total && total > 0;
+  const payWithWallet = form.payment_method === "credit";
 
   async function placeOrder(e: React.FormEvent) {
     e.preventDefault();
     const liveOpen = typeof isOpen === "boolean" ? isOpen : shopOpen;
     if (!liveOpen) return toast.error("The shop is currently closed.");
+    if (payWithWallet && !walletCovers) return toast.error("Not enough wallet credit for this order.");
     setSubmitting(true);
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -85,9 +97,14 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,
         customer_room: form.customer_room,
-        // Delivery is cash-on-delivery up to the COD ceiling; above it the
-        // customer must pay UPI (collected at the door via the shop QR).
-        payment_method: orderType === "delivery" ? (mustUseUpi ? "upi" : "cash") : form.payment_method,
+        // Wallet credit covers any order type (prepaid). Otherwise delivery is
+        // cash-on-delivery up to the COD ceiling; above it the customer must pay
+        // UPI (collected at the door via the shop QR).
+        payment_method: payWithWallet
+          ? "credit"
+          : orderType === "delivery"
+            ? (mustUseUpi ? "upi" : "cash")
+            : form.payment_method,
         notes: form.notes,
       }),
     });
@@ -215,41 +232,65 @@ export function CheckoutView({ settings, initialProfile }: { settings: SettingsM
             </div>
             <div>
               <Label>Payment method</Label>
-              {isDelivery ? (
-                mustUseUpi ? (
-                  <div className="rounded-lg border border-lime-500 bg-lime-50 px-3 py-2 text-sm font-medium text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
-                    UPI at the door (required)
-                    <span className="mt-0.5 block text-xs font-normal text-lime-700/80 dark:text-lime-300/70">
-                      Orders over {formatCurrency(COD_MAX, currency)}{" "}
-                      can&apos;t be cash on delivery. Pay the shop QR the partner shows on arrival.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
-                    Cash on delivery
+              <div className="space-y-2">
+                {walletBalance > 0 && (
+                  <button
+                    type="button"
+                    disabled={!walletCovers}
+                    onClick={() =>
+                      setForm((f) => ({ ...f, payment_method: payWithWallet ? "cash" : "credit" }))
+                    }
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                      payWithWallet
+                        ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                        : "border-black/10 text-stone-700 dark:border-white/10 dark:text-stone-200"
+                    }`}
+                  >
+                    Pay with wallet
                     <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
-                      Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
+                      Balance {formatCurrency(walletBalance, currency)}
+                      {!walletCovers && " — not enough to cover this order"}
                     </span>
-                  </div>
-                )
-              ) : (
-                <div className="flex gap-3">
-                  {(["cash", "upi"] as PaymentMethod[]).map((m) => (
-                    <button
-                      type="button"
-                      key={m}
-                      onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
-                        form.payment_method === m
-                          ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
-                          : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
-                      }`}
-                    >
-                      {m === "cash" ? "Cash" : "UPI"}
-                    </button>
+                  </button>
+                )}
+
+                {!payWithWallet &&
+                  (isDelivery ? (
+                    mustUseUpi ? (
+                      <div className="rounded-lg border border-lime-500 bg-lime-50 px-3 py-2 text-sm font-medium text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
+                        UPI at the door (required)
+                        <span className="mt-0.5 block text-xs font-normal text-lime-700/80 dark:text-lime-300/70">
+                          Orders over {formatCurrency(COD_MAX, currency)}{" "}
+                          can&apos;t be cash on delivery. Pay the shop QR the partner shows on arrival.
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium text-stone-700 dark:border-white/10 dark:text-stone-200">
+                        Cash on delivery
+                        <span className="mt-0.5 block text-xs font-normal text-stone-500 dark:text-stone-400">
+                          Prefer UPI? Pay at the door — the delivery partner will show the shop QR.
+                        </span>
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex gap-3">
+                      {(["cash", "upi"] as PaymentMethod[]).map((m) => (
+                        <button
+                          type="button"
+                          key={m}
+                          onClick={() => setForm((f) => ({ ...f, payment_method: m }))}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                            form.payment_method === m
+                              ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                              : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
+                          }`}
+                        >
+                          {m === "cash" ? "Cash" : "UPI"}
+                        </button>
+                      ))}
+                    </div>
                   ))}
-                </div>
-              )}
+              </div>
             </div>
             <div>
               <Label htmlFor="notes">Notes (optional)</Label>

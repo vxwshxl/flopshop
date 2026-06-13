@@ -25,10 +25,13 @@ interface Line {
 export function ManualOrderForm({
   products,
   customers,
+  balances = {},
   settings,
 }: {
   products: Product[];
   customers: Customer[];
+  /** Wallet balance per saved customer id — drives the "Pay by credit" option. */
+  balances?: Record<string, number>;
   settings: SettingsMap;
 }) {
   const router = useRouter();
@@ -124,12 +127,22 @@ export function ManualOrderForm({
   const cashPaid = Math.min(Math.max(Number(cashAmount) || 0, 0), total);
   const upiPaid = Math.max(total - cashPaid, 0);
 
+  // Store credit can only pay for a saved customer (their wallet). Balance comes
+  // from the directory; an unsaved name has no wallet to charge.
+  const creditBalance = matchedCustomer ? balances[matchedCustomer.id] ?? 0 : 0;
+  const creditCovers = payment !== "credit" || (!!matchedCustomer && creditBalance >= total);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!lines.length) return toast.error("Add at least one product.");
     if (!customer.name.trim()) return toast.error("Customer name is required.");
     if (orderType === "delivery" && !customer.room.trim())
       return toast.error("Room is required for delivery.");
+    if (payment === "credit") {
+      if (!matchedCustomer) return toast.error("Pick a saved customer to pay by credit.");
+      if (creditBalance < total)
+        return toast.error(`Not enough credit (${formatCurrency(creditBalance, currency)}).`);
+    }
 
     setSaving(true);
     const res = await createManualOrderAction({
@@ -140,8 +153,14 @@ export function ManualOrderForm({
       customer_room: customer.room,
       payment_method: payment,
       ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
-      payment_pending: paymentPending,
-      ...(paymentPending ? { amount_paid: Math.min(Math.max(Number(paidNow) || 0, 0), total) } : {}),
+      ...(payment === "credit" && matchedCustomer
+        ? { credit_owner: { customerId: matchedCustomer.id } }
+        : {}),
+      // Credit orders are settled from the wallet — never "payment pending".
+      payment_pending: payment === "credit" ? false : paymentPending,
+      ...(payment !== "credit" && paymentPending
+        ? { amount_paid: Math.min(Math.max(Number(paidNow) || 0, 0), total) }
+        : {}),
       notes,
     });
     setSaving(false);
@@ -325,8 +344,29 @@ export function ManualOrderForm({
                 <option value="cash">Cash</option>
                 <option value="upi">UPI</option>
                 <option value="split">Split (Cash + UPI)</option>
+                <option value="credit">Pay by credit (wallet)</option>
               </Select>
             </div>
+            {payment === "credit" && (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  !matchedCustomer
+                    ? "border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
+                    : creditCovers
+                      ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                      : "border-red-400 bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300"
+                }`}
+              >
+                {!matchedCustomer ? (
+                  "Type a saved customer's exact name to charge their wallet."
+                ) : (
+                  <>
+                    Wallet balance {formatCurrency(creditBalance, currency)}
+                    {!creditCovers && ` · short by ${formatCurrency(total - creditBalance, currency)}`}
+                  </>
+                )}
+              </div>
+            )}
             {payment === "split" && (
               <div>
                 <Label className="text-stone-700 dark:text-stone-300">Paid by cash ({currency})</Label>
@@ -401,8 +441,8 @@ export function ManualOrderForm({
           </div>
         </AdminCard>
 
-        <Button type="submit" loading={saving} variant="dark" className="w-full">
-          Complete Order
+        <Button type="submit" loading={saving} disabled={!creditCovers} variant="dark" className="w-full">
+          {payment === "credit" ? "Complete Order · Pay by credit" : "Complete Order"}
         </Button>
       </div>
     </form>
