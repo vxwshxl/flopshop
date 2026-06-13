@@ -77,6 +77,9 @@ export function ManualOrderForm({
   // Cash physically received for a cash order — if it's more than the total and
   // there's no change to give, the excess is parked in the customer's wallet.
   const [cashReceived, setCashReceived] = useState("");
+  // Same idea for the cash leg of a credit shortfall: cash handed over above the
+  // shortfall (no change given) is parked in the customer's wallet.
+  const [shortfallCashReceived, setShortfallCashReceived] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -159,10 +162,18 @@ export function ManualOrderForm({
   // Pay-by-credit requires a saved customer (to have a wallet) and some balance.
   const creditUsable = payment !== "credit" || (!!matchedCustomer && creditBalance > 0);
 
-  // Cash overpayment → wallet (no change to give). Only meaningful for a cash
-  // order with a customer to credit.
+  // Cash overpayment → wallet (no change to give). Applies to a cash order, or to
+  // the cash leg of a credit shortfall — the excess is parked in the wallet.
   const cashGiven = Math.max(Number(cashReceived) || 0, 0);
-  const overpay = payment === "cash" && cashGiven > total ? cashGiven - total : 0;
+  const shortfallCashGiven = Math.max(Number(shortfallCashReceived) || 0, 0);
+  const overpay =
+    payment === "cash"
+      ? cashGiven > total
+        ? cashGiven - total
+        : 0
+      : payment === "credit" && shortfallMethod === "cash" && shortfallCashGiven > shortfall
+        ? shortfallCashGiven - shortfall
+        : 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -213,6 +224,7 @@ export function ManualOrderForm({
     setShortfallMethod("cash");
     setShortfallCash("");
     setCashReceived("");
+    setShortfallCashReceived("");
     setNotes("");
     setOrderType("pickup");
     toast.success(
@@ -420,7 +432,12 @@ export function ManualOrderForm({
                       max={maxWallet}
                       step="0.01"
                       value={walletUse}
-                      onChange={(e) => setWalletUse(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") return setWalletUse("");
+                        const n = Math.min(Math.max(Number(v) || 0, 0), maxWallet);
+                        setWalletUse(String(n));
+                      }}
                       placeholder={`${maxWallet}`}
                       className={inputTheme}
                     />
@@ -455,6 +472,25 @@ export function ManualOrderForm({
                           placeholder="0"
                           className={inputTheme}
                         />
+                      </div>
+                    )}
+                    {shortfallMethod === "cash" && (
+                      <div>
+                        <Label className="text-stone-700 dark:text-stone-300">Cash received ({currency}) — optional</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={shortfallCashReceived}
+                          onChange={(e) => setShortfallCashReceived(e.target.value)}
+                          placeholder={`${shortfall}`}
+                          className={inputTheme}
+                        />
+                        {overpay > 0 && (
+                          <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
+                            No change? {formatCurrency(overpay, currency)} will be added to {matchedCustomer.name}&apos;s wallet.
+                          </p>
+                        )}
                       </div>
                     )}
                     <p className="text-xs text-stone-500 dark:text-stone-400">
