@@ -69,8 +69,9 @@ export function ManualOrderForm({
   const [paidNow, setPaidNow] = useState("");
   // Split payment: how much of the total was paid in cash (UPI = total − cash).
   const [cashAmount, setCashAmount] = useState("");
-  // "Pay by credit" shortfall: when the wallet can't cover the total, how much of
-  // the remainder is collected as cash (the rest is UPI).
+  // "Pay by credit" shortfall: how the wallet remainder is collected — all cash,
+  // all UPI, or split. For "split", `shortfallCash` is the cash portion.
+  const [shortfallMethod, setShortfallMethod] = useState<"cash" | "upi" | "split">("cash");
   const [shortfallCash, setShortfallCash] = useState("");
   // Cash physically received for a cash order — if it's more than the total and
   // there's no change to give, the excess is parked in the customer's wallet.
@@ -140,7 +141,12 @@ export function ManualOrderForm({
   // customer tops up at the counter (cash and/or UPI).
   const walletPortion = payment === "credit" ? Math.min(creditBalance, total) : 0;
   const shortfall = payment === "credit" ? Math.max(total - walletPortion, 0) : 0;
-  const shortfallCashPaid = Math.min(Math.max(Number(shortfallCash) || 0, 0), shortfall);
+  const shortfallCashPaid =
+    shortfallMethod === "cash"
+      ? shortfall
+      : shortfallMethod === "upi"
+        ? 0
+        : Math.min(Math.max(Number(shortfallCash) || 0, 0), shortfall);
   const shortfallUpiPaid = Math.max(shortfall - shortfallCashPaid, 0);
   // Pay-by-credit requires a saved customer (to have a wallet) and some balance.
   const creditUsable = payment !== "credit" || (!!matchedCustomer && creditBalance > 0);
@@ -195,6 +201,7 @@ export function ManualOrderForm({
     setPaymentPending(false);
     setPaidNow("");
     setCashAmount("");
+    setShortfallMethod("cash");
     setShortfallCash("");
     setCashReceived("");
     setNotes("");
@@ -394,21 +401,37 @@ export function ManualOrderForm({
                   )}
                 </div>
                 {matchedCustomer && shortfall > 0 && (
-                  <div>
-                    <Label className="text-stone-700 dark:text-stone-300">
-                      Shortfall by cash ({currency}) — rest UPI
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max={shortfall}
-                      step="0.01"
-                      value={shortfallCash}
-                      onChange={(e) => setShortfallCash(e.target.value)}
-                      placeholder="0"
-                      className={inputTheme}
-                    />
-                    <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-stone-700 dark:text-stone-300">
+                        Collect {formatCurrency(shortfall, currency)} shortfall by
+                      </Label>
+                      <Select
+                        value={shortfallMethod}
+                        onChange={(e) => setShortfallMethod(e.target.value as "cash" | "upi" | "split")}
+                        className={inputTheme}
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="upi">UPI</option>
+                        <option value="split">Split (Cash + UPI)</option>
+                      </Select>
+                    </div>
+                    {shortfallMethod === "split" && (
+                      <div>
+                        <Label className="text-stone-700 dark:text-stone-300">Shortfall by cash ({currency}) — rest UPI</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max={shortfall}
+                          step="0.01"
+                          value={shortfallCash}
+                          onChange={(e) => setShortfallCash(e.target.value)}
+                          placeholder="0"
+                          className={inputTheme}
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
                       Wallet {formatCurrency(walletPortion, currency)} · Cash{" "}
                       {formatCurrency(shortfallCashPaid, currency)} · UPI{" "}
                       {formatCurrency(shortfallUpiPaid, currency)} of {formatCurrency(total, currency)}
