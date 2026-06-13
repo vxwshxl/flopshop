@@ -59,6 +59,10 @@ export interface DeveloperSettlement {
   amount: number;
   profit_base: number;
   settled_through: string;
+  /** How the share was paid out to the developer. */
+  method: "cash" | "upi" | "split";
+  paid_cash: number;
+  paid_upi: number;
   note: string | null;
   created_by: string | null;
   created_at: string;

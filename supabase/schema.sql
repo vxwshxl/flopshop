@@ -470,6 +470,7 @@ CREATE POLICY "Staff manage settlements" ON public.delivery_settlements
   FOR ALL USING (public.is_staff());
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.delivery_settlements;
+ALTER TABLE public.delivery_settlements REPLICA IDENTITY FULL;
 
 -- ============================================================
 -- STORAGE: product images bucket (run after creating schema)
@@ -607,6 +608,10 @@ CREATE TABLE developer_settlements (
   amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   profit_base DECIMAL(10,2) NOT NULL DEFAULT 0,
   settled_through TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- How the share was paid out to the developer.
+  method TEXT NOT NULL DEFAULT 'cash' CHECK (method IN ('cash', 'upi', 'split')),
+  paid_cash DECIMAL(10,2) NOT NULL DEFAULT 0,
+  paid_upi DECIMAL(10,2) NOT NULL DEFAULT 0,
   note TEXT,
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -614,3 +619,5 @@ CREATE TABLE developer_settlements (
 CREATE INDEX idx_dev_settlements_through ON developer_settlements(settled_through DESC);
 ALTER TABLE developer_settlements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admin manage developer settlements" ON developer_settlements FOR ALL USING (is_admin());
+ALTER PUBLICATION supabase_realtime ADD TABLE developer_settlements;
+ALTER TABLE developer_settlements REPLICA IDENTITY FULL;

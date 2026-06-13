@@ -21,11 +21,19 @@ async function requireAdmin(): Promise<{ id: string } | null> {
  * `settled_through = now()` cutoff. Subsequent reports compute outstanding share
  * only over orders created after this cutoff.
  */
-export async function settleDeveloperAction(
-  note?: string
-): Promise<{ ok: true; amount: number } | { ok: false; error: string }> {
+export async function settleDeveloperAction(params?: {
+  note?: string;
+  method?: "cash" | "upi" | "split";
+  /** For split payouts: how much of the share was paid in cash (rest is UPI). */
+  cashPortion?: number;
+}): Promise<{ ok: true; amount: number } | { ok: false; error: string }> {
   const actor = await requireAdmin();
   if (!actor) return { ok: false, error: "Not authorized." };
+
+  const method = params?.method ?? "cash";
+  if (!["cash", "upi", "split"].includes(method)) {
+    return { ok: false, error: "Invalid payout method." };
+  }
 
   const admin = createAdminClient();
 
@@ -49,16 +57,29 @@ export async function settleDeveloperAction(
   const { base, share } = computeDevShare((orders as unknown as DevShareOrder[]) ?? [], sinceIso);
   if (share <= 0) return { ok: false, error: "Nothing outstanding to settle." };
 
+  const amount = Number(share.toFixed(2));
+  // Split the payout into cash / UPI for the record.
+  const paidCash =
+    method === "cash"
+      ? amount
+      : method === "upi"
+        ? 0
+        : Math.min(Math.max(Number(params?.cashPortion) || 0, 0), amount);
+  const paidUpi = Number((amount - paidCash).toFixed(2));
+
   const { error: insErr } = await admin.from("developer_settlements").insert({
-    amount: Number(share.toFixed(2)),
+    amount,
     profit_base: Number(base.toFixed(2)),
     settled_through: cutoff,
-    note: note?.trim() || null,
+    method,
+    paid_cash: Number(paidCash.toFixed(2)),
+    paid_upi: paidUpi,
+    note: params?.note?.trim() || null,
     created_by: actor.id,
   });
   if (insErr) return { ok: false, error: insErr.message };
 
   revalidatePath("/admin/developer");
   revalidatePath("/admin/reports");
-  return { ok: true, amount: Number(share.toFixed(2)) };
+  return { ok: true, amount };
 }

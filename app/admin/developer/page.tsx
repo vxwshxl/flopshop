@@ -44,6 +44,9 @@ export default async function DeveloperPage() {
     amount: Number(s.amount),
     profit_base: Number(s.profit_base),
     settled_through: s.settled_through,
+    method: s.method ?? "cash",
+    paid_cash: Number(s.paid_cash ?? 0),
+    paid_upi: Number(s.paid_upi ?? 0),
     note: s.note,
     created_at: s.created_at,
   }));
@@ -51,6 +54,7 @@ export default async function DeveloperPage() {
   return (
     <div>
       <RealtimeRefresh table="orders" channel="admin:developer:orders" />
+      <RealtimeRefresh table="developer_settlements" channel="admin:developer:settlements" />
       <PageHeader title="Developer" subtitle={`${DEV_FEE_RATE * 100}% profit share — accounting & settlements`} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
