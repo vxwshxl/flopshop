@@ -69,8 +69,9 @@ export function ManualOrderForm({
   const [paidNow, setPaidNow] = useState("");
   // Split payment: how much of the total was paid in cash (UPI = total − cash).
   const [cashAmount, setCashAmount] = useState("");
-  // "Pay by credit" shortfall: how the wallet remainder is collected — all cash,
-  // all UPI, or split. For "split", `shortfallCash` is the cash portion.
+  // "Pay by credit": how much of the order to draw from the wallet (blank = use
+  // the most it can cover); the rest is the shortfall collected by cash/UPI/split.
+  const [walletUse, setWalletUse] = useState("");
   const [shortfallMethod, setShortfallMethod] = useState<"cash" | "upi" | "split">("cash");
   const [shortfallCash, setShortfallCash] = useState("");
   // Cash physically received for a cash order — if it's more than the total and
@@ -137,9 +138,16 @@ export function ManualOrderForm({
   // Store credit can only pay for a saved customer (their wallet). Balance comes
   // from the directory; an unsaved name has no wallet to charge.
   const creditBalance = matchedCustomer ? balances[matchedCustomer.id] ?? 0 : 0;
-  // Wallet covers up to its balance; anything beyond is the shortfall the
-  // customer tops up at the counter (cash and/or UPI).
-  const walletPortion = payment === "credit" ? Math.min(creditBalance, total) : 0;
+  // How much of the order the wallet can cover at most.
+  const maxWallet = Math.min(creditBalance, total);
+  // Admin can use up to that — defaults to the max (blank = use max), but may use
+  // less and pay more by cash/UPI. Anything not on the wallet is the shortfall.
+  const walletPortion =
+    payment === "credit"
+      ? walletUse.trim() === ""
+        ? maxWallet
+        : Math.min(Math.max(Number(walletUse) || 0, 0), maxWallet)
+      : 0;
   const shortfall = payment === "credit" ? Math.max(total - walletPortion, 0) : 0;
   const shortfallCashPaid =
     shortfallMethod === "cash"
@@ -201,6 +209,7 @@ export function ManualOrderForm({
     setPaymentPending(false);
     setPaidNow("");
     setCashAmount("");
+    setWalletUse("");
     setShortfallMethod("cash");
     setShortfallCash("");
     setCashReceived("");
@@ -400,6 +409,23 @@ export function ManualOrderForm({
                     </>
                   )}
                 </div>
+                {matchedCustomer && maxWallet > 0 && (
+                  <div>
+                    <Label className="text-stone-700 dark:text-stone-300">
+                      Use from wallet ({currency}) — max {formatCurrency(maxWallet, currency)}
+                    </Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={maxWallet}
+                      step="0.01"
+                      value={walletUse}
+                      onChange={(e) => setWalletUse(e.target.value)}
+                      placeholder={`${maxWallet}`}
+                      className={inputTheme}
+                    />
+                  </div>
+                )}
                 {matchedCustomer && shortfall > 0 && (
                   <div className="space-y-3">
                     <div>
