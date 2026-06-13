@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
-import { refundOrderCredit } from "@/lib/server/wallet";
+import { refundOrderCredit, adjustWallet } from "@/lib/server/wallet";
 import {
   statusDeductsStock,
   deliverySplit,
@@ -429,12 +429,14 @@ export async function createManualOrderAction(
     payment_pending?: boolean;
     /** When payment is pending, how much the customer paid up front (0 = none). */
     amount_paid?: number;
+    /** Cash overpaid with no change available — credited to the customer's wallet. */
+    overpay_to_wallet?: number;
   }
 ) {
   const actor = await requireRole(["admin"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
-  const { payment_pending, amount_paid, ...orderInput } = input;
+  const { payment_pending, amount_paid, overpay_to_wallet, ...orderInput } = input;
 
   // Walk-in orders are handed over on the spot: create confirmed + paid, then
   // mark completed so it lands fully done (no OTP — manual orders skip it).
@@ -445,14 +447,24 @@ export async function createManualOrderAction(
 
   const total = Number(res.order.total_amount);
   const admin = createAdminClient();
-  // Credit orders are already settled from the wallet (paid in full by createOrder).
+
+  // Remember the walk-in customer (best-effort) and get their id so we can move
+  // wallet credit. Matched by name (case-insensitive): a new name is added, an
+  // existing one is merged — filling in a phone/room we didn't have before.
+  const customerId = await upsertCustomerByName(
+    input.customer_name,
+    input.customer_phone,
+    input.customer_room
+  );
+
   if (orderInput.payment_method === "credit") {
-    await upsertCustomerByName(input.customer_name, input.customer_phone, input.customer_room);
-    revalidatePath("/admin/orders/new");
-    revalidatePath("/admin/orders");
-    return { ...res, order: { ...res.order, status: "delivered" as OrderStatus } };
-  }
-  if (payment_pending) {
+    // Wallet covered its share (debited by createOrder); any cash/UPI shortfall
+    // is handed over on the spot, so the order is fully paid.
+    await admin
+      .from("orders")
+      .update({ payment_status: "paid", amount_paid: total, updated_at: new Date().toISOString() })
+      .eq("id", res.order.id);
+  } else if (payment_pending) {
     // The goods are handed over but payment isn't fully collected. Record how
     // much was paid now (could be 0, or a partial amount) so the balance is clear.
     const paid = Math.min(Math.max(Number(amount_paid) || 0, 0), total);
@@ -468,12 +480,23 @@ export async function createManualOrderAction(
       .update({ amount_paid: total, updated_at: new Date().toISOString() })
       .eq("id", res.order.id);
   }
-  // Remember the walk-in customer (best-effort) so the name auto-suggests next
-  // time. Matched by name (case-insensitive): a new name is added, an existing
-  // one is merged — filling in a phone/room we didn't have before.
-  await upsertCustomerByName(input.customer_name, input.customer_phone, input.customer_room);
+
+  // Cash overpaid and no change to return → park the difference as store credit
+  // in the customer's wallet (the original "give credit instead of change" case).
+  const overpay = Math.max(Number(overpay_to_wallet) || 0, 0);
+  if (overpay > 0 && customerId) {
+    await adjustWallet({
+      owner: { customerId },
+      amount: overpay,
+      type: "change",
+      actorId: actor.id,
+      note: `Change from order ${res.order.order_number} kept as credit`,
+    });
+  }
+
   revalidatePath("/admin/orders/new");
   revalidatePath("/admin/orders");
+  revalidatePath("/admin/customers");
   return { ...res, order: { ...res.order, status: "delivered" as OrderStatus } };
 }
 
@@ -486,9 +509,9 @@ async function upsertCustomerByName(
   name: string,
   phone?: string | null,
   room?: string | null
-) {
+): Promise<string | null> {
   const trimmed = name?.trim();
-  if (!trimmed) return;
+  if (!trimmed) return null;
   const admin = createAdminClient();
   try {
     // ilike with no wildcards is an exact, case-insensitive match.
@@ -507,14 +530,20 @@ async function upsertCustomerByName(
         patch.updated_at = new Date().toISOString();
         await admin.from("customers").update(patch).eq("id", existing.id);
       }
-    } else {
-      await admin.from("customers").insert({
+      return existing.id;
+    }
+    const { data: inserted } = await admin
+      .from("customers")
+      .insert({
         name: trimmed,
         phone: phone?.trim() || "",
         room_number: room?.trim() || null,
-      });
-    }
+      })
+      .select("id")
+      .single();
+    return inserted?.id ?? null;
   } catch {
     // Directory bookkeeping only — swallow errors so the order still succeeds.
+    return null;
   }
 }

@@ -69,6 +69,12 @@ export function ManualOrderForm({
   const [paidNow, setPaidNow] = useState("");
   // Split payment: how much of the total was paid in cash (UPI = total − cash).
   const [cashAmount, setCashAmount] = useState("");
+  // "Pay by credit" shortfall: when the wallet can't cover the total, how much of
+  // the remainder is collected as cash (the rest is UPI).
+  const [shortfallCash, setShortfallCash] = useState("");
+  // Cash physically received for a cash order — if it's more than the total and
+  // there's no change to give, the excess is parked in the customer's wallet.
+  const [cashReceived, setCashReceived] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -130,7 +136,19 @@ export function ManualOrderForm({
   // Store credit can only pay for a saved customer (their wallet). Balance comes
   // from the directory; an unsaved name has no wallet to charge.
   const creditBalance = matchedCustomer ? balances[matchedCustomer.id] ?? 0 : 0;
-  const creditCovers = payment !== "credit" || (!!matchedCustomer && creditBalance >= total);
+  // Wallet covers up to its balance; anything beyond is the shortfall the
+  // customer tops up at the counter (cash and/or UPI).
+  const walletPortion = payment === "credit" ? Math.min(creditBalance, total) : 0;
+  const shortfall = payment === "credit" ? Math.max(total - walletPortion, 0) : 0;
+  const shortfallCashPaid = Math.min(Math.max(Number(shortfallCash) || 0, 0), shortfall);
+  const shortfallUpiPaid = Math.max(shortfall - shortfallCashPaid, 0);
+  // Pay-by-credit requires a saved customer (to have a wallet) and some balance.
+  const creditUsable = payment !== "credit" || (!!matchedCustomer && creditBalance > 0);
+
+  // Cash overpayment → wallet (no change to give). Only meaningful for a cash
+  // order with a customer to credit.
+  const cashGiven = Math.max(Number(cashReceived) || 0, 0);
+  const overpay = payment === "cash" && cashGiven > total ? cashGiven - total : 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,10 +156,8 @@ export function ManualOrderForm({
     if (!customer.name.trim()) return toast.error("Customer name is required.");
     if (orderType === "delivery" && !customer.room.trim())
       return toast.error("Room is required for delivery.");
-    if (payment === "credit") {
-      if (!matchedCustomer) return toast.error("Pick a saved customer to pay by credit.");
-      if (creditBalance < total)
-        return toast.error(`Not enough credit (${formatCurrency(creditBalance, currency)}).`);
+    if (payment === "credit" && !matchedCustomer) {
+      return toast.error("Pick a saved customer to pay by credit.");
     }
 
     setSaving(true);
@@ -153,14 +169,21 @@ export function ManualOrderForm({
       customer_room: customer.room,
       payment_method: payment,
       ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
+      // Pay by credit: wallet covers `walletPortion`, the shortfall is collected
+      // now as cash/UPI (recorded in paid_cash/paid_upi; wallet = total − those).
       ...(payment === "credit" && matchedCustomer
-        ? { credit_owner: { customerId: matchedCustomer.id } }
+        ? {
+            credit_owner: { customerId: matchedCustomer.id },
+            paid_cash: shortfallCashPaid,
+            paid_upi: shortfallUpiPaid,
+          }
         : {}),
       // Credit orders are settled from the wallet — never "payment pending".
       payment_pending: payment === "credit" ? false : paymentPending,
       ...(payment !== "credit" && paymentPending
         ? { amount_paid: Math.min(Math.max(Number(paidNow) || 0, 0), total) }
         : {}),
+      ...(overpay > 0 ? { overpay_to_wallet: overpay } : {}),
       notes,
     });
     setSaving(false);
@@ -172,10 +195,14 @@ export function ManualOrderForm({
     setPaymentPending(false);
     setPaidNow("");
     setCashAmount("");
+    setShortfallCash("");
+    setCashReceived("");
     setNotes("");
     setOrderType("pickup");
     toast.success(
-      `Order ${res.order.order_number} completed${paymentPending ? " · payment pending" : ""}`
+      `Order ${res.order.order_number} completed` +
+        (paymentPending && payment !== "credit" ? " · payment pending" : "") +
+        (overpay > 0 ? ` · ${formatCurrency(overpay, currency)} added to wallet` : "")
     );
     // Stay on the manual-order page (fields already reset above) so the admin
     // can ring up the next walk-in immediately. refresh() re-pulls live stock.
@@ -348,22 +375,45 @@ export function ManualOrderForm({
               </Select>
             </div>
             {payment === "credit" && (
-              <div
-                className={`rounded-lg border px-3 py-2 text-sm ${
-                  !matchedCustomer
-                    ? "border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
-                    : creditCovers
-                      ? "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
-                      : "border-red-400 bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300"
-                }`}
-              >
-                {!matchedCustomer ? (
-                  "Type a saved customer's exact name to charge their wallet."
-                ) : (
-                  <>
-                    Wallet balance {formatCurrency(creditBalance, currency)}
-                    {!creditCovers && ` · short by ${formatCurrency(total - creditBalance, currency)}`}
-                  </>
+              <div className="space-y-3">
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    !matchedCustomer
+                      ? "border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
+                      : "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                  }`}
+                >
+                  {!matchedCustomer ? (
+                    "Type a saved customer's exact name to charge their wallet."
+                  ) : (
+                    <>
+                      Wallet balance {formatCurrency(creditBalance, currency)} · using{" "}
+                      {formatCurrency(walletPortion, currency)}
+                      {shortfall > 0 && ` · collect ${formatCurrency(shortfall, currency)} more`}
+                    </>
+                  )}
+                </div>
+                {matchedCustomer && shortfall > 0 && (
+                  <div>
+                    <Label className="text-stone-700 dark:text-stone-300">
+                      Shortfall by cash ({currency}) — rest UPI
+                    </Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={shortfall}
+                      step="0.01"
+                      value={shortfallCash}
+                      onChange={(e) => setShortfallCash(e.target.value)}
+                      placeholder="0"
+                      className={inputTheme}
+                    />
+                    <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                      Wallet {formatCurrency(walletPortion, currency)} · Cash{" "}
+                      {formatCurrency(shortfallCashPaid, currency)} · UPI{" "}
+                      {formatCurrency(shortfallUpiPaid, currency)} of {formatCurrency(total, currency)}
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -385,21 +435,43 @@ export function ManualOrderForm({
                 </p>
               </div>
             )}
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
-              <input
-                type="checkbox"
-                checked={paymentPending}
-                onChange={(e) => setPaymentPending(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-amber-500"
-              />
-              <span className="text-sm text-stone-700 dark:text-stone-200">
-                Payment pending
-                <span className="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
-                  Hand over the goods now but collect later (e.g. UPI/server down). Mark it paid from the Orders page.
+            {payment === "cash" && (
+              <div>
+                <Label className="text-stone-700 dark:text-stone-300">Cash received ({currency}) — optional</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={cashReceived}
+                  onChange={(e) => setCashReceived(e.target.value)}
+                  placeholder={`${total}`}
+                  className={inputTheme}
+                />
+                {overpay > 0 && (
+                  <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
+                    No change? {formatCurrency(overpay, currency)} will be added to{" "}
+                    {matchedCustomer ? matchedCustomer.name : customer.name.trim() || "the customer"}&apos;s wallet.
+                  </p>
+                )}
+              </div>
+            )}
+            {payment !== "credit" && (
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
+                <input
+                  type="checkbox"
+                  checked={paymentPending}
+                  onChange={(e) => setPaymentPending(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-amber-500"
+                />
+                <span className="text-sm text-stone-700 dark:text-stone-200">
+                  Payment pending
+                  <span className="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
+                    Hand over the goods now but collect later (e.g. UPI/server down). Mark it paid from the Orders page.
+                  </span>
                 </span>
-              </span>
-            </label>
-            {paymentPending && (
+              </label>
+            )}
+            {payment !== "credit" && paymentPending && (
               <div>
                 <Label className="text-stone-700 dark:text-stone-300">Paid now ({currency}) — optional</Label>
                 <Input
@@ -441,8 +513,12 @@ export function ManualOrderForm({
           </div>
         </AdminCard>
 
-        <Button type="submit" loading={saving} disabled={!creditCovers} variant="dark" className="w-full">
-          {payment === "credit" ? "Complete Order · Pay by credit" : "Complete Order"}
+        <Button type="submit" loading={saving} disabled={!creditUsable} variant="dark" className="w-full">
+          {payment === "credit"
+            ? shortfall > 0
+              ? `Complete · ${formatCurrency(walletPortion, currency)} credit + ${formatCurrency(shortfall, currency)}`
+              : "Complete Order · Pay by credit"
+            : "Complete Order"}
         </Button>
       </div>
     </form>

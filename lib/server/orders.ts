@@ -4,7 +4,7 @@ import { generateOrderNumber, generateInvoiceNumber, invoiceDatePrefix } from "@
 import { deliverySplit, statusDeductsStock, COD_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import { getWalletBalance, adjustWallet, refundOrderCredit, type WalletOwner } from "@/lib/server/wallet";
-import type { Order, OrderStatus, OrderType, PaymentMethod } from "@/lib/types";
+import type { Order, OrderStatus, OrderType, PaymentMethod, PaymentStatus } from "@/lib/types";
 
 function generateOtp(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -97,16 +97,22 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const split = deliverySplit(settings, input.order_type);
   const total_amount = subtotal + split.delivery_fee;
 
-  // Resolve the wallet owner for credit payment up front and verify the balance
-  // covers the order before we touch stock / create the order row.
+  // Resolve the wallet owner for credit payment up front. For credit orders the
+  // wallet covers everything NOT collected by cash/UPI: a shortfall the customer
+  // tops up at the counter is recorded in paid_cash / paid_upi, so the wallet
+  // charge is total − cash − upi (wallet may be only part of the order).
   const creditOwner: WalletOwner | null =
     input.payment_method === "credit"
       ? input.credit_owner ?? (input.user_id ? { profileId: input.user_id } : null)
       : null;
+  const creditCharge =
+    input.payment_method === "credit"
+      ? Math.max(total_amount - Number(input.paid_cash ?? 0) - Number(input.paid_upi ?? 0), 0)
+      : 0;
   if (input.payment_method === "credit") {
     if (!creditOwner) return { ok: false, error: "No account to charge credit to." };
     const balance = await getWalletBalance(creditOwner);
-    if (balance < total_amount) {
+    if (balance < creditCharge) {
       return { ok: false, error: "Insufficient credit balance." };
     }
   }
@@ -159,9 +165,16 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     admin_delivery_earning: split.admin_delivery_earning,
     total_amount,
     payment_method: input.payment_method ?? "cash",
-    // Only meaningful for split payments; otherwise stored as 0.
-    paid_cash: input.payment_method === "split" ? Number(input.paid_cash ?? 0) : 0,
-    paid_upi: input.payment_method === "split" ? Number(input.paid_upi ?? 0) : 0,
+    // Cash/UPI breakdown — for "split" it's the whole order; for "credit" it's
+    // the shortfall the wallet didn't cover. Zero for single-method payments.
+    paid_cash:
+      input.payment_method === "split" || input.payment_method === "credit"
+        ? Number(input.paid_cash ?? 0)
+        : 0,
+    paid_upi:
+      input.payment_method === "split" || input.payment_method === "credit"
+        ? Number(input.paid_upi ?? 0)
+        : 0,
     notes: input.notes || null,
     is_manual: input.is_manual ?? false,
     otp_code,
@@ -203,13 +216,13 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     if (payErr) return { ok: false, error: payErr.message };
   }
 
-  // Credit payment: debit the wallet now (the customer is paying from prepaid
-  // store credit). Balance was pre-checked, but the debit is atomic and will
-  // reject a concurrent overdraw — if so, undo the order so nothing is lost.
-  if (input.payment_method === "credit" && creditOwner) {
+  // Credit payment: debit the wallet for the portion it covers (the customer
+  // pays any shortfall by cash/UPI). Balance was pre-checked, but the debit is
+  // atomic and rejects a concurrent overdraw — if so, undo the order.
+  if (input.payment_method === "credit" && creditOwner && creditCharge > 0) {
     const debit = await adjustWallet({
       owner: creditOwner,
-      amount: -total_amount,
+      amount: -creditCharge,
       type: "order_payment",
       orderId: payload.order_id,
       actorId: input.user_id ?? null,
@@ -225,10 +238,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       await supabase.from("orders").delete().eq("id", payload.order_id);
       return { ok: false, error: debit.error };
     }
-    // Wallet covered the order — mark it paid even when not auto-confirmed.
+    // The wallet portion is collected now; the cash/UPI shortfall is collected
+    // separately (on the spot for manual orders, at the door for online COD).
+    const status: PaymentStatus = creditCharge >= total_amount ? "paid" : "partial";
     await supabase
       .from("orders")
-      .update({ payment_status: "paid", amount_paid: total_amount, updated_at: new Date().toISOString() })
+      .update({ payment_status: status, amount_paid: creditCharge, updated_at: new Date().toISOString() })
       .eq("id", payload.order_id);
   }
 

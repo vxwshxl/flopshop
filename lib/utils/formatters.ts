@@ -42,17 +42,20 @@ export function paymentSplit(order: {
 }): { cash: number; upi: number; bank: number; credit: number; other: number } {
   const total = Number(order.total_amount ?? 0);
   const method = (order.payment_method ?? "").trim().toLowerCase();
+  const pc = Number(order.paid_cash ?? 0);
+  const pu = Number(order.paid_upi ?? 0);
   if (method === "split") {
-    const cash = Number(order.paid_cash ?? 0);
-    const upi = Number(order.paid_upi ?? 0);
-    return { cash, upi, bank: 0, credit: 0, other: Math.max(total - cash - upi, 0) };
+    return { cash: pc, upi: pu, bank: 0, credit: 0, other: Math.max(total - pc - pu, 0) };
+  }
+  // Wallet/store credit: the credit money arrived earlier (top-up / un-returned
+  // change) so it's its own bucket — not new cash/UPI at sale time. Any cash/UPI
+  // recorded here is the shortfall the wallet didn't cover, collected now.
+  if (method === "credit") {
+    return { cash: pc, upi: pu, bank: 0, credit: Math.max(total - pc - pu, 0), other: 0 };
   }
   if (method === "cash") return { cash: total, upi: 0, bank: 0, credit: 0, other: 0 };
   if (method === "upi") return { cash: 0, upi: total, bank: 0, credit: 0, other: 0 };
   if (method === "bank transfer") return { cash: 0, upi: 0, bank: total, credit: 0, other: 0 };
-  // Wallet/store credit: the money arrived earlier (top-up / un-returned change),
-  // so it's its own bucket — not new cash/UPI at sale time.
-  if (method === "credit") return { cash: 0, upi: 0, bank: 0, credit: total, other: 0 };
   return { cash: 0, upi: 0, bank: 0, credit: 0, other: total };
 }
 
