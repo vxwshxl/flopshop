@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/input";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import type { Category, Product } from "@/lib/types";
 
 function stockColorByVal(p: Product, value: string | undefined) {
@@ -34,7 +35,7 @@ export function ProductsTable({
   currency: string;
 }) {
   const router = useRouter();
-  const [cat, setCat] = useState("all");
+  const [cat, setCat] = usePersistentState("admin:products:cat", "all");
   const [busy, setBusy] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
@@ -104,8 +105,13 @@ export function ProductsTable({
     },
     initialSort: "name",
     initialDir: "asc",
+    persistKey: "admin:products:ctl",
   });
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(
+    ctl.rows,
+    20,
+    "admin:products:pg"
+  );
 
   async function toggleActive(p: Product) {
     setBusy(p.id);

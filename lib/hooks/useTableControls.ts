@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePersistentState } from "./usePersistentState";
 
 export type SortDir = "asc" | "desc";
 
@@ -20,14 +20,23 @@ export function useTableControls<T>(
     sorters: Record<string, (a: T, b: T) => number>;
     initialSort?: string;
     initialDir?: SortDir;
+    /** When set, search/date/sort state is saved to localStorage under this key. */
+    persistKey?: string;
   }
 ) {
   const keys = Object.keys(opts.sorters);
-  const [query, setQuery] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [sortKey, setSortKey] = useState(opts.initialSort ?? keys[0] ?? "");
-  const [dir, setDir] = useState<SortDir>(opts.initialDir ?? "desc");
+  // All control state lives in one persisted object so it survives navigation.
+  const [state, setState] = usePersistentState(opts.persistKey, {
+    query: "",
+    from: "",
+    to: "",
+    sortKey: opts.initialSort ?? keys[0] ?? "",
+    dir: (opts.initialDir ?? "desc") as SortDir,
+  });
+  const { query, from, to, sortKey, dir } = state;
+  const setQuery = (v: string) => setState((s) => ({ ...s, query: v }));
+  const setFrom = (v: string) => setState((s) => ({ ...s, from: v }));
+  const setTo = (v: string) => setState((s) => ({ ...s, to: v }));
 
   const q = query.trim().toLowerCase();
   let rows = items.filter((it) => {
@@ -46,17 +55,16 @@ export function useTableControls<T>(
   }
 
   function toggleSort(key: string, defaultDir: SortDir = "asc") {
-    if (sortKey === key) setDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(key);
-      setDir(defaultDir);
-    }
+    setState((s) =>
+      s.sortKey === key
+        ? { ...s, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { ...s, sortKey: key, dir: defaultDir }
+    );
   }
 
   const hasDateFilter = !!from || !!to;
   function clearDates() {
-    setFrom("");
-    setTo("");
+    setState((s) => ({ ...s, from: "", to: "" }));
   }
 
   return {

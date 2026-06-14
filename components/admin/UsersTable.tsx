@@ -35,8 +35,13 @@ export function UsersTable({
     },
     initialSort: "joined",
     initialDir: "desc",
+    persistKey: "admin:users:ctl",
   });
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(
+    ctl.rows,
+    20,
+    "admin:users:pg"
+  );
 
   async function changeRole(u: Profile, role: Role) {
     setBusy(u.id);

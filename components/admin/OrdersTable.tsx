@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/admin/StatCard";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { formatCurrency, formatDateTime, formatPaymentMethod, paymentMethodLabel } from "@/lib/utils/formatters";
 import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
 import type { Order, OrderItem, OrderStatus, PaymentStatus, Profile, SettingsMap } from "@/lib/types";
@@ -72,8 +73,8 @@ export function OrdersTable({
   settings: SettingsMap;
 }) {
   const currency = settings.currency_symbol ?? "₹";
-  const [tab, setTab] = useState<"all" | OrderStatus>("all");
-  const [payFilter, setPayFilter] = useState<PayFilter>("all");
+  const [tab, setTab] = usePersistentState<"all" | OrderStatus>("admin:orders:tab", "all");
+  const [payFilter, setPayFilter] = usePersistentState<PayFilter>("admin:orders:pay", "all");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   // Optimistic status per row so the table reflects the change immediately
@@ -166,8 +167,13 @@ export function OrdersTable({
     },
     initialSort: "date",
     initialDir: "desc",
+    persistKey: "admin:orders:ctl",
   });
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(
+    ctl.rows,
+    20,
+    "admin:orders:pg"
+  );
 
   // Revenue of the currently-filtered rows (status + payment + search + date).
   const filteredRevenue = useMemo(

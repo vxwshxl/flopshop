@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Pencil, Trash2, ArrowUpDown } from "lucide-react";
 import toast from "react-hot-toast";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Autocomplete } from "@/components/ui/autocomplete";
@@ -31,11 +32,11 @@ export function PurchasesTable({
   currency: string;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("purchase_date");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [query, setQuery] = usePersistentState("admin:purchases:query", "");
+  const [from, setFrom] = usePersistentState("admin:purchases:from", "");
+  const [to, setTo] = usePersistentState("admin:purchases:to", "");
+  const [sortKey, setSortKey] = usePersistentState<SortKey>("admin:purchases:sortKey", "purchase_date");
+  const [sortDir, setSortDir] = usePersistentState<SortDir>("admin:purchases:sortDir", "desc");
   const [editing, setEditing] = useState<Purchase | null>(null);
   const [deleting, setDeleting] = useState<Purchase | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,7 +79,11 @@ export function PurchasesTable({
     });
   }, [purchases, query, from, to, sortKey, sortDir]);
 
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(filtered);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(
+    filtered,
+    20,
+    "admin:purchases:pg"
+  );
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));

@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 
 export const PAGE_SIZES = [20, 50, 100, 500];
 
 /**
  * Client-side pagination over an in-memory list. Page auto-clamps when the list
  * shrinks (e.g. filtering), and changing page size jumps back to page 1.
+ * Pass `persistKey` to remember the page + page size across navigation.
  */
-export function usePagination<T>(items: T[], initialPerPage = 20) {
-  const [perPage, setPerPageRaw] = useState(initialPerPage);
-  const [page, setPage] = useState(1);
+export function usePagination<T>(items: T[], initialPerPage = 20, persistKey?: string) {
+  const [state, setState] = usePersistentState(persistKey, { page: 1, perPage: initialPerPage });
+  const { page, perPage } = state;
 
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -22,10 +24,8 @@ export function usePagination<T>(items: T[], initialPerPage = 20) {
     [items, current, perPage]
   );
 
-  const setPerPage = (n: number) => {
-    setPerPageRaw(n);
-    setPage(1);
-  };
+  const setPage = (p: number) => setState((s) => ({ ...s, page: p }));
+  const setPerPage = (n: number) => setState((s) => ({ ...s, perPage: n, page: 1 }));
 
   return { page: current, setPage, perPage, setPerPage, total, totalPages, pageItems };
 }

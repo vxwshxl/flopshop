@@ -19,6 +19,7 @@ import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { WalletPanel } from "@/components/admin/WalletPanel";
 import { useTableControls, byText, byDate } from "@/lib/hooks/useTableControls";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Customer, Hostel } from "@/lib/types";
 
@@ -48,7 +49,21 @@ export function CustomersManager({
   const [primaryId, setPrimaryId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const router = useRouter();
-  const ctl = useTableControls(customers, {
+  // Store-credit filter: all / credit (balance > 0) / debt (< 0) / settled (= 0).
+  const [balanceFilter, setBalanceFilter] = usePersistentState<"all" | "credit" | "debt" | "settled">(
+    "admin:customers:balance",
+    "all"
+  );
+  const byBalance =
+    balanceFilter === "all"
+      ? customers
+      : customers.filter((c) => {
+          const bal = balances[c.id] ?? 0;
+          if (balanceFilter === "credit") return bal > 0;
+          if (balanceFilter === "debt") return bal < 0;
+          return bal === 0; // settled
+        });
+  const ctl = useTableControls(byBalance, {
     searchFields: (c) => [c.name, c.phone, c.room_number, c.hostel_block],
     dateField: (c) => c.created_at,
     sorters: {
@@ -58,8 +73,13 @@ export function CustomersManager({
     },
     initialSort: "name",
     initialDir: "asc",
+    persistKey: "admin:customers:ctl",
   });
-  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
+  const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(
+    ctl.rows,
+    20,
+    "admin:customers:pg"
+  );
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -187,7 +207,18 @@ export function CustomersManager({
             onTo={ctl.setTo}
             hasDateFilter={ctl.hasDateFilter}
             onClearDates={ctl.clearDates}
-          />
+          >
+            <Select
+              value={balanceFilter}
+              onChange={(e) => setBalanceFilter(e.target.value as typeof balanceFilter)}
+              className="w-40 lg:w-44"
+            >
+              <option value="all">All balances</option>
+              <option value="credit">Has credit</option>
+              <option value="debt">Has debt</option>
+              <option value="settled">Settled (₹0)</option>
+            </Select>
+          </TableToolbar>
         </div>
         <TableScroll>
           <table className="w-full text-sm">
@@ -203,10 +234,10 @@ export function CustomersManager({
               </tr>
             </thead>
             <tbody className="text-black/75 dark:text-white/75">
-              {customers.length === 0 && (
+              {ctl.rows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-black/50 dark:text-white/50">
-                    No customers yet.
+                    {customers.length === 0 ? "No customers yet." : "No customers match these filters."}
                   </td>
                 </tr>
               )}
@@ -231,7 +262,9 @@ export function CustomersManager({
                   <td className="p-3 text-black/50 dark:text-white/50">{c.hostel_block ?? "—"}</td>
                   <td className="p-3 text-right font-medium">
                     {balances[c.id] ? (
-                      <span className="text-lime-600 dark:text-lime-400">{formatCurrency(balances[c.id], "₹")}</span>
+                      <span className={balances[c.id] < 0 ? "text-amber-600 dark:text-amber-400" : "text-lime-600 dark:text-lime-400"}>
+                        {formatCurrency(balances[c.id], "₹")}
+                      </span>
                     ) : (
                       <span className="text-black/30 dark:text-white/30">—</span>
                     )}
