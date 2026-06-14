@@ -107,7 +107,14 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
     if (sErr) return toast.error(`Purchase saved, but stock update failed: ${sErr.message}`);
 
     toast.success(`Added ${qty} to ${product.name} stock`);
-    router.push("/admin/purchases");
+    // Stay on the page for the next entry — reset the inputs but keep the
+    // chosen supplier and date so back-to-back restocks are quick.
+    setForm((f) => ({
+      ...f,
+      quantity: "1",
+      unit_price: "",
+      notes: "",
+    }));
     router.refresh();
   }
 
