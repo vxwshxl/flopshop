@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
+import { Button } from "@/components/ui/button";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { ProductBuyers, type BuyerRow } from "@/components/admin/ProductBuyers";
 import type { Category, Product } from "@/lib/types";
@@ -58,7 +61,17 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Edit Product" subtitle={(product as Product).name} />
+      <PageHeader
+        title="Edit Product"
+        subtitle={(product as Product).name}
+        action={
+          <Link href="/admin/products/new">
+            <Button variant="dark">
+              <Plus className="h-4 w-4" /> Add product
+            </Button>
+          </Link>
+        }
+      />
       <ProductForm categories={(categories as Category[]) ?? []} product={product as Product} />
       <ProductBuyers buyers={buyers} currency={settings.currency_symbol} />
     </div>
