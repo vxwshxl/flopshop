@@ -16,22 +16,20 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import {
-  adminSettableStatuses,
-  statusLabel,
-  nextStatuses,
-  EDITABLE_PAYMENT_METHODS,
-  type EditablePaymentMethod,
-} from "@/lib/utils/orderHelpers";
+import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, OrderType, Profile } from "@/lib/types";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
   upi: "UPI",
+  split: "Split (Cash + UPI)",
+  credit: "Pay by credit (wallet)",
   "bank transfer": "Bank Transfer",
   other: "Other",
-  split: "Split",
 };
+
+// Same set the manual-order form offers, so an order can be relabelled to any of them.
+const METHOD_OPTIONS = ["cash", "upi", "split", "credit", "bank transfer", "other"];
 
 export function OrderManagePanel({
   order,
@@ -47,6 +45,10 @@ export function OrderManagePanel({
   const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
   const [amountPaid, setAmountPaid] = useState(String(order.amount_paid ?? ""));
+  // Payment-method picker: split/credit need a confirm step, so the dropdown
+  // only stages a choice and a Save below commits it. Single methods save at once.
+  const [methodDraft, setMethodDraft] = useState((order.payment_method ?? "").toLowerCase());
+  const [splitCash, setSplitCash] = useState(String(order.paid_cash ?? ""));
   const router = useRouter();
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
@@ -139,12 +141,22 @@ export function OrderManagePanel({
   const finalized = order.status === "delivered" || order.status === "cancelled";
 
   // Payment method is editable even on finalized orders (e.g. fixing how a
-  // completed walk-in was actually paid). The current value is always shown —
-  // including non-editable ones like "split" — so nothing is silently dropped.
+  // completed walk-in was actually paid). Any current value not in the standard
+  // set is still shown first so nothing is silently dropped.
   const paymentMethod = (order.payment_method ?? "").toLowerCase();
-  const methodOptions = EDITABLE_PAYMENT_METHODS.includes(paymentMethod as EditablePaymentMethod)
-    ? [...EDITABLE_PAYMENT_METHODS]
-    : [paymentMethod, ...EDITABLE_PAYMENT_METHODS];
+  const methodOptions = METHOD_OPTIONS.includes(paymentMethod)
+    ? METHOD_OPTIONS
+    : [paymentMethod, ...METHOD_OPTIONS];
+  const total = Number(order.total_amount);
+  const splitCashNum = Math.min(Math.max(Number(splitCash) || 0, 0), total);
+
+  function onMethodChange(m: string) {
+    setMethodDraft(m);
+    // Split & credit open an inline confirm; everything else saves immediately.
+    if (m !== "split" && m !== "credit") {
+      run(() => setPaymentMethodAction(order.id, m), "Payment method updated");
+    }
+  }
 
   return (
     <AdminCard title="Manage Order">
@@ -228,17 +240,54 @@ export function OrderManagePanel({
 
         <div>
           <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment method</p>
-          <Select
-            value={paymentMethod}
-            disabled={pending}
-            onChange={(e) => run(() => setPaymentMethodAction(order.id, e.target.value), "Payment method updated")}
-          >
+          <Select value={methodDraft} disabled={pending} onChange={(e) => onMethodChange(e.target.value)}>
             {methodOptions.map((m) => (
               <option key={m} value={m}>
                 {METHOD_LABELS[m] ?? m}
               </option>
             ))}
           </Select>
+
+          {/* Split needs the cash/UPI breakdown before it can be saved. */}
+          {methodDraft === "split" && (
+            <div className="mt-3 space-y-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
+              <p className="text-xs text-black/50 dark:text-white/50">Cash collected (UPI is the rest)</p>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={splitCash}
+                onChange={(e) => setSplitCash(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-black/60 dark:text-white/60">
+                Cash {formatCurrency(splitCashNum)} · UPI {formatCurrency(Math.max(total - splitCashNum, 0))}
+              </p>
+              <Button
+                size="sm"
+                disabled={pending}
+                onClick={() => run(() => setPaymentMethodAction(order.id, "split", { paidCash: splitCashNum }), "Saved as split")}
+              >
+                Save split
+              </Button>
+            </div>
+          )}
+
+          {/* Pay-by-credit charges the whole order to the customer's wallet. */}
+          {methodDraft === "credit" && (
+            <div className="mt-3 space-y-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                Charges {formatCurrency(total)} to {order.customer_name || "the customer"}&apos;s store credit. If they
+                don&apos;t have enough, the balance goes negative (they owe the shop).
+              </p>
+              <Button
+                size="sm"
+                disabled={pending}
+                onClick={() => run(() => setPaymentMethodAction(order.id, "credit"), "Charged to store credit")}
+              >
+                Charge store credit
+              </Button>
+            </div>
+          )}
         </div>
 
         <div>
@@ -278,6 +327,10 @@ export function OrderManagePanel({
               Save
             </Button>
           </div>
+          <p className="mt-1.5 text-xs text-black/50 dark:text-white/50">
+            Saving settles the order. Anything over {formatCurrency(total)} is kept as the customer&apos;s store
+            credit; anything short is recorded as credit they owe the shop.
+          </p>
           {order.payment_status === "partial" && (
             <p className="mt-1.5 text-xs font-medium text-amber-500">
               Partial: {formatCurrency(order.amount_paid)} paid ·{" "}

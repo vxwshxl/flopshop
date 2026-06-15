@@ -20,7 +20,8 @@ const ADJUST_TYPES: WalletTxnType[] = ["change", "topup", "adjustment"];
 
 /**
  * Admin adds (or deducts) store credit for a profile or walk-in customer.
- * `amount` is signed: + adds credit, − deducts it (a deduction can't overdraw).
+ * `amount` is signed: + adds credit, − deducts it. A deduction may push the
+ * balance below 0 so the shop can record what a customer owes (debt).
  * Used for the "no change at the counter" scenario and manual corrections.
  */
 export async function adminAdjustWalletAction(
@@ -36,7 +37,7 @@ export async function adminAdjustWalletAction(
   if (!Number.isFinite(amt) || amt === 0) return { ok: false, error: "Enter a non-zero amount." };
   if (!ADJUST_TYPES.includes(type)) return { ok: false, error: "Invalid credit type." };
 
-  const res = await adjustWallet({ owner, amount: amt, type, actorId: actor.id, note });
+  const res = await adjustWallet({ owner, amount: amt, type, actorId: actor.id, note, allowNegative: true });
   if (!res.ok) return res;
 
   revalidatePath("/admin/customers");

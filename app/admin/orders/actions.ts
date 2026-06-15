@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
-import { refundOrderCredit, adjustWallet } from "@/lib/server/wallet";
 import {
-  statusDeductsStock,
-  deliverySplit,
-  EDITABLE_PAYMENT_METHODS,
-  type EditablePaymentMethod,
-} from "@/lib/utils/orderHelpers";
+  refundOrderCredit,
+  adjustWallet,
+  reconcileOrderAdjustment,
+  type WalletOwner,
+} from "@/lib/server/wallet";
+import { statusDeductsStock, deliverySplit } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { OrderStatus, OrderType, PaymentStatus, Role } from "@/lib/types";
 
@@ -275,26 +275,65 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
 }
 
 /**
- * Record exactly how much of an order has been collected (for "paid half now").
- * Derives payment_status: paid when it covers the total, partial when some is in,
- * pending when nothing. Admin/delivery only.
+ * Record how much was actually handed over for an order, and settle the rest
+ * against the customer's store credit (two-way): overpaid cash becomes credit,
+ * an underpayment becomes a debt the customer owes. The order is then marked
+ * settled — the leftover balance lives on the customer, not the order.
+ *
+ * Falls back to plain partial tracking on the order itself when there's no
+ * customer to tie credit to, or when the order is paid by store credit already
+ * (that wallet relationship is owned by the credit/refund flow).
  */
 export async function setAmountPaidAction(orderId: string, amount: number) {
-  if (!(await requireRole(["admin", "delivery"]))) return { ok: false, error: "Not authorized." };
+  const actor = await requireRole(["admin", "delivery"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
   const admin = createAdminClient();
-  const { data: order } = await admin.from("orders").select("total_amount").eq("id", orderId).single();
+  const { data: order } = await admin
+    .from("orders")
+    .select("total_amount, user_id, customer_name, customer_phone, customer_room, payment_method, order_number")
+    .eq("id", orderId)
+    .single();
   if (!order) return { ok: false, error: "Order not found." };
 
   const total = Number(order.total_amount);
-  const paid = Math.min(Math.max(Number(amount) || 0, 0), total);
-  const status: PaymentStatus = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
+  const typed = Math.max(Number(amount) || 0, 0);
+  const isCredit = (order.payment_method ?? "").toLowerCase() === "credit";
+  const owner = isCredit ? null : await resolveOrderWalletOwner(order);
+
+  // No customer wallet (or a credit order): keep the old order-level partial.
+  if (!owner) {
+    const paid = Math.min(typed, total);
+    const status: PaymentStatus = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
+    const { error } = await admin
+      .from("orders")
+      .update({ amount_paid: paid, payment_status: status, updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${orderId}`);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  // Move the gap vs the total onto the customer's wallet (+ credit / − debt).
+  const rec = await reconcileOrderAdjustment({
+    owner,
+    orderId,
+    targetNet: typed - total,
+    actorId: actor.id,
+    note:
+      typed >= total
+        ? `Order ${order.order_number}: ₹${(typed - total).toFixed(2)} change kept as credit`
+        : `Order ${order.order_number}: ₹${(total - typed).toFixed(2)} owed by customer`,
+  });
+  if (!rec.ok) return { ok: false, error: rec.error };
 
   const { error } = await admin
     .from("orders")
-    .update({ amount_paid: paid, payment_status: status, updated_at: new Date().toISOString() })
+    .update({ amount_paid: total, payment_status: "paid", updated_at: new Date().toISOString() })
     .eq("id", orderId);
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/customers");
+  if (order.user_id) revalidatePath(`/admin/users/${order.user_id}`);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
@@ -366,23 +405,107 @@ export async function updateOrderCustomerAction(
 }
 
 /**
- * Change an order's payment method (admin only). Switching to any single method
- * clears the split breakdown so reports attribute the whole amount to one bucket.
+ * Change an order's payment method (admin only). Mirrors the manual-order
+ * choices: cash / upi / split / credit (wallet) / bank transfer / other.
+ *
+ * - split    — records the cash/UPI breakdown (UPI = total − cash), order paid.
+ * - credit   — charges the whole order to the customer's store credit (may push
+ *              the wallet into debt), order paid. Leaving credit refunds it.
+ * - others   — relabel only; the split breakdown is cleared.
  */
-export async function setPaymentMethodAction(orderId: string, method: string) {
-  if (!(await requireRole(["admin"]))) return { ok: false, error: "Not authorized." };
+export async function setPaymentMethodAction(
+  orderId: string,
+  method: string,
+  opts?: { paidCash?: number }
+) {
+  const actor = await requireRole(["admin"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
   const normalized = method.trim().toLowerCase();
-  if (!EDITABLE_PAYMENT_METHODS.includes(normalized as EditablePaymentMethod)) {
-    return { ok: false, error: "Invalid payment method." };
-  }
+  const ALLOWED = ["cash", "upi", "split", "credit", "bank transfer", "other"];
+  if (!ALLOWED.includes(normalized)) return { ok: false, error: "Invalid payment method." };
+
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: order } = await admin
     .from("orders")
-    .update({ payment_method: normalized, paid_cash: 0, paid_upi: 0, updated_at: new Date().toISOString() })
-    .eq("id", orderId);
+    .select("total_amount, payment_method, user_id, customer_name, customer_phone, customer_room, order_number")
+    .eq("id", orderId)
+    .single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  const total = Number(order.total_amount);
+  const oldMethod = (order.payment_method ?? "").toLowerCase();
+  const now = new Date().toISOString();
+
+  // Pay the whole order from the customer's store credit.
+  if (normalized === "credit") {
+    const owner = await resolveOrderWalletOwner(order);
+    if (!owner) {
+      return { ok: false, error: "No customer wallet to charge. Add a name or phone to this order first." };
+    }
+    // Reset any earlier credit charge so we debit exactly the total once.
+    await reconcileOrderAdjustment({ owner, orderId, targetNet: 0, actorId: actor.id });
+    await refundOrderCredit(orderId, actor.id);
+    if (total > 0) {
+      const debit = await reconcileOrderAdjustment({
+        owner,
+        orderId,
+        targetNet: -total,
+        actorId: actor.id,
+        note: `Order ${order.order_number} paid by store credit`,
+      });
+      if (!debit.ok) return { ok: false, error: debit.error };
+    }
+    const { error } = await admin
+      .from("orders")
+      .update({
+        payment_method: "credit",
+        paid_cash: 0,
+        paid_upi: 0,
+        amount_paid: total,
+        payment_status: "paid",
+        updated_at: now,
+      })
+      .eq("id", orderId);
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${orderId}`);
+    revalidatePath("/admin/customers");
+    revalidatePath("/admin/reports");
+    if (order.user_id) revalidatePath(`/admin/users/${order.user_id}`);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+
+  // Switching away from credit returns whatever it charged back to the wallet.
+  if (oldMethod === "credit") {
+    const owner = await resolveOrderWalletOwner(order);
+    if (owner) await reconcileOrderAdjustment({ owner, orderId, targetNet: 0, actorId: actor.id });
+    await refundOrderCredit(orderId, actor.id);
+  }
+
+  const patch: Record<string, unknown> = {
+    payment_method: normalized,
+    paid_cash: 0,
+    paid_upi: 0,
+    updated_at: now,
+  };
+  if (normalized === "split") {
+    const cash = Math.min(Math.max(Number(opts?.paidCash) || 0, 0), total);
+    patch.paid_cash = cash;
+    patch.paid_upi = Math.max(total - cash, 0);
+    patch.amount_paid = total;
+    patch.payment_status = "paid";
+  } else if (oldMethod === "credit") {
+    // We just released the wallet charge — record the order as paid by the new
+    // method so it isn't left looking unpaid.
+    patch.amount_paid = total;
+    patch.payment_status = "paid";
+  }
+
+  const { error } = await admin.from("orders").update(patch).eq("id", orderId);
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/customers");
   revalidatePath("/admin/reports");
+  if (order.user_id) revalidatePath(`/admin/users/${order.user_id}`);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
@@ -498,6 +621,26 @@ export async function createManualOrderAction(
   revalidatePath("/admin/orders");
   revalidatePath("/admin/customers");
   return { ...res, order: { ...res.order, status: "delivered" as OrderStatus } };
+}
+
+/**
+ * The wallet that an order's balance belongs to: the signed-in customer's
+ * profile when the order has a `user_id`, otherwise the walk-in customer matched
+ * (or created) by name. Returns null when there's nothing to tie credit to.
+ */
+async function resolveOrderWalletOwner(order: {
+  user_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_room?: string | null;
+}): Promise<WalletOwner | null> {
+  if (order.user_id) return { profileId: order.user_id };
+  const customerId = await upsertCustomerByName(
+    order.customer_name ?? "",
+    order.customer_phone,
+    order.customer_room
+  );
+  return customerId ? { customerId } : null;
 }
 
 /**

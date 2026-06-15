@@ -65,10 +65,53 @@ export async function adjustWallet(params: {
   actorId?: string | null;
   orderId?: string | null;
   note?: string | null;
+  /** Let the balance go below 0 (customer owes the shop). Admin moves only. */
+  allowNegative?: boolean;
 }): Promise<AdjustResult> {
   const walletId = await getOrCreateWalletId(params.owner);
   if (!walletId) return { ok: false, error: "Could not resolve wallet." };
   return adjustWalletById({ ...params, walletId });
+}
+
+/**
+ * Make the *net* of an order's manual settlement entries (type `adjustment`,
+ * tagged with the order id) equal `targetNet` — signed: + parks store credit for
+ * the customer, − records a debt they owe the shop. Only the delta vs whatever
+ * was already applied is moved, so repeated saves (editing "amount paid", or
+ * flipping the payment method) never double-count. The balance is allowed to go
+ * negative. Returns `skipped` when nothing needed to change.
+ */
+export async function reconcileOrderAdjustment(params: {
+  owner: WalletOwner;
+  orderId: string;
+  targetNet: number;
+  actorId?: string | null;
+  note?: string | null;
+}): Promise<AdjustResult | { ok: true; balance: number; skipped: true }> {
+  const walletId = await getOrCreateWalletId(params.owner);
+  if (!walletId) return { ok: false, error: "Could not resolve wallet." };
+
+  const admin = createAdminClient();
+  const { data: txns } = await admin
+    .from("wallet_transactions")
+    .select("amount")
+    .eq("wallet_id", walletId)
+    .eq("order_id", params.orderId)
+    .eq("type", "adjustment");
+  const applied = ((txns as { amount: number }[] | null) ?? []).reduce((s, t) => s + Number(t.amount), 0);
+
+  const delta = Number(params.targetNet) - applied;
+  if (Math.abs(delta) < 0.005) return { ok: true, balance: 0, skipped: true };
+
+  return adjustWalletById({
+    walletId,
+    amount: delta,
+    type: "adjustment",
+    orderId: params.orderId,
+    actorId: params.actorId,
+    note: params.note ?? "Order payment reconciliation",
+    allowNegative: true,
+  });
 }
 
 /**
@@ -115,6 +158,8 @@ export async function adjustWalletById(params: {
   actorId?: string | null;
   orderId?: string | null;
   note?: string | null;
+  /** Let the balance go below 0 (customer owes the shop). Admin moves only. */
+  allowNegative?: boolean;
 }): Promise<AdjustResult> {
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("wallet_adjust", {
@@ -124,6 +169,7 @@ export async function adjustWalletById(params: {
     p_order_id: params.orderId ?? null,
     p_note: params.note ?? null,
     p_actor: params.actorId ?? null,
+    p_allow_negative: params.allowNegative ?? false,
   });
   if (error) return { ok: false, error: error.message };
   const res = data as { ok: boolean; error?: string; balance?: number };

@@ -562,8 +562,11 @@ BEGIN
 END;
 $$;
 
+-- p_allow_negative lets an admin movement push the balance below 0 (the customer
+-- owes the shop). Customer self-spend leaves it FALSE so they can't overdraw.
 CREATE OR REPLACE FUNCTION public.wallet_adjust(
-  p_wallet_id UUID, p_amount DECIMAL, p_type TEXT, p_order_id UUID, p_note TEXT, p_actor UUID
+  p_wallet_id UUID, p_amount DECIMAL, p_type TEXT, p_order_id UUID, p_note TEXT, p_actor UUID,
+  p_allow_negative BOOLEAN DEFAULT FALSE
 )
 RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -573,7 +576,7 @@ BEGIN
   SELECT balance INTO v_balance FROM public.wallets WHERE id = p_wallet_id FOR UPDATE;
   IF v_balance IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Wallet not found.'); END IF;
   v_new := v_balance + p_amount;
-  IF v_new < 0 THEN RETURN jsonb_build_object('ok', false, 'error', 'Insufficient credit balance.'); END IF;
+  IF v_new < 0 AND NOT p_allow_negative THEN RETURN jsonb_build_object('ok', false, 'error', 'Insufficient credit balance.'); END IF;
   UPDATE public.wallets SET balance = v_new, updated_at = NOW() WHERE id = p_wallet_id;
   INSERT INTO public.wallet_transactions (wallet_id, amount, balance_after, type, order_id, note, created_by)
   VALUES (p_wallet_id, p_amount, v_new, p_type, p_order_id, NULLIF(p_note, ''), p_actor);

@@ -60,11 +60,21 @@ export function WalletPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-xl border border-black/10 bg-lime-50 px-4 py-3 dark:border-white/10 dark:bg-lime-400/10">
+      <div
+        className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+          balance < 0
+            ? "border-amber-300 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/10"
+            : "border-black/10 bg-lime-50 dark:border-white/10 dark:bg-lime-400/10"
+        }`}
+      >
         <span className="flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-200">
-          <WalletIcon className="h-4 w-4" /> Wallet balance
+          <WalletIcon className="h-4 w-4" /> {balance < 0 ? "Owed to shop (debt)" : "Wallet balance"}
         </span>
-        <span className="text-lg font-extrabold text-stone-900 dark:text-white">
+        <span
+          className={`text-lg font-extrabold ${
+            balance < 0 ? "text-amber-700 dark:text-amber-300" : "text-stone-900 dark:text-white"
+          }`}
+        >
           {formatCurrency(balance, currency)}
         </span>
       </div>
