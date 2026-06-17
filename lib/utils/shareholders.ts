@@ -1,17 +1,12 @@
-import { istDateString } from "@/lib/utils/formatters";
-
 /**
  * Shareholder profit distribution. The shop's profit (item gross margin + the
  * shop's delivery share) is owned in full by the shareholders and split by each
  * shareholder's `share_percent` (the roster lives in the `shareholders` table).
  *
  * Settlements record a `settled_through` cutoff; the outstanding balance is the
- * pool accrued over orders created AFTER the latest settlement (falling back to
- * PROFIT_START), so settling resets the balance to zero.
+ * pool accrued over orders created AFTER the latest settlement (or all-time when
+ * nothing has been settled yet), so settling resets the balance to zero.
  */
-export const PROFIT_START = "2026-06-10";
-export const PROFIT_START_LABEL = "10 Jun, 2026";
-
 export interface ProfitOrder {
   created_at: string;
   status?: string;
@@ -32,17 +27,12 @@ export function orderProfit(o: ProfitOrder): number {
 /**
  * Outstanding profit pool over the given orders. When `sinceIso` is provided
  * (the last settlement cutoff), only orders created strictly after it count;
- * otherwise everything from PROFIT_START onwards counts. Cancelled orders are
- * always excluded.
+ * otherwise all-time profit counts. Cancelled orders are always excluded.
  */
 export function computeProfitPool(orders: ProfitOrder[], sinceIso?: string | null): number {
   return orders.reduce((sum, o) => {
     if (o.status === "cancelled") return sum;
-    if (sinceIso) {
-      if (o.created_at <= sinceIso) return sum;
-    } else if (istDateString(o.created_at) < PROFIT_START) {
-      return sum;
-    }
+    if (sinceIso && o.created_at <= sinceIso) return sum;
     return sum + orderProfit(o);
   }, 0);
 }

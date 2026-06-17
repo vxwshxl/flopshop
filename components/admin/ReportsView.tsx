@@ -23,7 +23,7 @@ import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDate, istDateString, paymentSplit } from "@/lib/utils/formatters";
-import { computeProfitPool, splitPool, PROFIT_START_LABEL } from "@/lib/utils/shareholders";
+import { computeProfitPool, splitPool } from "@/lib/utils/shareholders";
 import type { Category, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
 
 interface ReportOrder {
@@ -458,7 +458,7 @@ export function ReportsView({
                           ·{" "}
                           {lastSettledThrough
                             ? `since last settlement ${formatDate(lastSettledThrough)}`
-                            : `${PROFIT_START_LABEL} onwards`}
+                            : `all-time`}
                         </p>
                       </div>
                     </div>
