@@ -606,21 +606,23 @@ ALTER TABLE wallets REPLICA IDENTITY FULL;
 ALTER TABLE wallet_transactions REPLICA IDENTITY FULL;
 ALTER TABLE wallet_topup_requests REPLICA IDENTITY FULL;
 
-CREATE TABLE developer_settlements (
+-- Shareholder profit distribution. The shop's profit pool (item margin + the
+-- shop's delivery share) is split Philip 50% / Zau 40% / Vee 10%. Each row
+-- snapshots the pool settled up to `settled_through`, which resets the
+-- outstanding balance. Vee's 10% supersedes the old "developer share".
+CREATE TABLE profit_settlements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   profit_base DECIMAL(10,2) NOT NULL DEFAULT 0,
   settled_through TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- How the share was paid out to the developer.
-  method TEXT NOT NULL DEFAULT 'cash' CHECK (method IN ('cash', 'upi', 'split')),
-  paid_cash DECIMAL(10,2) NOT NULL DEFAULT 0,
-  paid_upi DECIMAL(10,2) NOT NULL DEFAULT 0,
+  philip_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  zau_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  vee_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   note TEXT,
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_dev_settlements_through ON developer_settlements(settled_through DESC);
-ALTER TABLE developer_settlements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admin manage developer settlements" ON developer_settlements FOR ALL USING (is_admin());
-ALTER PUBLICATION supabase_realtime ADD TABLE developer_settlements;
-ALTER TABLE developer_settlements REPLICA IDENTITY FULL;
+CREATE INDEX idx_profit_settlements_through ON profit_settlements(settled_through DESC);
+ALTER TABLE profit_settlements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manage profit settlements" ON profit_settlements FOR ALL USING (is_admin());
+ALTER PUBLICATION supabase_realtime ADD TABLE profit_settlements;
+ALTER TABLE profit_settlements REPLICA IDENTITY FULL;

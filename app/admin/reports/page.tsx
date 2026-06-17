@@ -27,7 +27,7 @@ export default async function ReportsPage() {
     supabase.from("purchases").select("*"),
     supabase.from("categories").select("*").order("sort_order"),
     supabase
-      .from("developer_settlements")
+      .from("profit_settlements")
       .select("settled_through")
       .order("settled_through", { ascending: false })
       .limit(1)
@@ -44,7 +44,7 @@ export default async function ReportsPage() {
         purchases={(purchases as Purchase[]) ?? []}
         categories={(categories as Category[]) ?? []}
         settings={settings}
-        developerLastSettledThrough={(lastSettlement as { settled_through: string } | null)?.settled_through ?? null}
+        lastSettledThrough={(lastSettlement as { settled_through: string } | null)?.settled_through ?? null}
       />
     </div>
   );

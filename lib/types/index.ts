@@ -53,16 +53,15 @@ export interface WalletTopupRequest {
   created_at: string;
 }
 
-/** A batch settlement of the developer's accrued share. */
-export interface DeveloperSettlement {
+/** A settlement that distributes the profit pool among shareholders. */
+export interface ProfitSettlement {
   id: string;
-  amount: number;
+  /** The profit pool distributed in this settlement. */
   profit_base: number;
   settled_through: string;
-  /** How the share was paid out to the developer. */
-  method: "cash" | "upi" | "split";
-  paid_cash: number;
-  paid_upi: number;
+  philip_amount: number;
+  zau_amount: number;
+  vee_amount: number;
   note: string | null;
   created_by: string | null;
   created_at: string;

@@ -23,7 +23,7 @@ import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDate, istDateString, paymentSplit } from "@/lib/utils/formatters";
-import { computeDevShare, DEV_FEE_RATE, DEV_FEE_START_LABEL } from "@/lib/utils/devShare";
+import { computeProfitPool, splitProfit, SHAREHOLDERS, PROFIT_START_LABEL } from "@/lib/utils/shareholders";
 import type { Category, Product, Purchase, SettingsMap } from "@/lib/types";
 
 interface ReportOrder {
@@ -67,15 +67,15 @@ export function ReportsView({
   purchases,
   categories,
   settings,
-  developerLastSettledThrough = null,
+  lastSettledThrough = null,
 }: {
   orders: ReportOrder[];
   products: Product[];
   purchases: Purchase[];
   categories: Category[];
   settings: SettingsMap;
-  /** Cutoff of the latest developer settlement; the card shows share accrued since. */
-  developerLastSettledThrough?: string | null;
+  /** Cutoff of the latest shareholder settlement; the card shows profit accrued since. */
+  lastSettledThrough?: string | null;
 }) {
   const currency = settings.currency_symbol ?? "₹";
   const [tab, setTab] = useState<Tab>("Sales");
@@ -210,14 +210,12 @@ export function ReportsView({
     },
     { fee: 0, person: 0, admin: 0 }
   );
-  // Developer's share — 10% of profit (item margin + the shop's delivery share).
-  // After a settlement, only orders created since its cutoff count, so the card
-  // reflects the OUTSTANDING share, not the lifetime total.
-  const { base: devFeeBase, share: devFee } = computeDevShare(
-    validOrders,
-    developerLastSettledThrough
-  );
-  const netProfit = grossProfit + deliveryTotals.admin - devFee;
+  // Shareholder profit pool — item margin + the shop's delivery share, owned in
+  // full by the shareholders. After a settlement, only orders created since its
+  // cutoff count, so the card reflects the OUTSTANDING (unsettled) balance.
+  const profitPool = computeProfitPool(validOrders, lastSettledThrough);
+  const profitSplit = splitProfit(profitPool);
+  const netProfit = grossProfit + deliveryTotals.admin;
 
   // Profit/Loss per product — searchable, sortable, paginated.
   const profitRows = useMemo(
@@ -426,7 +424,7 @@ export function ReportsView({
             <StatCard label="Product Revenue" value={formatCurrency(productRevenue, currency)} />
             <StatCard label="Cost of Goods" value={formatCurrency(cogs, currency)} />
             <StatCard label="Gross Profit" value={formatCurrency(grossProfit, currency)} hint="Revenue − COGS" />
-            <StatCard label="Net Profit" value={formatCurrency(netProfit, currency)} hint="+ admin delivery − dev fee" />
+            <StatCard label="Net Profit" value={formatCurrency(netProfit, currency)} hint="+ admin delivery" />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -442,18 +440,22 @@ export function ReportsView({
                 <p className="text-2xl font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
                 <p className="mt-1 text-xs text-gray-500">{rangePurchases.length} purchase records</p>
               </AdminCard>
-              <Link href="/admin/developer" className="block">
-                <AdminCard title="Developer Share">
+              <Link href="/admin/shareholders" className="block">
+                <AdminCard title="Shareholder Split">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-2xl font-bold text-white">{formatCurrency(devFee, currency)}</p>
+                      <p className="text-2xl font-bold text-white">{formatCurrency(profitPool, currency)}</p>
                       <div className="mt-1 space-y-0.5 text-xs text-gray-500">
-                        <p>· {DEV_FEE_RATE * 100}% of {formatCurrency(devFeeBase, currency)} profit</p>
+                        {SHAREHOLDERS.map((sh) => (
+                          <p key={sh.key}>
+                            · {sh.name} {sh.rate * 100}% — {formatCurrency(profitSplit[sh.key], currency)}
+                          </p>
+                        ))}
                         <p>
                           ·{" "}
-                          {developerLastSettledThrough
-                            ? `since last settlement ${formatDate(developerLastSettledThrough)}`
-                            : `${DEV_FEE_START_LABEL} onwards`}
+                          {lastSettledThrough
+                            ? `since last settlement ${formatDate(lastSettledThrough)}`
+                            : `${PROFIT_START_LABEL} onwards`}
                         </p>
                       </div>
                     </div>
