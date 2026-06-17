@@ -24,7 +24,8 @@ import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, istDateString, paymentSplit } from "@/lib/utils/formatters";
 import { distributeProfit } from "@/lib/utils/shareholders";
-import type { Category, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
+import { MethodTransfers } from "@/components/admin/MethodTransfers";
+import type { Category, MethodTransfer, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
 
 interface ReportOrder {
   id: string;
@@ -69,6 +70,7 @@ export function ReportsView({
   settings,
   shareholders = [],
   cutoffById = {},
+  transfers = [],
 }: {
   orders: ReportOrder[];
   products: Product[];
@@ -79,6 +81,8 @@ export function ReportsView({
   shareholders?: Shareholder[];
   /** Each shareholder's last settlement cutoff (id → ISO), for outstanding profit. */
   cutoffById?: Record<string, string | null>;
+  /** Manual income reclassifications between payment methods. */
+  transfers?: MethodTransfer[];
 }) {
   const currency = settings.currency_symbol ?? "₹";
   const [tab, setTab] = useState<Tab>("Sales");
@@ -129,23 +133,29 @@ export function ReportsView({
   );
   const aov = validOrders.length ? totalRevenue / validOrders.length : 0;
 
-  // Income by payment method — split orders contribute to both cash & UPI.
-  const income = useMemo(
-    () =>
-      validOrders.reduce(
-        (acc, o) => {
-          const s = paymentSplit(o);
-          acc.cash += s.cash;
-          acc.upi += s.upi;
-          acc.bank += s.bank;
-          acc.credit += s.credit;
-          acc.other += s.other;
-          return acc;
-        },
-        { cash: 0, upi: 0, bank: 0, credit: 0, other: 0 }
-      ),
-    [validOrders]
-  );
+  // Income by payment method — split orders contribute to both cash & UPI, then
+  // manual transfers (within range) reclassify amounts between methods.
+  const income = useMemo(() => {
+    const acc = validOrders.reduce(
+      (a, o) => {
+        const s = paymentSplit(o);
+        a.cash += s.cash;
+        a.upi += s.upi;
+        a.bank += s.bank;
+        a.credit += s.credit;
+        a.other += s.other;
+        return a;
+      },
+      { cash: 0, upi: 0, bank: 0, credit: 0, other: 0 }
+    );
+    for (const t of transfers) {
+      if (!inRange(t.date)) continue;
+      for (const leg of t.legs ?? []) {
+        if (leg.method in acc) acc[leg.method] += Number(leg.delta);
+      }
+    }
+    return acc;
+  }, [validOrders, transfers, inRange]);
   const incomePie = useMemo(
     () =>
       [
@@ -349,6 +359,8 @@ export function ReportsView({
               </div>
             )}
           </AdminCard>
+
+          <MethodTransfers transfers={transfers} currency={currency} />
 
           <AdminCard
             title="Daily Sales"

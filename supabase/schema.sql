@@ -673,3 +673,30 @@ ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admin manage withdrawals" ON withdrawals FOR ALL USING (is_admin());
 ALTER PUBLICATION supabase_realtime ADD TABLE withdrawals;
 ALTER TABLE withdrawals REPLICA IDENTITY FULL;
+
+-- Income method transfers: reclassify income between payment methods (cash /
+-- upi / bank / credit / other). Each transfer's legs sum to zero (negative =
+-- source, positive = destination); Reports adds these net deltas per method.
+CREATE TABLE method_transfers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  note TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_method_transfers_date ON method_transfers(date DESC);
+CREATE TABLE method_transfer_legs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  transfer_id UUID NOT NULL REFERENCES method_transfers(id) ON DELETE CASCADE,
+  method TEXT NOT NULL CHECK (method IN ('cash', 'upi', 'bank', 'credit', 'other')),
+  delta DECIMAL(10,2) NOT NULL
+);
+CREATE INDEX idx_method_transfer_legs_transfer ON method_transfer_legs(transfer_id);
+ALTER TABLE method_transfers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE method_transfer_legs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manage method transfers" ON method_transfers FOR ALL USING (is_admin());
+CREATE POLICY "Admin manage method transfer legs" ON method_transfer_legs FOR ALL USING (is_admin());
+ALTER PUBLICATION supabase_realtime ADD TABLE method_transfers;
+ALTER PUBLICATION supabase_realtime ADD TABLE method_transfer_legs;
+ALTER TABLE method_transfers REPLICA IDENTITY FULL;
+ALTER TABLE method_transfer_legs REPLICA IDENTITY FULL;

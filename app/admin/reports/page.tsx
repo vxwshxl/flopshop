@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { ReportsView } from "@/components/admin/ReportsView";
-import type { Category, Product, Purchase, Shareholder } from "@/lib/types";
+import type { Category, MethodTransfer, Product, Purchase, Shareholder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,7 @@ export default async function ReportsPage() {
     { data: categories },
     { data: shareholders },
     { data: settlements },
+    { data: transfers },
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -32,6 +33,10 @@ export default async function ReportsPage() {
       .from("shareholder_settlements")
       .select("shareholder_id, settled_through")
       .order("settled_through", { ascending: false }),
+    supabase
+      .from("method_transfers")
+      .select("*, legs:method_transfer_legs(*)")
+      .order("date", { ascending: false }),
   ]);
 
   // Each shareholder's most recent cutoff → their outstanding profit since then.
@@ -52,6 +57,7 @@ export default async function ReportsPage() {
         settings={settings}
         shareholders={(shareholders as Shareholder[]) ?? []}
         cutoffById={cutoffById}
+        transfers={(transfers as MethodTransfer[]) ?? []}
       />
     </div>
   );

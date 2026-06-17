@@ -68,6 +68,26 @@ export interface Shareholder {
   created_at: string;
 }
 
+/** A payment-method bucket used by income reporting and transfers. */
+export type IncomeMethod = "cash" | "upi" | "bank" | "credit" | "other";
+
+export interface MethodTransferLeg {
+  id: string;
+  transfer_id: string;
+  method: IncomeMethod;
+  delta: number;
+}
+
+/** A reclassification of income between payment methods. Legs sum to zero. */
+export interface MethodTransfer {
+  id: string;
+  date: string;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+  legs?: MethodTransferLeg[];
+}
+
 /** A withdrawal of money from revenue (cash / UPI), with its purpose. */
 export interface Withdrawal {
   id: string;
