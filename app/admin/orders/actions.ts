@@ -581,11 +581,19 @@ export async function createManualOrderAction(
   );
 
   if (orderInput.payment_method === "credit") {
-    // Wallet covered its share (debited by createOrder); any cash/UPI shortfall
-    // is handed over on the spot, so the order is fully paid.
+    // Wallet covered its share (debited by createOrder). The cash/UPI shortfall is
+    // collected at the counter — but maybe not in full, so honor the amount the
+    // form says was actually paid (defaults to the whole total when unspecified).
+    // The wallet portion is always collected, so never record less than that.
+    const walletPaid = Math.max(
+      total - Number(res.order.paid_cash ?? 0) - Number(res.order.paid_upi ?? 0),
+      0
+    );
+    const paid = Math.min(Math.max(amount_paid != null ? Number(amount_paid) : total, walletPaid), total);
+    const status: PaymentStatus = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
     await admin
       .from("orders")
-      .update({ payment_status: "paid", amount_paid: total, updated_at: new Date().toISOString() })
+      .update({ payment_status: status, amount_paid: paid, updated_at: new Date().toISOString() })
       .eq("id", res.order.id);
   } else if (payment_pending) {
     // The goods are handed over but payment isn't fully collected. Record how

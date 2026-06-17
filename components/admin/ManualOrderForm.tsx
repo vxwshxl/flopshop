@@ -175,6 +175,23 @@ export function ManualOrderForm({
         ? shortfallCashGiven - shortfall
         : 0;
 
+  // Credit shortfall: how much of it was actually collected at the counter. The
+  // cash leg is driven by "Cash received" — blank means the full shortfall was
+  // handed over; less leaves a pending balance the customer still owes (the
+  // wallet portion is always collected). UPI/split shortfalls settle on the spot.
+  const shortfallCollected =
+    payment === "credit"
+      ? shortfallMethod === "cash"
+        ? shortfallCashReceived.trim() === ""
+          ? shortfall
+          : Math.min(shortfallCashGiven, shortfall)
+        : shortfall
+      : 0;
+  // What's been collected now (wallet debit + collected shortfall) and what's left
+  // pending. The wallet is debited regardless; only the uncollected cash is owed.
+  const creditPaidNow = payment === "credit" ? walletPortion + shortfallCollected : 0;
+  const creditPending = payment === "credit" ? Math.max(total - creditPaidNow, 0) : 0;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!lines.length) return toast.error("Add at least one product.");
@@ -201,6 +218,9 @@ export function ManualOrderForm({
             credit_owner: { customerId: matchedCustomer.id },
             paid_cash: shortfallCashPaid,
             paid_upi: shortfallUpiPaid,
+            // Wallet portion is always collected; the cash shortfall may be only
+            // partly handed over now — the rest stays pending on the order.
+            amount_paid: creditPaidNow,
           }
         : {}),
       // Credit orders are settled from the wallet — never "payment pending".
@@ -230,6 +250,7 @@ export function ManualOrderForm({
     toast.success(
       `Order ${res.order.order_number} completed` +
         (paymentPending && payment !== "credit" ? " · payment pending" : "") +
+        (creditPending > 0 ? ` · ${formatCurrency(creditPending, currency)} pending` : "") +
         (overpay > 0 ? ` · ${formatCurrency(overpay, currency)} added to wallet` : "")
     );
     // Stay on the manual-order page (fields already reset above) so the admin
@@ -489,6 +510,12 @@ export function ManualOrderForm({
                         {overpay > 0 && (
                           <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
                             No change? {formatCurrency(overpay, currency)} will be added to {matchedCustomer.name}&apos;s wallet.
+                          </p>
+                        )}
+                        {creditPending > 0 && (
+                          <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                            Collected less than the shortfall — {formatCurrency(creditPending, currency)} stays
+                            pending (mark it paid later from the Orders page).
                           </p>
                         )}
                       </div>
