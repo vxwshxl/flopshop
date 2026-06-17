@@ -7,6 +7,7 @@ import { Pencil, Trash2, Plus, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   addShareholderAction,
   updateShareholderAction,
@@ -49,6 +50,8 @@ export function ShareholdersManager({
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Shareholder | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const activeTotal = totalPercent(rows.filter((r) => r.is_active));
   const balanced = Math.abs(activeTotal - 100) <= 0.01;
@@ -95,11 +98,14 @@ export function ShareholdersManager({
     router.refresh();
   }
 
-  async function remove(s: Shareholder) {
-    if (!confirm(`Remove ${s.name} from the roster?`)) return;
-    const res = await deleteShareholderAction(s.id);
+  async function removeConfirmed() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const res = await deleteShareholderAction(deleteTarget.id);
+    setDeleting(false);
     if (!res.ok) return toast.error(res.error);
-    setRows((prev) => prev.filter((r) => r.id !== s.id));
+    setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    setDeleteTarget(null);
     toast.success("Shareholder removed.");
     router.refresh();
   }
@@ -157,7 +163,7 @@ export function ShareholdersManager({
                 <Pencil className="h-4 w-4" />
               </button>
               <button
-                onClick={() => remove(s)}
+                onClick={() => setDeleteTarget(s)}
                 className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
                 aria-label="Remove"
               >
@@ -273,6 +279,16 @@ export function ShareholdersManager({
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Remove shareholder"
+        description={`Remove ${deleteTarget?.name ?? "this shareholder"} from the roster?`}
+        confirmLabel="Remove"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={removeConfirmed}
+      />
     </div>
   );
 }

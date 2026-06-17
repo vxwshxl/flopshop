@@ -55,7 +55,7 @@ export function WalletCard({
   }
 
   return (
-    <div className="mx-auto mt-4 max-w-md px-4">
+    <div>
       <div className="glass space-y-4 rounded-2xl p-5">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-2 text-sm font-medium text-stone-600 dark:text-stone-300">

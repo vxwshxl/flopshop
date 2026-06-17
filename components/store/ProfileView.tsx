@@ -60,10 +60,7 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-6">
-      <h1 className="mb-1 text-xl font-bold text-white">Your Profile</h1>
-      <p className="mb-5 text-sm text-white/50">{profile.email}</p>
-
+    <div>
       <form onSubmit={save} className="glass space-y-4 rounded-2xl p-5">
         <div>
           <Label>Full name</Label>

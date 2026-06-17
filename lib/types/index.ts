@@ -68,6 +68,18 @@ export interface Shareholder {
   created_at: string;
 }
 
+/** A withdrawal of money from revenue (cash / UPI), with its purpose. */
+export interface Withdrawal {
+  id: string;
+  date: string;
+  amount: number;
+  method: "cash" | "upi";
+  purpose: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 /** A payout to one shareholder, settled at that holder's own time. */
 export interface ShareholderSettlement {
   id: string;

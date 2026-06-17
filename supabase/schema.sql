@@ -656,3 +656,20 @@ CREATE POLICY "Shareholder confirms own settlements" ON shareholder_settlements 
 );
 ALTER PUBLICATION supabase_realtime ADD TABLE shareholder_settlements;
 ALTER TABLE shareholder_settlements REPLICA IDENTITY FULL;
+
+-- Withdrawals ledger: money taken out of revenue (cash / UPI), with purpose.
+CREATE TABLE withdrawals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  method TEXT NOT NULL DEFAULT 'upi' CHECK (method IN ('cash', 'upi')),
+  purpose TEXT,
+  note TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_withdrawals_date ON withdrawals(date DESC);
+ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manage withdrawals" ON withdrawals FOR ALL USING (is_admin());
+ALTER PUBLICATION supabase_realtime ADD TABLE withdrawals;
+ALTER TABLE withdrawals REPLICA IDENTITY FULL;

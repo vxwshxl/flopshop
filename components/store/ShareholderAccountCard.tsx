@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { TrendingUp, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { confirmSettlementAction } from "@/app/admin/shareholders/actions";
 
@@ -37,6 +38,8 @@ export function ShareholderAccountCard({
     .filter((s) => s.status === "pending")
     .reduce((sum, s) => sum + Number(s.amount), 0);
 
+  const pag = usePagination(settlements);
+
   function confirm(id: string) {
     setConfirming(id);
     startTransition(async () => {
@@ -52,7 +55,8 @@ export function ShareholderAccountCard({
   }
 
   return (
-    <div className="glass mt-4 rounded-2xl">
+    <div className="mt-6">
+      <div className="glass rounded-2xl">
       <div className="glass-line flex items-center justify-between gap-2 border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-yellow-400" />
@@ -81,7 +85,7 @@ export function ShareholderAccountCard({
           <p className="text-xs text-stone-500">No settlements yet.</p>
         ) : (
           <div className="space-y-2">
-            {settlements.map((s) => (
+            {pag.pageItems.map((s) => (
               <div
                 key={s.id}
                 className="rounded-lg border border-black/10 px-3 py-2.5 dark:border-white/10"
@@ -118,8 +122,17 @@ export function ShareholderAccountCard({
                 )}
               </div>
             ))}
+            <Pagination
+              page={pag.page}
+              totalPages={pag.totalPages}
+              perPage={pag.perPage}
+              total={pag.total}
+              onPage={pag.setPage}
+              onPerPage={pag.setPerPage}
+            />
           </div>
         )}
+      </div>
       </div>
     </div>
   );

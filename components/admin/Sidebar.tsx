@@ -21,6 +21,7 @@ import {
   Building2,
   Contact,
   Wallet,
+  ArrowDownToLine,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { cn } from "@/lib/utils/cn";
@@ -65,6 +66,7 @@ const sections: { title: string; items: NavItem[] }[] = [
       { href: "/admin/invoices", label: "Invoices", icon: FileText },
       { href: "/admin/reports", label: "Reports", icon: BarChart3 },
       { href: "/admin/shareholders", label: "Shareholders", icon: Users },
+      { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowDownToLine },
     ],
   },
   {

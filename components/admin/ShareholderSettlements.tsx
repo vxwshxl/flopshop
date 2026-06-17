@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Users, Trash2, CheckCircle2, Clock, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils/formatters";
 import { settleShareholderAction, deleteSettlementAction } from "@/app/admin/shareholders/actions";
 
@@ -49,7 +50,8 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
   const router = useRouter();
   const [note, setNote] = useState("");
   const [busy, startTransition] = useTransition();
-  const [reversing, setReversing] = useState<string | null>(null);
+  const [reverseTarget, setReverseTarget] = useState<SettlementRow | null>(null);
+  const [reversing, setReversing] = useState(false);
 
   function settle() {
     startTransition(async () => {
@@ -64,12 +66,13 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
     });
   }
 
-  async function reverse(id: string) {
-    if (!confirm("Reverse this settlement? The profit returns to this shareholder's balance.")) return;
-    setReversing(id);
-    const res = await deleteSettlementAction(id);
-    setReversing(null);
+  async function reverseConfirmed() {
+    if (!reverseTarget) return;
+    setReversing(true);
+    const res = await deleteSettlementAction(reverseTarget.id);
+    setReversing(false);
     if (!res.ok) return toast.error(res.error);
+    setReverseTarget(null);
     toast.success("Settlement reversed.");
     router.refresh();
   }
@@ -137,8 +140,7 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
                 {h.note && <span className="text-stone-500">“{h.note}”</span>}
               </div>
               <button
-                onClick={() => reverse(h.id)}
-                disabled={reversing === h.id}
+                onClick={() => setReverseTarget(h)}
                 className="rounded-md p-1.5 text-black/40 hover:bg-red-500/15 hover:text-red-500 disabled:opacity-50 dark:text-white/40"
                 aria-label="Reverse settlement"
                 title="Reverse settlement"
@@ -149,6 +151,20 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!reverseTarget}
+        title="Reverse settlement"
+        description={
+          reverseTarget
+            ? `Reverse this ${formatCurrency(reverseTarget.amount, currency)} settlement? The profit returns to ${holder.name}'s balance.`
+            : ""
+        }
+        confirmLabel="Reverse"
+        loading={reversing}
+        onCancel={() => setReverseTarget(null)}
+        onConfirm={reverseConfirmed}
+      />
     </div>
   );
 }

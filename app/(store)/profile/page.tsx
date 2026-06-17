@@ -51,14 +51,18 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="pb-8">
-      <ProfileView profile={profile} hostels={hostels} />
-      <WalletCard
-        balance={wallet ? Number(wallet.balance) : 0}
-        transactions={transactions}
-        pendingTopups={(topups as WalletTopupRequest[] | null) ?? []}
-        currency={settings.currency_symbol ?? "₹"}
-      />
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <h1 className="mb-1 text-xl font-bold text-white">Your Profile</h1>
+      <p className="mb-5 text-sm text-white/50">{profile.email}</p>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <ProfileView profile={profile} hostels={hostels} />
+        <WalletCard
+          balance={wallet ? Number(wallet.balance) : 0}
+          transactions={transactions}
+          pendingTopups={(topups as WalletTopupRequest[] | null) ?? []}
+          currency={settings.currency_symbol ?? "₹"}
+        />
+      </div>
       {myShareholder && (
         <ShareholderAccountCard
           name={myShareholder.name}
