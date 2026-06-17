@@ -607,52 +607,52 @@ ALTER TABLE wallet_transactions REPLICA IDENTITY FULL;
 ALTER TABLE wallet_topup_requests REPLICA IDENTITY FULL;
 
 -- Editable shareholder roster. share_percent across active rows should sum to
--- 100; the profit pool is distributed by these percentages.
+-- 100. Each shareholder may be linked to an app user account (profile_id) so
+-- they can view & confirm their own settlements.
 CREATE TABLE shareholders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   type TEXT,                                   -- e.g. founder / investor / developer
   share_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+  profit_from DATE,                            -- only profit on/after this date counts (NULL = all-time)
+  profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,  -- linked app account
   sort_order INT NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_shareholders_profile ON shareholders(profile_id);
 ALTER TABLE shareholders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admin manage shareholders" ON shareholders FOR ALL USING (is_admin());
+CREATE POLICY "Shareholder reads own roster row" ON shareholders FOR SELECT USING (profile_id = auth.uid());
 ALTER PUBLICATION supabase_realtime ADD TABLE shareholders;
 ALTER TABLE shareholders REPLICA IDENTITY FULL;
 
--- Shareholder profit distribution. The shop's profit pool (item margin + the
--- shop's delivery share) is split among the shareholders roster. Each row
--- snapshots the pool settled up to `settled_through`, which resets the
--- outstanding balance.
-CREATE TABLE profit_settlements (
+-- Per-shareholder settlement: one row = one payout to one shareholder, settled
+-- at that holder's own time (their own cutoff). The holder confirms receipt from
+-- their linked account, flipping status pending -> confirmed.
+CREATE TABLE shareholder_settlements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shareholder_id UUID NOT NULL REFERENCES shareholders(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,                          -- snapshot at settle time
+  type TEXT,
+  share_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
   profit_base DECIMAL(10,2) NOT NULL DEFAULT 0,
-  settled_through TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  settled_through TIMESTAMPTZ NOT NULL DEFAULT NOW(),  -- this holder's cutoff
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed')),
+  confirmed_at TIMESTAMPTZ,
   note TEXT,
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_profit_settlements_through ON profit_settlements(settled_through DESC);
-ALTER TABLE profit_settlements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admin manage profit settlements" ON profit_settlements FOR ALL USING (is_admin());
-ALTER PUBLICATION supabase_realtime ADD TABLE profit_settlements;
-ALTER TABLE profit_settlements REPLICA IDENTITY FULL;
-
--- Per-settlement snapshot of each shareholder's cut at settle time.
-CREATE TABLE profit_settlement_shares (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  settlement_id UUID NOT NULL REFERENCES profit_settlements(id) ON DELETE CASCADE,
-  shareholder_id UUID REFERENCES shareholders(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  type TEXT,
-  share_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
-  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE INDEX idx_shareholder_settlements_holder ON shareholder_settlements(shareholder_id, settled_through DESC);
+ALTER TABLE shareholder_settlements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manage shareholder settlements" ON shareholder_settlements FOR ALL USING (is_admin());
+CREATE POLICY "Shareholder reads own settlements" ON shareholder_settlements FOR SELECT USING (
+  EXISTS (SELECT 1 FROM shareholders s WHERE s.id = shareholder_settlements.shareholder_id AND s.profile_id = auth.uid())
 );
-CREATE INDEX idx_settlement_shares_settlement ON profit_settlement_shares(settlement_id);
-ALTER TABLE profit_settlement_shares ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admin manage settlement shares" ON profit_settlement_shares FOR ALL USING (is_admin());
-ALTER PUBLICATION supabase_realtime ADD TABLE profit_settlement_shares;
-ALTER TABLE profit_settlement_shares REPLICA IDENTITY FULL;
+CREATE POLICY "Shareholder confirms own settlements" ON shareholder_settlements FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM shareholders s WHERE s.id = shareholder_settlements.shareholder_id AND s.profile_id = auth.uid())
+);
+ALTER PUBLICATION supabase_realtime ADD TABLE shareholder_settlements;
+ALTER TABLE shareholder_settlements REPLICA IDENTITY FULL;

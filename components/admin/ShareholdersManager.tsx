@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Pencil, Trash2, Plus, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import {
   addShareholderAction,
@@ -13,13 +13,36 @@ import {
   deleteShareholderAction,
 } from "@/app/admin/shareholders/actions";
 import { totalPercent } from "@/lib/utils/shareholders";
+import { formatDate } from "@/lib/utils/formatters";
 import type { Shareholder } from "@/lib/types";
 
-type Draft = { name: string; type: string; share_percent: string; is_active: boolean };
+export type LinkUser = { id: string; email: string | null; full_name: string | null };
 
-const EMPTY: Draft = { name: "", type: "", share_percent: "", is_active: true };
+type Draft = {
+  name: string;
+  type: string;
+  share_percent: string;
+  profit_from: string;
+  profile_id: string;
+  is_active: boolean;
+};
 
-export function ShareholdersManager({ shareholders: initial }: { shareholders: Shareholder[] }) {
+const EMPTY: Draft = {
+  name: "",
+  type: "",
+  share_percent: "",
+  profit_from: "",
+  profile_id: "",
+  is_active: true,
+};
+
+export function ShareholdersManager({
+  shareholders: initial,
+  users,
+}: {
+  shareholders: Shareholder[];
+  users: LinkUser[];
+}) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Shareholder | null>(null);
@@ -29,6 +52,11 @@ export function ShareholdersManager({ shareholders: initial }: { shareholders: S
 
   const activeTotal = totalPercent(rows.filter((r) => r.is_active));
   const balanced = Math.abs(activeTotal - 100) <= 0.01;
+
+  const userLabel = (id: string) => {
+    const u = users.find((x) => x.id === id);
+    return u ? u.full_name || u.email || "Linked account" : "Linked account";
+  };
 
   function openAdd() {
     setEditing(null);
@@ -42,6 +70,8 @@ export function ShareholdersManager({ shareholders: initial }: { shareholders: S
       name: s.name,
       type: s.type ?? "",
       share_percent: String(s.share_percent),
+      profit_from: s.profit_from ?? "",
+      profile_id: s.profile_id ?? "",
       is_active: s.is_active,
     });
     setOpen(true);
@@ -105,7 +135,17 @@ export function ShareholdersManager({ shareholders: initial }: { shareholders: S
                   </span>
                 )}
               </div>
-              {s.type && <p className="text-xs capitalize text-stone-500">{s.type}</p>}
+              <p className="text-xs text-stone-500">
+                {s.type && <span className="capitalize">{s.type}</span>}
+                {s.type && s.profit_from && " · "}
+                {s.profit_from && <span>from {formatDate(s.profit_from)}</span>}
+                {(s.type || s.profit_from) && " · "}
+                {s.profile_id ? (
+                  <span>{userLabel(s.profile_id)}</span>
+                ) : (
+                  <span className="text-amber-500">no account</span>
+                )}
+              </p>
             </div>
             <span className="text-sm font-bold text-stone-900 dark:text-white">{Number(s.share_percent)}%</span>
             <div className="flex gap-1">
@@ -177,6 +217,35 @@ export function ShareholdersManager({ shareholders: initial }: { shareholders: S
               onChange={(e) => setDraft({ ...draft, share_percent: e.target.value })}
               placeholder="0"
             />
+          </div>
+          <div>
+            <Label htmlFor="sh-from">Count profit from</Label>
+            <Input
+              id="sh-from"
+              type="date"
+              value={draft.profit_from}
+              onChange={(e) => setDraft({ ...draft, profit_from: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-stone-500">
+              Optional — leave blank to earn on all-time profit (e.g. founders).
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="sh-account">Linked account</Label>
+            <Select
+              value={draft.profile_id}
+              onChange={(e) => setDraft({ ...draft, profile_id: e.target.value })}
+            >
+              <option value="">— No account —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name || u.email || u.id}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-stone-500">
+              The user who can view & confirm this shareholder&apos;s settlements from their account.
+            </p>
           </div>
           <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
             <input

@@ -16,7 +16,7 @@ export default async function ReportsPage() {
     { data: purchases },
     { data: categories },
     { data: shareholders },
-    { data: lastSettlement },
+    { data: settlements },
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -29,12 +29,16 @@ export default async function ReportsPage() {
     supabase.from("categories").select("*").order("sort_order"),
     supabase.from("shareholders").select("*").eq("is_active", true).order("sort_order"),
     supabase
-      .from("profit_settlements")
-      .select("settled_through")
-      .order("settled_through", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .from("shareholder_settlements")
+      .select("shareholder_id, settled_through")
+      .order("settled_through", { ascending: false }),
   ]);
+
+  // Each shareholder's most recent cutoff → their outstanding profit since then.
+  const cutoffById: Record<string, string> = {};
+  for (const s of (settlements as { shareholder_id: string; settled_through: string }[] | null) ?? []) {
+    if (!cutoffById[s.shareholder_id]) cutoffById[s.shareholder_id] = s.settled_through;
+  }
 
   return (
     <div>
@@ -47,7 +51,7 @@ export default async function ReportsPage() {
         categories={(categories as Category[]) ?? []}
         settings={settings}
         shareholders={(shareholders as Shareholder[]) ?? []}
-        lastSettledThrough={(lastSettlement as { settled_through: string } | null)?.settled_through ?? null}
+        cutoffById={cutoffById}
       />
     </div>
   );

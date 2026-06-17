@@ -59,33 +59,31 @@ export interface Shareholder {
   name: string;
   type: string | null;
   share_percent: number;
+  /** Only profit on/after this date (YYYY-MM-DD) counts for this shareholder. */
+  profit_from: string | null;
+  /** Linked app user account that can view & confirm this shareholder's payouts. */
+  profile_id: string | null;
   sort_order: number;
   is_active: boolean;
   created_at: string;
 }
 
-/** One shareholder's snapshotted cut of a settlement. */
-export interface ProfitSettlementShare {
+/** A payout to one shareholder, settled at that holder's own time. */
+export interface ShareholderSettlement {
   id: string;
-  settlement_id: string;
-  shareholder_id: string | null;
+  shareholder_id: string;
   name: string;
   type: string | null;
   share_percent: number;
-  amount: number;
-  created_at: string;
-}
-
-/** A settlement that distributes the profit pool among shareholders. */
-export interface ProfitSettlement {
-  id: string;
-  /** The profit pool distributed in this settlement. */
+  /** Profit that accrued to this shareholder for this settlement. */
   profit_base: number;
+  amount: number;
   settled_through: string;
+  status: "pending" | "confirmed";
+  confirmed_at: string | null;
   note: string | null;
   created_by: string | null;
   created_at: string;
-  shares?: ProfitSettlementShare[];
 }
 
 export interface Hostel {

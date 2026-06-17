@@ -22,8 +22,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
-import { formatCurrency, formatDate, istDateString, paymentSplit } from "@/lib/utils/formatters";
-import { computeProfitPool, splitPool } from "@/lib/utils/shareholders";
+import { formatCurrency, istDateString, paymentSplit } from "@/lib/utils/formatters";
+import { distributeProfit } from "@/lib/utils/shareholders";
 import type { Category, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
 
 interface ReportOrder {
@@ -68,7 +68,7 @@ export function ReportsView({
   categories,
   settings,
   shareholders = [],
-  lastSettledThrough = null,
+  cutoffById = {},
 }: {
   orders: ReportOrder[];
   products: Product[];
@@ -77,8 +77,8 @@ export function ReportsView({
   settings: SettingsMap;
   /** Active shareholder roster, used to break down the profit pool. */
   shareholders?: Shareholder[];
-  /** Cutoff of the latest shareholder settlement; the card shows profit accrued since. */
-  lastSettledThrough?: string | null;
+  /** Each shareholder's last settlement cutoff (id → ISO), for outstanding profit. */
+  cutoffById?: Record<string, string | null>;
 }) {
   const currency = settings.currency_symbol ?? "₹";
   const [tab, setTab] = useState<Tab>("Sales");
@@ -216,8 +216,8 @@ export function ReportsView({
   // Shareholder profit pool — item margin + the shop's delivery share, owned in
   // full by the shareholders. After a settlement, only orders created since its
   // cutoff count, so the card reflects the OUTSTANDING (unsettled) balance.
-  const profitPool = computeProfitPool(validOrders, lastSettledThrough);
-  const profitSplit = splitPool(profitPool, shareholders);
+  const profitSplit = distributeProfit(validOrders, shareholders, cutoffById);
+  const profitPool = profitSplit.reduce((s, d) => s + d.amount, 0);
   const netProfit = grossProfit + deliveryTotals.admin;
 
   // Profit/Loss per product — searchable, sortable, paginated.
@@ -454,12 +454,7 @@ export function ReportsView({
                             · {sh.name} {Number(sh.share_percent)}% — {formatCurrency(sh.amount, currency)}
                           </p>
                         ))}
-                        <p>
-                          ·{" "}
-                          {lastSettledThrough
-                            ? `since last settlement ${formatDate(lastSettledThrough)}`
-                            : `all-time`}
-                        </p>
+                        <p>· outstanding, unsettled</p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 text-gray-500" />
