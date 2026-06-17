@@ -606,17 +606,30 @@ ALTER TABLE wallets REPLICA IDENTITY FULL;
 ALTER TABLE wallet_transactions REPLICA IDENTITY FULL;
 ALTER TABLE wallet_topup_requests REPLICA IDENTITY FULL;
 
+-- Editable shareholder roster. share_percent across active rows should sum to
+-- 100; the profit pool is distributed by these percentages.
+CREATE TABLE shareholders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  type TEXT,                                   -- e.g. founder / investor / developer
+  share_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE shareholders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manage shareholders" ON shareholders FOR ALL USING (is_admin());
+ALTER PUBLICATION supabase_realtime ADD TABLE shareholders;
+ALTER TABLE shareholders REPLICA IDENTITY FULL;
+
 -- Shareholder profit distribution. The shop's profit pool (item margin + the
--- shop's delivery share) is split Philip 50% / Zau 40% / Vee 10%. Each row
+-- shop's delivery share) is split among the shareholders roster. Each row
 -- snapshots the pool settled up to `settled_through`, which resets the
--- outstanding balance. Vee's 10% supersedes the old "developer share".
+-- outstanding balance.
 CREATE TABLE profit_settlements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profit_base DECIMAL(10,2) NOT NULL DEFAULT 0,
   settled_through TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  philip_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  zau_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  vee_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   note TEXT,
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -626,3 +639,20 @@ ALTER TABLE profit_settlements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admin manage profit settlements" ON profit_settlements FOR ALL USING (is_admin());
 ALTER PUBLICATION supabase_realtime ADD TABLE profit_settlements;
 ALTER TABLE profit_settlements REPLICA IDENTITY FULL;
+
+-- Per-settlement snapshot of each shareholder's cut at settle time.
+CREATE TABLE profit_settlement_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  settlement_id UUID NOT NULL REFERENCES profit_settlements(id) ON DELETE CASCADE,
+  shareholder_id UUID REFERENCES shareholders(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  type TEXT,
+  share_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_settlement_shares_settlement ON profit_settlement_shares(settlement_id);
+ALTER TABLE profit_settlement_shares ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin manage settlement shares" ON profit_settlement_shares FOR ALL USING (is_admin());
+ALTER PUBLICATION supabase_realtime ADD TABLE profit_settlement_shares;
+ALTER TABLE profit_settlement_shares REPLICA IDENTITY FULL;

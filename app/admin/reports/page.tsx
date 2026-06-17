@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { ReportsView } from "@/components/admin/ReportsView";
-import type { Category, Product, Purchase } from "@/lib/types";
+import type { Category, Product, Purchase, Shareholder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ export default async function ReportsPage() {
     { data: products },
     { data: purchases },
     { data: categories },
+    { data: shareholders },
     { data: lastSettlement },
   ] = await Promise.all([
     supabase
@@ -26,6 +27,7 @@ export default async function ReportsPage() {
     supabase.from("products").select("*").order("name"),
     supabase.from("purchases").select("*"),
     supabase.from("categories").select("*").order("sort_order"),
+    supabase.from("shareholders").select("*").eq("is_active", true).order("sort_order"),
     supabase
       .from("profit_settlements")
       .select("settled_through")
@@ -44,6 +46,7 @@ export default async function ReportsPage() {
         purchases={(purchases as Purchase[]) ?? []}
         categories={(categories as Category[]) ?? []}
         settings={settings}
+        shareholders={(shareholders as Shareholder[]) ?? []}
         lastSettledThrough={(lastSettlement as { settled_through: string } | null)?.settled_through ?? null}
       />
     </div>

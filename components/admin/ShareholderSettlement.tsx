@@ -8,26 +8,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
-import { SHAREHOLDERS, splitProfit, type ShareholderKey } from "@/lib/utils/shareholders";
+import { splitPool, totalPercent } from "@/lib/utils/shareholders";
 import { settleShareholdersAction } from "@/app/admin/shareholders/actions";
+import type { Shareholder } from "@/lib/types";
+
+export type SettlementShareRow = {
+  id: string;
+  name: string;
+  type: string | null;
+  share_percent: number;
+  amount: number;
+};
 
 export type ProfitSettlementRow = {
   id: string;
   profit_base: number;
   settled_through: string;
-  philip_amount: number;
-  zau_amount: number;
-  vee_amount: number;
   note: string | null;
   created_at: string;
+  shares: SettlementShareRow[];
 };
 
 export function ShareholderSettlement({
   outstanding,
+  shareholders,
   history,
   currency,
 }: {
   outstanding: number;
+  shareholders: Shareholder[];
   history: ProfitSettlementRow[];
   currency: string;
 }) {
@@ -35,7 +44,10 @@ export function ShareholderSettlement({
   const [note, setNote] = useState("");
   const [busy, startTransition] = useTransition();
 
-  const split = splitProfit(outstanding);
+  const total = totalPercent(shareholders);
+  const balanced = Math.abs(total - 100) <= 0.01;
+  const split = splitPool(outstanding, shareholders);
+  const canSettle = outstanding > 0 && shareholders.length > 0 && balanced;
   const pag = usePagination(history);
 
   function settle() {
@@ -70,24 +82,33 @@ export function ShareholderSettlement({
 
           {outstanding > 0 ? (
             <div className="mt-4 space-y-3">
-              <div className="grid gap-2 sm:grid-cols-3">
-                {SHAREHOLDERS.map((sh) => (
-                  <div
-                    key={sh.key}
-                    className="rounded-lg border border-black/10 px-3 py-2.5 dark:border-white/10"
-                  >
-                    <div className="flex items-center justify-between text-xs text-stone-500">
-                      <span className="font-medium text-stone-700 dark:text-stone-300">{sh.name}</span>
-                      <span>{sh.rate * 100}%</span>
+              {shareholders.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {split.map((sh) => (
+                    <div key={sh.id} className="rounded-lg border border-black/10 px-3 py-2.5 dark:border-white/10">
+                      <div className="flex items-center justify-between text-xs text-stone-500">
+                        <span className="font-medium text-stone-700 dark:text-stone-300">{sh.name}</span>
+                        <span>{Number(sh.share_percent)}%</span>
+                      </div>
+                      {sh.type && <p className="text-[11px] capitalize text-stone-400">{sh.type}</p>}
+                      <p className="mt-0.5 text-base font-bold text-stone-900 dark:text-white">
+                        {formatCurrency(sh.amount, currency)}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-base font-bold text-stone-900 dark:text-white">
-                      {formatCurrency(split[sh.key as ShareholderKey], currency)}
-                    </p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-amber-500">Add shareholders below before settling.</p>
+              )}
+
+              {shareholders.length > 0 && !balanced && (
+                <p className="text-xs text-amber-500">
+                  Active shares total {total}% — they must add up to 100% to settle.
+                </p>
+              )}
+
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" />
-              <Button disabled={busy} onClick={settle} className="w-full sm:w-auto">
+              <Button disabled={busy || !canSettle} onClick={settle} className="w-full sm:w-auto">
                 Settle &amp; reset · {formatCurrency(outstanding, currency)}
               </Button>
               <p className="text-xs text-stone-500 dark:text-stone-400">
@@ -114,13 +135,13 @@ export function ShareholderSettlement({
                     <span className="text-xs text-stone-500">{formatDateTime(h.created_at)}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-stone-500">
-                    <span>Philip {formatCurrency(Number(h.philip_amount), currency)}</span>
-                    <span>Zau {formatCurrency(Number(h.zau_amount), currency)}</span>
-                    <span>Vee {formatCurrency(Number(h.vee_amount), currency)}</span>
+                    {h.shares.map((s) => (
+                      <span key={s.id}>
+                        {s.name} {formatCurrency(Number(s.amount), currency)}
+                      </span>
+                    ))}
                   </div>
-                  {h.note && (
-                    <p className="mt-1 text-xs text-stone-600 dark:text-stone-300">“{h.note}”</p>
-                  )}
+                  {h.note && <p className="mt-1 text-xs text-stone-600 dark:text-stone-300">“{h.note}”</p>}
                 </div>
               ))}
             </div>

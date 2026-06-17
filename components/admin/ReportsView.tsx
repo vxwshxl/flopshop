@@ -23,8 +23,8 @@ import { Pagination, usePagination } from "@/components/ui/pagination";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, formatDate, istDateString, paymentSplit } from "@/lib/utils/formatters";
-import { computeProfitPool, splitProfit, SHAREHOLDERS, PROFIT_START_LABEL } from "@/lib/utils/shareholders";
-import type { Category, Product, Purchase, SettingsMap } from "@/lib/types";
+import { computeProfitPool, splitPool, PROFIT_START_LABEL } from "@/lib/utils/shareholders";
+import type { Category, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
 
 interface ReportOrder {
   id: string;
@@ -67,6 +67,7 @@ export function ReportsView({
   purchases,
   categories,
   settings,
+  shareholders = [],
   lastSettledThrough = null,
 }: {
   orders: ReportOrder[];
@@ -74,6 +75,8 @@ export function ReportsView({
   purchases: Purchase[];
   categories: Category[];
   settings: SettingsMap;
+  /** Active shareholder roster, used to break down the profit pool. */
+  shareholders?: Shareholder[];
   /** Cutoff of the latest shareholder settlement; the card shows profit accrued since. */
   lastSettledThrough?: string | null;
 }) {
@@ -214,7 +217,7 @@ export function ReportsView({
   // full by the shareholders. After a settlement, only orders created since its
   // cutoff count, so the card reflects the OUTSTANDING (unsettled) balance.
   const profitPool = computeProfitPool(validOrders, lastSettledThrough);
-  const profitSplit = splitProfit(profitPool);
+  const profitSplit = splitPool(profitPool, shareholders);
   const netProfit = grossProfit + deliveryTotals.admin;
 
   // Profit/Loss per product — searchable, sortable, paginated.
@@ -446,9 +449,9 @@ export function ReportsView({
                     <div>
                       <p className="text-2xl font-bold text-white">{formatCurrency(profitPool, currency)}</p>
                       <div className="mt-1 space-y-0.5 text-xs text-gray-500">
-                        {SHAREHOLDERS.map((sh) => (
-                          <p key={sh.key}>
-                            · {sh.name} {sh.rate * 100}% — {formatCurrency(profitSplit[sh.key], currency)}
+                        {profitSplit.map((sh) => (
+                          <p key={sh.id}>
+                            · {sh.name} {Number(sh.share_percent)}% — {formatCurrency(sh.amount, currency)}
                           </p>
                         ))}
                         <p>

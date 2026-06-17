@@ -53,18 +53,39 @@ export interface WalletTopupRequest {
   created_at: string;
 }
 
+/** A member of the editable shareholder roster. */
+export interface Shareholder {
+  id: string;
+  name: string;
+  type: string | null;
+  share_percent: number;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+/** One shareholder's snapshotted cut of a settlement. */
+export interface ProfitSettlementShare {
+  id: string;
+  settlement_id: string;
+  shareholder_id: string | null;
+  name: string;
+  type: string | null;
+  share_percent: number;
+  amount: number;
+  created_at: string;
+}
+
 /** A settlement that distributes the profit pool among shareholders. */
 export interface ProfitSettlement {
   id: string;
   /** The profit pool distributed in this settlement. */
   profit_base: number;
   settled_through: string;
-  philip_amount: number;
-  zau_amount: number;
-  vee_amount: number;
   note: string | null;
   created_by: string | null;
   created_at: string;
+  shares?: ProfitSettlementShare[];
 }
 
 export interface Hostel {

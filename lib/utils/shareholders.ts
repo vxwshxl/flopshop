@@ -2,9 +2,8 @@ import { istDateString } from "@/lib/utils/formatters";
 
 /**
  * Shareholder profit distribution. The shop's profit (item gross margin + the
- * shop's delivery share) is owned in full by the three shareholders and split
- * Philip 50% / Zau 40% / Vee 10%. Vee's 10% IS the old "developer share" — this
- * model supersedes the developer settlement flow.
+ * shop's delivery share) is owned in full by the shareholders and split by each
+ * shareholder's `share_percent` (the roster lives in the `shareholders` table).
  *
  * Settlements record a `settled_through` cutoff; the outstanding balance is the
  * pool accrued over orders created AFTER the latest settlement (falling back to
@@ -12,14 +11,6 @@ import { istDateString } from "@/lib/utils/formatters";
  */
 export const PROFIT_START = "2026-06-10";
 export const PROFIT_START_LABEL = "10 Jun, 2026";
-
-export type ShareholderKey = "philip" | "zau" | "vee";
-
-export const SHAREHOLDERS: { key: ShareholderKey; name: string; rate: number }[] = [
-  { key: "philip", name: "Philip", rate: 0.5 },
-  { key: "zau", name: "Zau", rate: 0.4 },
-  { key: "vee", name: "Vee", rate: 0.1 },
-];
 
 export interface ProfitOrder {
   created_at: string;
@@ -56,14 +47,31 @@ export function computeProfitPool(orders: ProfitOrder[], sinceIso?: string | nul
   }, 0);
 }
 
+/** Total of the given shareholders' percentages, rounded to 2 decimals. */
+export function totalPercent(holders: { share_percent: number | string }[]): number {
+  return Number(holders.reduce((s, h) => s + Number(h.share_percent), 0).toFixed(2));
+}
+
 /**
- * Split a profit pool among shareholders, rounded to 2 decimals. Philip absorbs
- * any rounding remainder so the three amounts always sum back to the pool.
+ * Split a profit pool among shareholders by their `share_percent`, rounded to 2
+ * decimals. The largest-percent shareholder absorbs any rounding remainder so
+ * the amounts sum back to the pool (assuming percentages total 100).
  */
-export function splitProfit(pool: number): Record<ShareholderKey, number> {
+export function splitPool<T extends { share_percent: number | string }>(
+  pool: number,
+  holders: T[]
+): (T & { amount: number })[] {
   const r = (n: number) => Number(n.toFixed(2));
-  const zau = r(pool * 0.4);
-  const vee = r(pool * 0.1);
-  const philip = r(pool - zau - vee);
-  return { philip, zau, vee };
+  const rows = holders.map((h) => ({ ...h, amount: r((pool * Number(h.share_percent)) / 100) }));
+  if (rows.length) {
+    const drift = r(r(pool) - r(rows.reduce((a, b) => a + b.amount, 0)));
+    if (drift !== 0) {
+      let idx = 0;
+      rows.forEach((row, i) => {
+        if (Number(row.share_percent) > Number(rows[idx].share_percent)) idx = i;
+      });
+      rows[idx].amount = r(rows[idx].amount + drift);
+    }
+  }
+  return rows;
 }
