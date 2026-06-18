@@ -3,6 +3,9 @@
 .claude
 # dependencies
 /node_modules
+# using pnpm — keep npm/yarn lockfiles out so they don't override pnpm on Vercel
+package-lock.json
+yarn.lock
 /.pnp
 .pnp.*
 .yarn/*

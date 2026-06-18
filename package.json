@@ -2,6 +2,7 @@
   "name": "flopshop",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.26.2",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-http-header-size=65536 next dev",
     "build": "next build",
@@ -38,5 +39,11 @@
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }
