@@ -1,6 +1,68 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
-import type { Wallet, WalletTransaction, WalletTxnType } from "@/lib/types";
+import type {
+  Wallet,
+  WalletTransaction,
+  WalletTransactionView,
+  WalletTxnMethod,
+  WalletTxnType,
+} from "@/lib/types";
+
+type Admin = ReturnType<typeof createAdminClient>;
+
+/**
+ * Decorate raw ledger rows with the names behind `created_by` (which admin/user
+ * acted) and `counterparty_wallet_id` (the other party in a transfer). Resolves
+ * names in batch — one query per referenced table — not per row.
+ */
+async function enrichTransactions(
+  admin: Admin,
+  txns: WalletTransaction[]
+): Promise<WalletTransactionView[]> {
+  const actorIds = [...new Set(txns.map((t) => t.created_by).filter(Boolean) as string[])];
+  const cpWalletIds = [
+    ...new Set(txns.map((t) => t.counterparty_wallet_id).filter(Boolean) as string[]),
+  ];
+
+  const actorNames = new Map<string, string>();
+  if (actorIds.length) {
+    const { data } = await admin.from("profiles").select("id, full_name, email").in("id", actorIds);
+    for (const p of (data as { id: string; full_name: string | null; email: string | null }[] | null) ?? [])
+      actorNames.set(p.id, p.full_name ?? p.email ?? "Staff");
+  }
+
+  const cpNames = new Map<string, string>();
+  if (cpWalletIds.length) {
+    const { data: ws } = await admin
+      .from("wallets")
+      .select("id, profile_id, customer_id")
+      .in("id", cpWalletIds);
+    const rows = (ws as { id: string; profile_id: string | null; customer_id: string | null }[] | null) ?? [];
+    const profIds = [...new Set(rows.map((w) => w.profile_id).filter(Boolean) as string[])];
+    const custIds = [...new Set(rows.map((w) => w.customer_id).filter(Boolean) as string[])];
+    const profMap = new Map<string, string>();
+    const custMap = new Map<string, string>();
+    if (profIds.length) {
+      const { data } = await admin.from("profiles").select("id, full_name, email").in("id", profIds);
+      for (const p of (data as { id: string; full_name: string | null; email: string | null }[] | null) ?? [])
+        profMap.set(p.id, p.full_name ?? p.email ?? "User");
+    }
+    if (custIds.length) {
+      const { data } = await admin.from("customers").select("id, name").in("id", custIds);
+      for (const c of (data as { id: string; name: string }[] | null) ?? []) custMap.set(c.id, c.name);
+    }
+    for (const w of rows) {
+      const name = w.profile_id ? profMap.get(w.profile_id) : w.customer_id ? custMap.get(w.customer_id) : null;
+      cpNames.set(w.id, name ?? "Wallet");
+    }
+  }
+
+  return txns.map((t) => ({
+    ...t,
+    actor_name: t.created_by ? actorNames.get(t.created_by) ?? null : null,
+    counterparty_name: t.counterparty_wallet_id ? cpNames.get(t.counterparty_wallet_id) ?? null : null,
+  }));
+}
 
 /** Exactly one owner identifies a wallet. */
 export type WalletOwner = { profileId: string } | { customerId: string };
@@ -34,11 +96,11 @@ export async function getWalletBalance(owner: WalletOwner): Promise<number> {
   return w ? Number(w.balance) : 0;
 }
 
-/** Wallet + its most recent transactions (newest first). */
+/** Wallet + its most recent transactions (newest first), enriched for display. */
 export async function getWalletWithTransactions(
   owner: WalletOwner,
-  limit = 20
-): Promise<{ wallet: Wallet | null; transactions: WalletTransaction[] }> {
+  limit = 50
+): Promise<{ wallet: Wallet | null; transactions: WalletTransactionView[] }> {
   const wallet = await getWallet(owner);
   if (!wallet) return { wallet: null, transactions: [] };
   const admin = createAdminClient();
@@ -48,7 +110,8 @@ export async function getWalletWithTransactions(
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(limit);
-  return { wallet, transactions: (data as WalletTransaction[] | null) ?? [] };
+  const txns = (data as WalletTransaction[] | null) ?? [];
+  return { wallet, transactions: await enrichTransactions(admin, txns) };
 }
 
 type AdjustResult = { ok: true; balance: number } | { ok: false; error: string };
@@ -62,6 +125,8 @@ export async function adjustWallet(params: {
   owner: WalletOwner;
   amount: number;
   type: WalletTxnType;
+  /** How the credit moved (cash/upi/bank…) — recorded on the ledger row. */
+  method?: WalletTxnMethod | null;
   actorId?: string | null;
   orderId?: string | null;
   note?: string | null;
@@ -155,6 +220,7 @@ export async function adjustWalletById(params: {
   walletId: string;
   amount: number;
   type: WalletTxnType;
+  method?: WalletTxnMethod | null;
   actorId?: string | null;
   orderId?: string | null;
   note?: string | null;
@@ -170,9 +236,48 @@ export async function adjustWalletById(params: {
     p_note: params.note ?? null,
     p_actor: params.actorId ?? null,
     p_allow_negative: params.allowNegative ?? false,
+    p_method: params.method ?? null,
   });
   if (error) return { ok: false, error: error.message };
   const res = data as { ok: boolean; error?: string; balance?: number };
   if (!res?.ok) return { ok: false, error: res?.error ?? "Wallet update failed." };
   return { ok: true, balance: Number(res.balance ?? 0) };
+}
+
+type TransferResult =
+  | { ok: true; fromBalance: number; toBalance: number }
+  | { ok: false; error: string };
+
+/**
+ * Move store credit from one owner's wallet to another's via the atomic
+ * `wallet_transfer` RPC. Both wallets are resolved (creating on first touch).
+ * `allowNegative` lets the source go into debt (admin moves); user-to-user sends
+ * pass FALSE so a shopper can't send credit they don't have.
+ */
+export async function transferCredit(params: {
+  fromOwner: WalletOwner;
+  toOwner: WalletOwner;
+  amount: number;
+  actorId?: string | null;
+  note?: string | null;
+  allowNegative?: boolean;
+}): Promise<TransferResult> {
+  const fromId = await getOrCreateWalletId(params.fromOwner);
+  const toId = await getOrCreateWalletId(params.toOwner);
+  if (!fromId || !toId) return { ok: false, error: "Could not resolve wallet." };
+  if (fromId === toId) return { ok: false, error: "Cannot transfer to the same wallet." };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("wallet_transfer", {
+    p_from_wallet: fromId,
+    p_to_wallet: toId,
+    p_amount: params.amount,
+    p_actor: params.actorId ?? null,
+    p_note: params.note ?? null,
+    p_allow_negative: params.allowNegative ?? false,
+  });
+  if (error) return { ok: false, error: error.message };
+  const res = data as { ok: boolean; error?: string; from_balance?: number; to_balance?: number };
+  if (!res?.ok) return { ok: false, error: res?.error ?? "Transfer failed." };
+  return { ok: true, fromBalance: Number(res.from_balance ?? 0), toBalance: Number(res.to_balance ?? 0) };
 }

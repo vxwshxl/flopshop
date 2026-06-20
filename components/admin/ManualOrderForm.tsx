@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Minus, Trash2, Search } from "lucide-react";
+import { Plus, Minus, Trash2, Search, Wallet as WalletIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { createManualOrderAction } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
@@ -383,6 +383,22 @@ export function ManualOrderForm({
                 <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">
                   Merges with saved customer{matchedCustomer.phone ? ` · ${matchedCustomer.phone}` : ""}
                 </p>
+              )}
+              {matchedCustomer && (
+                <span
+                  className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                    creditBalance > 0
+                      ? "border-lime-500/40 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+                      : creditBalance < 0
+                        ? "border-amber-400/40 bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300"
+                        : "border-black/10 text-stone-500 dark:border-white/10 dark:text-stone-400"
+                  }`}
+                >
+                  <WalletIcon className="h-3.5 w-3.5" />
+                  {creditBalance < 0
+                    ? `Owes ${formatCurrency(Math.abs(creditBalance), currency)}`
+                    : `Wallet credit: ${formatCurrency(creditBalance, currency)}`}
+                </span>
               )}
             </div>
             <div>

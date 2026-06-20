@@ -23,7 +23,16 @@ export interface Wallet {
   updated_at: string;
 }
 
-export type WalletTxnType = "change" | "topup" | "order_payment" | "refund" | "adjustment";
+export type WalletTxnType =
+  | "change"
+  | "topup"
+  | "order_payment"
+  | "refund"
+  | "adjustment"
+  | "transfer";
+
+/** How credit moved — null for purely internal movements (order payment, etc.). */
+export type WalletTxnMethod = "cash" | "upi" | "bank" | "transfer" | "other";
 
 /** One movement on a wallet. `amount` is signed: + credit, − debit. */
 export interface WalletTransaction {
@@ -32,10 +41,23 @@ export interface WalletTransaction {
   amount: number;
   balance_after: number;
   type: WalletTxnType;
+  method: WalletTxnMethod | null;
   order_id: string | null;
+  /** The other wallet, on a `transfer`. */
+  counterparty_wallet_id: string | null;
+  /** Links the two legs of one transfer. */
+  transfer_group: string | null;
   note: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+/** A ledger row enriched for display: who performed it and the transfer's other party. */
+export interface WalletTransactionView extends WalletTransaction {
+  /** Name of the admin/user who performed the movement (from `created_by`). */
+  actor_name: string | null;
+  /** Name of the other wallet's owner, on a `transfer`. */
+  counterparty_name: string | null;
 }
 
 export type TopupStatus = "pending" | "approved" | "rejected";

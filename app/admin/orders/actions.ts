@@ -620,6 +620,7 @@ export async function createManualOrderAction(
       owner: { customerId },
       amount: overpay,
       type: "change",
+      method: "cash",
       actorId: actor.id,
       note: `Change from order ${res.order.order_number} kept as credit`,
     });
