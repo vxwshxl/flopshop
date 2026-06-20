@@ -24,7 +24,7 @@ async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | 
   return roles.includes(role) ? { id: user.id, role } : null;
 }
 
-const ADJUST_TYPES: WalletTxnType[] = ["change", "topup", "adjustment"];
+const ADJUST_TYPES: WalletTxnType[] = ["change", "topup", "withdrawal", "adjustment"];
 
 /**
  * Admin adds (or deducts) store credit for a profile or walk-in customer.

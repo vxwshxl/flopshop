@@ -29,6 +29,7 @@ export type WalletTxnType =
   | "order_payment"
   | "refund"
   | "adjustment"
+  | "withdrawal"
   | "transfer";
 
 /** How credit moved — null for purely internal movements (order payment, etc.). */

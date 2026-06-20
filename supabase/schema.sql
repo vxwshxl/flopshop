@@ -512,7 +512,7 @@ CREATE TABLE wallet_transactions (
   wallet_id UUID NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
   amount DECIMAL(10,2) NOT NULL,
   balance_after DECIMAL(10,2) NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('change', 'topup', 'order_payment', 'refund', 'adjustment')),
+  type TEXT NOT NULL CHECK (type IN ('change', 'topup', 'order_payment', 'refund', 'adjustment', 'withdrawal', 'transfer')),
   order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
   note TEXT,
   created_by UUID REFERENCES profiles(id),

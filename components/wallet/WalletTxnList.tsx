@@ -10,6 +10,7 @@ const TXN_LABELS: Record<WalletTxnType, string> = {
   order_payment: "Order payment",
   refund: "Refund",
   adjustment: "Adjustment",
+  withdrawal: "Cash withdrawal",
   transfer: "Transfer",
 };
 

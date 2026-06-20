@@ -203,6 +203,7 @@ export function WalletPanel({
                 <Select value={type} onChange={(e) => setType(e.target.value as WalletTxnType)}>
                   <option value="change">No change at counter</option>
                   <option value="topup">Cash/UPI top-up</option>
+                  <option value="withdrawal">Cash withdrawal</option>
                   <option value="adjustment">Manual adjustment</option>
                 </Select>
               </div>
