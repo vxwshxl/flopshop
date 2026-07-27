@@ -10,7 +10,7 @@ import {
   reconcileOrderAdjustment,
   type WalletOwner,
 } from "@/lib/server/wallet";
-import { statusDeductsStock, deliverySplit } from "@/lib/utils/orderHelpers";
+import { statusDeductsStock, deliverySplit, DOOR_CHANGE_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { OrderStatus, OrderType, PaymentStatus, Role } from "@/lib/types";
 
@@ -79,6 +79,122 @@ export async function setOrderStatusAction(
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/delivery");
   return result;
+}
+
+/**
+ * Complete a cash delivery when the partner had no change. `cash_received` is
+ * what the customer actually handed over: the difference against the order total
+ * lands in their wallet — a positive one as store credit, a negative one as a
+ * debt they settle later. Capped at DOOR_CHANGE_MAX so a typo can't create a
+ * large liability, and gated on the OTP like any other completion, so the
+ * customer consents to the rounding at the moment they hand the code over.
+ *
+ * The order total is never rewritten (it feeds revenue and the shareholder
+ * split); the cash taken is recorded separately in `cash_collected` and only
+ * changes what this partner owes the shop at settlement.
+ */
+export async function completeCashDeliveryAction(
+  orderId: string,
+  otp_code: string,
+  cash_received: number
+): Promise<{ ok: boolean; error?: string; delta?: number }> {
+  const actor = await requireRole(["admin", "delivery"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select(
+      "id, order_number, order_type, delivery_person_id, otp_code, status, is_manual, payment_method, total_amount, user_id, customer_name, customer_phone, customer_room"
+    )
+    .eq("id", orderId)
+    .single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  if (order.order_type !== "delivery") return { ok: false, error: "Not a delivery order." };
+  if (order.delivery_person_id !== actor.id) {
+    return { ok: false, error: "Only the assigned delivery partner can complete this order." };
+  }
+  if (order.status === "delivered" || order.status === "cancelled") {
+    return { ok: false, error: "This order is already closed." };
+  }
+  // Only cash changes hands at the door. UPI and wallet-paid orders are settled
+  // to the exact amount already, so there is no change to round.
+  if ((order.payment_method ?? "").toLowerCase() !== "cash") {
+    return { ok: false, error: "Only cash orders can settle change as credit." };
+  }
+
+  if (!order.is_manual && order.otp_code) {
+    if (!otp_code || otp_code.trim().length !== 4) {
+      return { ok: false, error: "Enter the 4-digit order OTP." };
+    }
+    if (order.otp_code !== otp_code.trim()) {
+      return { ok: false, error: "Incorrect OTP. Please try again." };
+    }
+  }
+
+  const total = Number(order.total_amount);
+  const received = Number(cash_received);
+  if (!Number.isFinite(received) || received < 0) {
+    return { ok: false, error: "Enter the cash received." };
+  }
+  const delta = Math.round((received - total) * 100) / 100;
+  if (Math.abs(delta) > DOOR_CHANGE_MAX) {
+    return {
+      ok: false,
+      error: `The difference can't be more than ₹${DOOR_CHANGE_MAX}. Collect the exact amount or use the shop QR.`,
+    };
+  }
+
+  const moves = Math.abs(delta) >= 0.005;
+  const owner = moves ? await resolveOrderWalletOwner(order) : null;
+  if (moves && !owner) return { ok: false, error: "No account to hold the difference." };
+
+  const result = await updateOrderStatus(orderId, "delivered");
+  if (!result.ok) return result;
+
+  await admin
+    .from("orders")
+    .update({
+      cash_collected: received,
+      amount_paid: total,
+      payment_status: "paid",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  if (moves && owner) {
+    const res = await adjustWallet({
+      owner,
+      amount: delta,
+      // Overpaid change kept as credit is exactly the existing "change" case; a
+      // shortfall is a tab, which the ledger records as an adjustment.
+      type: delta > 0 ? "change" : "adjustment",
+      method: "cash",
+      actorId: actor.id,
+      orderId,
+      note:
+        delta > 0
+          ? `No change on order ${order.order_number} — kept as credit`
+          : `Short cash on order ${order.order_number} — owed to the shop`,
+      // A shortfall is allowed to push the wallet negative (customer owes).
+      allowNegative: true,
+    });
+    if (!res.ok) {
+      // The handover already happened and the order is delivered — don't undo
+      // that, but make it loud so an admin can apply the wallet move by hand.
+      return {
+        ok: false,
+        error: `Delivered, but the wallet update failed (${res.error}). Ask an admin to adjust it manually.`,
+      };
+    }
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/delivery");
+  revalidatePath("/delivery");
+  return { ok: true, delta };
 }
 
 export async function claimDeliveryOrderAction(orderId: string) {

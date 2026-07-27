@@ -267,6 +267,10 @@ export interface Order {
   payment_status: PaymentStatus;
   /** How much of total_amount has been collected so far (partial payments). */
   amount_paid: number;
+  /** Cash actually taken at the door when it differed from total_amount (the
+   *  partner had no change, so the difference went to/from the customer's
+   *  wallet). Null = exactly the total. Affects partner settlement, not revenue. */
+  cash_collected: number | null;
   notes: string | null;
   is_manual: boolean;
   invoice_number: string | null;

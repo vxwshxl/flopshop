@@ -6,18 +6,26 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MapPin, Phone, Package, QrCode, CheckCircle2, Wallet } from "lucide-react";
 import toast from "react-hot-toast";
-import { setOrderStatusAction, confirmUpiToShopAction } from "@/app/admin/orders/actions";
+import {
+  setOrderStatusAction,
+  confirmUpiToShopAction,
+  completeCashDeliveryAction,
+} from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { OtpInput } from "@/components/ui/otp-input";
 import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatTime } from "@/lib/utils/formatters";
+import { DOOR_CHANGE_MAX } from "@/lib/utils/orderHelpers";
 import type { Order } from "@/lib/types";
 
 export function DeliveryCard({ order, currency }: { order: Order; currency: string }) {
   const [pending, startTransition] = useTransition();
   const [showOtp, setShowOtp] = useState(false);
   const [otp, setOtp] = useState("");
+  // Cash handed over at the door when the partner has no change (blank = exact).
+  const [cashReceived, setCashReceived] = useState("");
   // Shop-UPI payment (delivery person can't take UPI → customer pays the shop).
   const [showUpi, setShowUpi] = useState(false);
   const [upiOtp, setUpiOtp] = useState("");
@@ -29,6 +37,15 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
   // credit order (wallet didn't cover the whole total) still has a balance due.
   const amountDue = Math.max(Number(order.total_amount) - Number(order.amount_paid ?? 0), 0);
   const prepaid = order.payment_method === "credit" && amountDue <= 0;
+
+  // "No change" settlement: only cash orders have change to round, and only the
+  // difference against the total moves — blank means the exact amount was paid.
+  const isCashOrder = (order.payment_method ?? "").toLowerCase() === "cash";
+  const total = Number(order.total_amount);
+  const received = cashReceived.trim() === "" ? null : Math.max(Number(cashReceived) || 0, 0);
+  const changeDelta = received === null ? 0 : Math.round((received - total) * 100) / 100;
+  const changeMoves = Math.abs(changeDelta) >= 0.005;
+  const changeTooBig = Math.abs(changeDelta) > DOOR_CHANGE_MAX;
 
   function update(status: "out_for_delivery" | "delivered") {
     if (status === "delivered") {
@@ -51,17 +68,38 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
     });
   }
 
+  function closeOtp() {
+    setShowOtp(false);
+    setCashReceived("");
+  }
+
   async function confirmDelivery() {
+    if (changeTooBig) {
+      toast.error(`The difference can't be more than ${formatCurrency(DOOR_CHANGE_MAX, currency)}.`);
+      return;
+    }
     startTransition(async () => {
       try {
-        const res = await setOrderStatusAction(order.id, "delivered", otp);
+        // Only take the wallet path when the cash actually differs from the
+        // total — an exact payment is an ordinary completion.
+        const res =
+          isCashOrder && received !== null && changeMoves
+            ? await completeCashDeliveryAction(order.id, otp, received)
+            : await setOrderStatusAction(order.id, "delivered", otp);
         if (!res.ok) {
           toast.error(res.error ?? "Failed");
           return;
         }
-        toast.success("Marked delivered 🎉");
+        toast.success(
+          changeMoves
+            ? changeDelta > 0
+              ? `Delivered · ${formatCurrency(changeDelta, currency)} credited to ${order.customer_name}`
+              : `Delivered · ${formatCurrency(-changeDelta, currency)} owed by ${order.customer_name}`
+            : "Marked delivered 🎉"
+        );
         setShowOtp(false);
         setOtp("");
+        setCashReceived("");
         router.refresh();
       } catch {
         toast.error("Something went wrong. Please try again.");
@@ -179,16 +217,62 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
         </div>
       </div>
 
-      <Modal open={showOtp} onClose={() => setShowOtp(false)} title="Enter delivery OTP">
+      <Modal open={showOtp} onClose={closeOtp} title="Enter delivery OTP">
         <p className="mb-5 text-center text-sm text-stone-400">
           Ask the customer for their 4-digit order OTP.
         </p>
         <OtpInput value={otp} onChange={setOtp} autoFocus />
+
+        {isCashOrder && (
+          <div className="mt-5">
+            <label htmlFor={`cash-${order.id}`} className="mb-1.5 block text-sm font-medium text-stone-300">
+              Cash received — leave blank if exact
+            </label>
+            <Input
+              id={`cash-${order.id}`}
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={cashReceived}
+              onChange={(e) => setCashReceived(e.target.value)}
+              placeholder={String(total)}
+            />
+            <p className="mt-1.5 text-xs text-stone-500">
+              No change? Enter what they handed over — the difference goes to their wallet.
+            </p>
+            {changeTooBig ? (
+              <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300">
+                Difference is over {formatCurrency(DOOR_CHANGE_MAX, currency)}. Collect the exact
+                amount, or take the payment on the shop QR instead.
+              </p>
+            ) : (
+              changeMoves && (
+                <p
+                  className={`mt-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                    changeDelta > 0
+                      ? "bg-lime-400/10 text-lime-300"
+                      : "bg-amber-400/10 text-amber-300"
+                  }`}
+                >
+                  {changeDelta > 0
+                    ? `${formatCurrency(changeDelta, currency)} will be added to ${order.customer_name}'s wallet as credit.`
+                    : `${formatCurrency(-changeDelta, currency)} short — it will be recorded as owed on ${order.customer_name}'s wallet.`}
+                </p>
+              )
+            )}
+          </div>
+        )}
+
         <div className="mt-6 grid grid-cols-2 gap-2.5">
-          <Button variant="outline" className="w-full" onClick={() => setShowOtp(false)} disabled={pending}>
+          <Button variant="outline" className="w-full" onClick={closeOtp} disabled={pending}>
             Cancel
           </Button>
-          <Button className="w-full" disabled={pending || otp.length !== 4} onClick={confirmDelivery}>
+          <Button
+            className="w-full"
+            disabled={pending || otp.length !== 4 || changeTooBig}
+            onClick={confirmDelivery}
+          >
             Confirm delivery
           </Button>
         </div>

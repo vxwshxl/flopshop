@@ -7,6 +7,11 @@ export const EDITABLE_PAYMENT_METHODS = ["cash", "upi", "bank transfer", "other"
 /** Cash-on-delivery ceiling. Delivery orders above this must be paid by UPI —
  *  we don't want partners carrying large cash amounts / risking non-payment. */
 export const COD_MAX = 1000;
+
+/** Largest difference a delivery partner may settle into the customer's wallet
+ *  when they have no change. Keeps a mistyped "cash received" from creating a
+ *  big credit (or debt) — bigger gaps have to be paid exactly or by shop QR. */
+export const DOOR_CHANGE_MAX = 50;
 export type EditablePaymentMethod = (typeof EDITABLE_PAYMENT_METHODS)[number];
 
 export const ORDER_STATUSES: OrderStatus[] = [

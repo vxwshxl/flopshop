@@ -38,7 +38,7 @@ export default async function AdminDeliveryPage() {
       // Delivered, not-yet-settled delivery orders → drive the pending payouts.
       supabase
         .from("orders")
-        .select("delivery_person_id, payment_method, total_amount, delivery_person_earning")
+        .select("delivery_person_id, payment_method, total_amount, cash_collected, delivery_person_earning")
         .eq("order_type", "delivery")
         .eq("status", "delivered")
         .is("settlement_id", null),
@@ -104,6 +104,7 @@ export default async function AdminDeliveryPage() {
       delivery_person_id: string | null;
       payment_method: string;
       total_amount: number;
+      cash_collected: number | null;
       delivery_person_earning: number;
     }[]) ?? [];
 
@@ -120,11 +121,13 @@ export default async function AdminDeliveryPage() {
         upiPayout: 0,
         net: 0,
       };
-    const total = Number(o.total_amount);
+    // Cash actually taken at the door (differs from the total when the partner
+    // had no change and the difference went to/from the customer's wallet).
+    const cash = Number(o.cash_collected ?? o.total_amount);
     const earning = Number(o.delivery_person_earning);
     e.orderCount += 1;
     if ((o.payment_method ?? "").toLowerCase() === "upi") e.upiPayout += earning;
-    else e.cashToCollect += total - earning;
+    else e.cashToCollect += cash - earning;
     e.net = e.cashToCollect - e.upiPayout;
     pendingMap.set(o.delivery_person_id, e);
   }

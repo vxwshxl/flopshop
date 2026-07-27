@@ -29,7 +29,7 @@ export async function settleDeliveryPartnerAction(partnerId: string) {
   const admin = createAdminClient();
   const { data: orders, error: ordErr } = await admin
     .from("orders")
-    .select("id, payment_method, total_amount, delivery_person_earning")
+    .select("id, payment_method, total_amount, cash_collected, delivery_person_earning")
     .eq("delivery_person_id", partnerId)
     .eq("order_type", "delivery")
     .eq("status", "delivered")
@@ -42,12 +42,15 @@ export async function settleDeliveryPartnerAction(partnerId: string) {
   let cashToCollect = 0; // partner is holding this COD cash for the shop (minus their cut)
   let upiPayout = 0; // shop owes the partner their earnings on UPI-paid orders
   for (const o of list) {
-    const total = Number(o.total_amount);
+    // What the partner is actually holding — the cash taken at the door, which
+    // differs from the order total when they had no change and the difference
+    // went to/from the customer's wallet.
+    const cash = Number(o.cash_collected ?? o.total_amount);
     const earning = Number(o.delivery_person_earning);
     if ((o.payment_method ?? "").toLowerCase() === "upi") {
       upiPayout += earning;
     } else {
-      cashToCollect += total - earning;
+      cashToCollect += cash - earning;
     }
   }
   const net = cashToCollect - upiPayout;
