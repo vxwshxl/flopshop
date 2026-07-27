@@ -574,11 +574,16 @@ export async function createManualOrderAction(
   // Remember the walk-in customer (best-effort) and get their id so we can move
   // wallet credit. Matched by name (case-insensitive): a new name is added, an
   // existing one is merged — filling in a phone/room we didn't have before.
-  const customerId = await upsertCustomerByName(
-    input.customer_name,
-    input.customer_phone,
-    input.customer_room
-  );
+  // An order billed to an app user already has a wallet (their profile's), so
+  // skip the directory entirely rather than shadowing them with a walk-in row.
+  const customerId = orderInput.user_id
+    ? null
+    : await upsertCustomerByName(input.customer_name, input.customer_phone, input.customer_room);
+  const walletOwner: WalletOwner | null = orderInput.user_id
+    ? { profileId: orderInput.user_id }
+    : customerId
+      ? { customerId }
+      : null;
 
   if (orderInput.payment_method === "credit") {
     // Wallet covered its share (debited by createOrder). The cash/UPI shortfall is
@@ -615,9 +620,9 @@ export async function createManualOrderAction(
   // Cash overpaid and no change to return → park the difference as store credit
   // in the customer's wallet (the original "give credit instead of change" case).
   const overpay = Math.max(Number(overpay_to_wallet) || 0, 0);
-  if (overpay > 0 && customerId) {
+  if (overpay > 0 && walletOwner) {
     await adjustWallet({
-      owner: { customerId },
+      owner: walletOwner,
       amount: overpay,
       type: "change",
       method: "cash",

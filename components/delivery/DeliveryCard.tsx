@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { MapPin, Phone, Package, QrCode, CheckCircle2 } from "lucide-react";
+import { MapPin, Phone, Package, QrCode, CheckCircle2, Wallet } from "lucide-react";
 import toast from "react-hot-toast";
 import { setOrderStatusAction, confirmUpiToShopAction } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
@@ -23,6 +23,12 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
   const [upiOtp, setUpiOtp] = useState("");
   const [upiPaid, setUpiPaid] = useState(false);
   const router = useRouter();
+
+  // Wallet-credit orders are already paid for — nothing is collected at the door,
+  // so the partner must not be shown the shop QR or a payable amount. A partial
+  // credit order (wallet didn't cover the whole total) still has a balance due.
+  const amountDue = Math.max(Number(order.total_amount) - Number(order.amount_paid ?? 0), 0);
+  const prepaid = order.payment_method === "credit" && amountDue <= 0;
 
   function update(status: "out_for_delivery" | "delivered") {
     if (status === "delivered") {
@@ -117,8 +123,14 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
         <p className="flex items-center gap-2">
           <Package className="h-4 w-4 text-lime-400/70" />
           {order.order_items?.length ?? 0} item{(order.order_items?.length ?? 0) > 1 ? "s" : ""} ·{" "}
-          {formatCurrency(order.total_amount, currency)} · {order.payment_method.toUpperCase()}
+          {formatCurrency(order.total_amount, currency)} ·{" "}
+          {prepaid ? "PREPAID" : order.payment_method.toUpperCase()}
         </p>
+        {prepaid && (
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-lime-400/10 px-2.5 py-1 text-xs font-semibold text-lime-300">
+            <Wallet className="h-3.5 w-3.5" /> Paid by wallet · collect nothing
+          </p>
+        )}
       </div>
 
       {order.order_items && order.order_items.length > 0 && (
@@ -149,7 +161,7 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
               Pick up
             </Button>
           )}
-          {order.status !== "delivered" && (
+          {order.status !== "delivered" && !prepaid && (
             <Button size="sm" variant="outline" className="w-full" disabled={pending} onClick={() => setShowUpi(true)}>
               <QrCode className="h-4 w-4" /> UPI to shop
             </Button>
@@ -159,7 +171,7 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
               size="sm"
               disabled={pending}
               onClick={() => update("delivered")}
-              className={`w-full ${order.status === "out_for_delivery" ? "col-span-2" : ""}`}
+              className={`w-full ${order.status === "out_for_delivery" || prepaid ? "col-span-2" : ""}`}
             >
               Mark delivered
             </Button>

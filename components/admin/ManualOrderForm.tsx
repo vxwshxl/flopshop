@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatCurrency } from "@/lib/utils/formatters";
-import type { Customer, OrderType, PaymentMethod, Product, SettingsMap } from "@/lib/types";
+import type { Customer, OrderType, PaymentMethod, Product, Profile, SettingsMap } from "@/lib/types";
 
 const inputTheme =
   "border-black/15 bg-white text-black placeholder:text-black/40 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40";
@@ -22,15 +22,43 @@ interface Line {
   unitPrice: number;
 }
 
+/** The slice of a signed-up app user this form needs to bill them. */
+export type ManualOrderUser = Pick<
+  Profile,
+  "id" | "full_name" | "email" | "phone" | "room_number" | "hostel_block"
+>;
+
+/**
+ * Someone this order can be billed to. Walk-ins live in the `customers`
+ * directory; app users are `profiles`. Both own a wallet, so both can pay by
+ * credit — `kind` decides which wallet the charge lands on.
+ */
+type Account = {
+  id: string;
+  kind: "user" | "customer";
+  name: string;
+  phone: string;
+  room: string;
+  email: string | null;
+};
+
+function formatRoom(block: string | null, room: string | null): string {
+  if (block && room) return `${block}, Rm ${room}`;
+  return room ?? "";
+}
+
 export function ManualOrderForm({
   products,
   customers,
+  users = [],
   balances = {},
   settings,
 }: {
   products: Product[];
   customers: Customer[];
-  /** Wallet balance per saved customer id — drives the "Pay by credit" option. */
+  /** Signed-up app users, billable to their profile wallet. */
+  users?: ManualOrderUser[];
+  /** Wallet balance per account id (customer OR profile) — drives "Pay by credit". */
   balances?: Record<string, number>;
   settings: SettingsMap;
 }) {
@@ -45,21 +73,65 @@ export function ManualOrderForm({
   // Keyboard-highlighted row in the product search dropdown (↑/↓ move, Enter picks).
   const [productActive, setProductActive] = useState(0);
 
-  // Live name suggestions from the saved customer directory.
-  const customerMatches = useMemo(() => {
+  // App users first — a walk-in who already has an account should be the obvious
+  // pick, so their wallet is charged instead of a same-named walk-in record.
+  const accounts = useMemo<Account[]>(
+    () => [
+      ...users.map((u) => ({
+        id: u.id,
+        kind: "user" as const,
+        name: (u.full_name ?? u.email ?? "User").trim(),
+        phone: u.phone ?? "",
+        room: formatRoom(u.hostel_block, u.room_number),
+        email: u.email,
+      })),
+      ...customers.map((c) => ({
+        id: c.id,
+        kind: "customer" as const,
+        name: c.name,
+        phone: c.phone ?? "",
+        room: formatRoom(c.hostel_block, c.room_number),
+        email: c.email,
+      })),
+    ],
+    [users, customers]
+  );
+
+  // The account explicitly chosen from the dropdown. This is what disambiguates
+  // an app user from a walk-in of the same name; typing alone can't.
+  const [picked, setPicked] = useState<Account | null>(null);
+
+  // Live suggestions across both directories, matched on name, phone or email.
+  const accountMatches = useMemo(() => {
     const q = customer.name.trim().toLowerCase();
     if (!q) return [];
-    return customers.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [customers, customer.name]);
+    return accounts
+      .filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.phone.toLowerCase().includes(q) ||
+          (a.email ?? "").toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [accounts, customer.name]);
 
-  // Exact (case-insensitive) hit on a saved customer — this order will merge.
-  const matchedCustomer = useMemo(() => {
+  // Who this order bills to: the explicit pick when the name still matches it,
+  // else an exact (case-insensitive) name hit. Walk-ins win a tie so typing a
+  // saved customer's name keeps behaving as it always has — to charge an app
+  // user of the same name, pick them from the dropdown.
+  const matchedAccount = useMemo(() => {
     const q = customer.name.trim().toLowerCase();
-    return q ? customers.find((c) => c.name.toLowerCase() === q) : undefined;
-  }, [customers, customer.name]);
+    if (!q) return undefined;
+    if (picked && picked.name.trim().toLowerCase() === q) return picked;
+    return (
+      accounts.find((a) => a.kind === "customer" && a.name.toLowerCase() === q) ??
+      accounts.find((a) => a.name.toLowerCase() === q)
+    );
+  }, [accounts, customer.name, picked]);
 
-  function pickCustomer(c: Customer) {
-    setCustomer({ name: c.name, phone: c.phone ?? "", room: c.room_number ?? "" });
+  function pickAccount(a: Account) {
+    setCustomer({ name: a.name, phone: a.phone, room: a.room });
+    setPicked(a);
   }
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   // Goods handed over but payment not collected yet (e.g. UPI/server down) —
@@ -138,9 +210,9 @@ export function ManualOrderForm({
   const cashPaid = Math.min(Math.max(Number(cashAmount) || 0, 0), total);
   const upiPaid = Math.max(total - cashPaid, 0);
 
-  // Store credit can only pay for a saved customer (their wallet). Balance comes
+  // Store credit can only pay for a known account (their wallet). Balance comes
   // from the directory; an unsaved name has no wallet to charge.
-  const creditBalance = matchedCustomer ? balances[matchedCustomer.id] ?? 0 : 0;
+  const creditBalance = matchedAccount ? balances[matchedAccount.id] ?? 0 : 0;
   // How much of the order the wallet can cover at most.
   const maxWallet = Math.min(creditBalance, total);
   // Admin can use up to that — defaults to the max (blank = use max), but may use
@@ -159,8 +231,8 @@ export function ManualOrderForm({
         ? 0
         : Math.min(Math.max(Number(shortfallCash) || 0, 0), shortfall);
   const shortfallUpiPaid = Math.max(shortfall - shortfallCashPaid, 0);
-  // Pay-by-credit requires a saved customer (to have a wallet) and some balance.
-  const creditUsable = payment !== "credit" || (!!matchedCustomer && creditBalance > 0);
+  // Pay-by-credit requires a known account (to have a wallet) and some balance.
+  const creditUsable = payment !== "credit" || (!!matchedAccount && creditBalance > 0);
 
   // Cash overpayment → wallet (no change to give). Applies to a cash order, or to
   // the cash leg of a credit shortfall — the excess is parked in the wallet.
@@ -198,8 +270,8 @@ export function ManualOrderForm({
     if (!customer.name.trim()) return toast.error("Customer name is required.");
     if (orderType === "delivery" && !customer.room.trim())
       return toast.error("Room is required for delivery.");
-    if (payment === "credit" && !matchedCustomer) {
-      return toast.error("Pick a saved customer to pay by credit.");
+    if (payment === "credit" && !matchedAccount) {
+      return toast.error("Pick a saved customer or app user to pay by credit.");
     }
 
     setSaving(true);
@@ -209,13 +281,19 @@ export function ManualOrderForm({
       customer_name: customer.name,
       customer_phone: customer.phone,
       customer_room: customer.room,
+      // Billing an app user ties the order to their account, so it shows in their
+      // order history and any later settlement lands on their profile wallet.
+      ...(matchedAccount?.kind === "user" ? { user_id: matchedAccount.id } : {}),
       payment_method: payment,
       ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
       // Pay by credit: wallet covers `walletPortion`, the shortfall is collected
       // now as cash/UPI (recorded in paid_cash/paid_upi; wallet = total − those).
-      ...(payment === "credit" && matchedCustomer
+      ...(payment === "credit" && matchedAccount
         ? {
-            credit_owner: { customerId: matchedCustomer.id },
+            credit_owner:
+              matchedAccount.kind === "user"
+                ? { profileId: matchedAccount.id }
+                : { customerId: matchedAccount.id },
             paid_cash: shortfallCashPaid,
             paid_upi: shortfallUpiPaid,
             // Wallet portion is always collected; the cash shortfall may be only
@@ -236,6 +314,7 @@ export function ManualOrderForm({
     setLines([]);
     setQuery("");
     setCustomer({ name: "", phone: "", room: "" });
+    setPicked(null);
     setPayment("cash");
     setPaymentPending(false);
     setPaidNow("");
@@ -371,20 +450,25 @@ export function ManualOrderForm({
                 required
                 value={customer.name}
                 onChange={(v) => setCustomer((c) => ({ ...c, name: v }))}
-                items={customerMatches}
-                getKey={(c) => c.id}
-                getLabel={(c) => c.name}
-                onPick={pickCustomer}
-                renderRight={(c) => c.phone || "no phone"}
-                placeholder="Type a name…"
+                items={accountMatches}
+                getKey={(a) => `${a.kind}:${a.id}`}
+                getLabel={(a) => a.name}
+                onPick={pickAccount}
+                renderRight={(a) =>
+                  `${a.kind === "user" ? "App user" : "Walk-in"}${a.phone ? ` · ${a.phone}` : ""}`
+                }
+                placeholder="Type a name, phone or email…"
                 inputClassName={inputTheme}
               />
-              {matchedCustomer && (
+              {matchedAccount && (
                 <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                  Merges with saved customer{matchedCustomer.phone ? ` · ${matchedCustomer.phone}` : ""}
+                  {matchedAccount.kind === "user"
+                    ? "Billed to their app account"
+                    : "Merges with saved customer"}
+                  {matchedAccount.phone ? ` · ${matchedAccount.phone}` : ""}
                 </p>
               )}
-              {matchedCustomer && (
+              {matchedAccount && (
                 <span
                   className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
                     creditBalance > 0
@@ -443,13 +527,13 @@ export function ManualOrderForm({
               <div className="space-y-3">
                 <div
                   className={`rounded-lg border px-3 py-2 text-sm ${
-                    !matchedCustomer
+                    !matchedAccount
                       ? "border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
                       : "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
                   }`}
                 >
-                  {!matchedCustomer ? (
-                    "Type a saved customer's exact name to charge their wallet."
+                  {!matchedAccount ? (
+                    "Pick a saved customer or app user from the name field to charge their wallet."
                   ) : (
                     <>
                       Wallet balance {formatCurrency(creditBalance, currency)} · using{" "}
@@ -458,7 +542,7 @@ export function ManualOrderForm({
                     </>
                   )}
                 </div>
-                {matchedCustomer && maxWallet > 0 && (
+                {matchedAccount && maxWallet > 0 && (
                   <div>
                     <Label className="text-stone-700 dark:text-stone-300">
                       Use from wallet ({currency}) — max {formatCurrency(maxWallet, currency)}
@@ -480,7 +564,7 @@ export function ManualOrderForm({
                     />
                   </div>
                 )}
-                {matchedCustomer && shortfall > 0 && (
+                {matchedAccount && shortfall > 0 && (
                   <div className="space-y-3">
                     <div>
                       <Label className="text-stone-700 dark:text-stone-300">
@@ -525,7 +609,7 @@ export function ManualOrderForm({
                         />
                         {overpay > 0 && (
                           <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
-                            No change? {formatCurrency(overpay, currency)} will be added to {matchedCustomer.name}&apos;s wallet.
+                            No change? {formatCurrency(overpay, currency)} will be added to {matchedAccount.name}&apos;s wallet.
                           </p>
                         )}
                         {creditPending > 0 && (
@@ -578,7 +662,7 @@ export function ManualOrderForm({
                 {overpay > 0 && (
                   <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
                     No change? {formatCurrency(overpay, currency)} will be added to{" "}
-                    {matchedCustomer ? matchedCustomer.name : customer.name.trim() || "the customer"}&apos;s wallet.
+                    {matchedAccount ? matchedAccount.name : customer.name.trim() || "the customer"}&apos;s wallet.
                   </p>
                 )}
               </div>
