@@ -9,9 +9,11 @@ export const EDITABLE_PAYMENT_METHODS = ["cash", "upi", "bank transfer", "other"
 export const COD_MAX = 1000;
 
 /** Largest difference a delivery partner may settle into the customer's wallet
- *  when they have no change. Keeps a mistyped "cash received" from creating a
- *  big credit (or debt) — bigger gaps have to be paid exactly or by shop QR. */
-export const DOOR_CHANGE_MAX = 50;
+ *  when they have no change. Sized to the biggest note in circulation (₹500), so
+ *  a customer paying a small order with one is still covered; beyond that it's
+ *  more likely a typo than a real handover, and has to be paid exactly or by
+ *  shop QR. */
+export const DOOR_CHANGE_MAX = 500;
 export type EditablePaymentMethod = (typeof EDITABLE_PAYMENT_METHODS)[number];
 
 export const ORDER_STATUSES: OrderStatus[] = [
