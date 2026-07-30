@@ -12,6 +12,9 @@ import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Customer, OrderType, PaymentMethod, Product, Profile, SettingsMap } from "@/lib/types";
 
+/** Extends the stored PaymentMethod with UI-only split-credit variants. */
+type UiPaymentMethod = PaymentMethod | "credit_cash" | "credit_upi";
+
 const inputTheme =
   "border-black/15 bg-white text-black placeholder:text-black/40 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40";
 
@@ -133,7 +136,7 @@ export function ManualOrderForm({
     setCustomer({ name: a.name, phone: a.phone, room: a.room });
     setPicked(a);
   }
-  const [payment, setPayment] = useState<PaymentMethod>("cash");
+  const [payment, setPayment] = useState<UiPaymentMethod>("cash");
   // Goods handed over but payment not collected yet (e.g. UPI/server down) —
   // the order completes but stays "Unpaid" until marked paid on the orders page.
   const [paymentPending, setPaymentPending] = useState(false);
@@ -144,6 +147,8 @@ export function ManualOrderForm({
   // "Pay by credit": how much of the order to draw from the wallet (blank = use
   // the most it can cover); the rest is the shortfall collected by cash/UPI/split.
   const [walletUse, setWalletUse] = useState("");
+  // For the "credit" mode, how shortfall is collected. credit_cash/credit_upi
+  // modes fix this automatically; only the plain "credit" mode exposes this UI.
   const [shortfallMethod, setShortfallMethod] = useState<"cash" | "upi" | "split">("cash");
   const [shortfallCash, setShortfallCash] = useState("");
   // Cash physically received for a cash order — if it's more than the total and
@@ -215,24 +220,33 @@ export function ManualOrderForm({
   const creditBalance = matchedAccount ? balances[matchedAccount.id] ?? 0 : 0;
   // How much of the order the wallet can cover at most.
   const maxWallet = Math.min(creditBalance, total);
+
+  // True for any credit-backed payment mode.
+  const isCreditMode = payment === "credit" || payment === "credit_cash" || payment === "credit_upi";
+
   // Admin can use up to that — defaults to the max (blank = use max), but may use
   // less and pay more by cash/UPI. Anything not on the wallet is the shortfall.
-  const walletPortion =
-    payment === "credit"
-      ? walletUse.trim() === ""
-        ? maxWallet
-        : Math.min(Math.max(Number(walletUse) || 0, 0), maxWallet)
-      : 0;
-  const shortfall = payment === "credit" ? Math.max(total - walletPortion, 0) : 0;
+  const walletPortion = isCreditMode
+    ? walletUse.trim() === ""
+      ? maxWallet
+      : Math.min(Math.max(Number(walletUse) || 0, 0), maxWallet)
+    : 0;
+  const shortfall = isCreditMode ? Math.max(total - walletPortion, 0) : 0;
+
+  // Resolve the effective shortfall method:
+  // credit_cash → always cash; credit_upi → always UPI; credit → user picks.
+  const effectiveShortfallMethod: "cash" | "upi" | "split" =
+    payment === "credit_cash" ? "cash" : payment === "credit_upi" ? "upi" : shortfallMethod;
+
   const shortfallCashPaid =
-    shortfallMethod === "cash"
+    effectiveShortfallMethod === "cash"
       ? shortfall
-      : shortfallMethod === "upi"
+      : effectiveShortfallMethod === "upi"
         ? 0
         : Math.min(Math.max(Number(shortfallCash) || 0, 0), shortfall);
   const shortfallUpiPaid = Math.max(shortfall - shortfallCashPaid, 0);
   // Pay-by-credit requires a known account (to have a wallet) and some balance.
-  const creditUsable = payment !== "credit" || (!!matchedAccount && creditBalance > 0);
+  const creditUsable = !isCreditMode || (!!matchedAccount && creditBalance > 0);
 
   // Cash overpayment → wallet (no change to give). Applies to a cash order, or to
   // the cash leg of a credit shortfall — the excess is parked in the wallet.
@@ -243,7 +257,7 @@ export function ManualOrderForm({
       ? cashGiven > total
         ? cashGiven - total
         : 0
-      : payment === "credit" && shortfallMethod === "cash" && shortfallCashGiven > shortfall
+      : isCreditMode && effectiveShortfallMethod === "cash" && shortfallCashGiven > shortfall
         ? shortfallCashGiven - shortfall
         : 0;
 
@@ -251,18 +265,17 @@ export function ManualOrderForm({
   // cash leg is driven by "Cash received" — blank means the full shortfall was
   // handed over; less leaves a pending balance the customer still owes (the
   // wallet portion is always collected). UPI/split shortfalls settle on the spot.
-  const shortfallCollected =
-    payment === "credit"
-      ? shortfallMethod === "cash"
-        ? shortfallCashReceived.trim() === ""
-          ? shortfall
-          : Math.min(shortfallCashGiven, shortfall)
-        : shortfall
-      : 0;
+  const shortfallCollected = isCreditMode
+    ? effectiveShortfallMethod === "cash"
+      ? shortfallCashReceived.trim() === ""
+        ? shortfall
+        : Math.min(shortfallCashGiven, shortfall)
+      : shortfall
+    : 0;
   // What's been collected now (wallet debit + collected shortfall) and what's left
   // pending. The wallet is debited regardless; only the uncollected cash is owed.
-  const creditPaidNow = payment === "credit" ? walletPortion + shortfallCollected : 0;
-  const creditPending = payment === "credit" ? Math.max(total - creditPaidNow, 0) : 0;
+  const creditPaidNow = isCreditMode ? walletPortion + shortfallCollected : 0;
+  const creditPending = isCreditMode ? Math.max(total - creditPaidNow, 0) : 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -270,7 +283,7 @@ export function ManualOrderForm({
     if (!customer.name.trim()) return toast.error("Customer name is required.");
     if (orderType === "delivery" && !customer.room.trim())
       return toast.error("Room is required for delivery.");
-    if (payment === "credit" && !matchedAccount) {
+    if (isCreditMode && !matchedAccount) {
       return toast.error("Pick a saved customer or app user to pay by credit.");
     }
 
@@ -284,11 +297,12 @@ export function ManualOrderForm({
       // Billing an app user ties the order to their account, so it shows in their
       // order history and any later settlement lands on their profile wallet.
       ...(matchedAccount?.kind === "user" ? { user_id: matchedAccount.id } : {}),
-      payment_method: payment,
+      // credit_cash / credit_upi are UI-only — stored as "credit" in the DB.
+      payment_method: isCreditMode ? "credit" : (payment as PaymentMethod),
       ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
       // Pay by credit: wallet covers `walletPortion`, the shortfall is collected
       // now as cash/UPI (recorded in paid_cash/paid_upi; wallet = total − those).
-      ...(payment === "credit" && matchedAccount
+      ...(isCreditMode && matchedAccount
         ? {
             credit_owner:
               matchedAccount.kind === "user"
@@ -302,8 +316,8 @@ export function ManualOrderForm({
           }
         : {}),
       // Credit orders are settled from the wallet — never "payment pending".
-      payment_pending: payment === "credit" ? false : paymentPending,
-      ...(payment !== "credit" && paymentPending
+      payment_pending: isCreditMode ? false : paymentPending,
+      ...(!isCreditMode && paymentPending
         ? { amount_paid: Math.min(Math.max(Number(paidNow) || 0, 0), total) }
         : {}),
       ...(overpay > 0 ? { overpay_to_wallet: overpay } : {}),
@@ -328,7 +342,7 @@ export function ManualOrderForm({
     setOrderType("pickup");
     toast.success(
       `Order ${res.order.order_number} completed` +
-        (paymentPending && payment !== "credit" ? " · payment pending" : "") +
+        (paymentPending && !isCreditMode ? " · payment pending" : "") +
         (creditPending > 0 ? ` · ${formatCurrency(creditPending, currency)} pending` : "") +
         (overpay > 0 ? ` · ${formatCurrency(overpay, currency)} added to wallet` : "")
     );
@@ -516,14 +530,16 @@ export function ManualOrderForm({
             </div>
             <div>
               <Label className="text-stone-700 dark:text-stone-300">Payment method</Label>
-              <Select value={payment} onChange={(e) => setPayment(e.target.value as PaymentMethod)} className={inputTheme}>
+              <Select value={payment} onChange={(e) => setPayment(e.target.value as UiPaymentMethod)} className={inputTheme}>
                 <option value="cash">Cash</option>
                 <option value="upi">UPI</option>
                 <option value="split">Split (Cash + UPI)</option>
                 <option value="credit">Pay by credit (wallet)</option>
+                <option value="credit_cash">Credit + Cash</option>
+                <option value="credit_upi">Credit + UPI</option>
               </Select>
             </div>
-            {payment === "credit" && (
+            {isCreditMode && (
               <div className="space-y-3">
                 <div
                   className={`rounded-lg border px-3 py-2 text-sm ${
@@ -566,21 +582,24 @@ export function ManualOrderForm({
                 )}
                 {matchedAccount && shortfall > 0 && (
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-stone-700 dark:text-stone-300">
-                        Collect {formatCurrency(shortfall, currency)} shortfall by
-                      </Label>
-                      <Select
-                        value={shortfallMethod}
-                        onChange={(e) => setShortfallMethod(e.target.value as "cash" | "upi" | "split")}
-                        className={inputTheme}
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="upi">UPI</option>
-                        <option value="split">Split (Cash + UPI)</option>
-                      </Select>
-                    </div>
-                    {shortfallMethod === "split" && (
+                    {/* Only the generic "credit" mode lets the admin pick the shortfall method */}
+                    {payment === "credit" && (
+                      <div>
+                        <Label className="text-stone-700 dark:text-stone-300">
+                          Collect {formatCurrency(shortfall, currency)} shortfall by
+                        </Label>
+                        <Select
+                          value={shortfallMethod}
+                          onChange={(e) => setShortfallMethod(e.target.value as "cash" | "upi" | "split")}
+                          className={inputTheme}
+                        >
+                          <option value="cash">Cash</option>
+                          <option value="upi">UPI</option>
+                          <option value="split">Split (Cash + UPI)</option>
+                        </Select>
+                      </div>
+                    )}
+                    {effectiveShortfallMethod === "split" && (
                       <div>
                         <Label className="text-stone-700 dark:text-stone-300">Shortfall by cash ({currency}) — rest UPI</Label>
                         <Input
@@ -595,7 +614,7 @@ export function ManualOrderForm({
                         />
                       </div>
                     )}
-                    {shortfallMethod === "cash" && (
+                    {effectiveShortfallMethod === "cash" && (
                       <div>
                         <Label className="text-stone-700 dark:text-stone-300">Cash received ({currency}) — optional</Label>
                         <Input
@@ -667,7 +686,7 @@ export function ManualOrderForm({
                 )}
               </div>
             )}
-            {payment !== "credit" && (
+            {!isCreditMode && (
               <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
                 <input
                   type="checkbox"
@@ -683,7 +702,7 @@ export function ManualOrderForm({
                 </span>
               </label>
             )}
-            {payment !== "credit" && paymentPending && (
+            {!isCreditMode && paymentPending && (
               <div>
                 <Label className="text-stone-700 dark:text-stone-300">Paid now ({currency}) — optional</Label>
                 <Input
@@ -726,9 +745,11 @@ export function ManualOrderForm({
         </AdminCard>
 
         <Button type="submit" loading={saving} disabled={!creditUsable} variant="dark" className="w-full">
-          {payment === "credit"
+          {isCreditMode
             ? shortfall > 0
-              ? `Complete · ${formatCurrency(walletPortion, currency)} credit + ${formatCurrency(shortfall, currency)}`
+              ? `Complete · ${formatCurrency(walletPortion, currency)} credit + ${formatCurrency(shortfall, currency)} ${
+                  payment === "credit_cash" ? "cash" : payment === "credit_upi" ? "UPI" : effectiveShortfallMethod
+                }`
               : "Complete Order · Pay by credit"
             : "Complete Order"}
         </Button>
