@@ -12,9 +12,6 @@ import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Customer, OrderType, PaymentMethod, Product, Profile, SettingsMap } from "@/lib/types";
 
-/** Extends the stored PaymentMethod with UI-only split-credit variants. */
-type UiPaymentMethod = PaymentMethod | "credit_cash" | "credit_upi";
-
 const inputTheme =
   "border-black/15 bg-white text-black placeholder:text-black/40 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-black dark:text-white dark:placeholder:text-white/40";
 
@@ -136,27 +133,20 @@ export function ManualOrderForm({
     setCustomer({ name: a.name, phone: a.phone, room: a.room });
     setPicked(a);
   }
-  const [payment, setPayment] = useState<UiPaymentMethod>("cash");
-  // Goods handed over but payment not collected yet (e.g. UPI/server down) —
-  // the order completes but stays "Unpaid" until marked paid on the orders page.
+
+  // ── Payment ──────────────────────────────────────────────────────────────────
+  // Three independent amount fields. Clicking a method button pre-fills the
+  // full order total into that field (zeroing the other two) — but any field
+  // can be freely adjusted afterwards for any split combination.
+  const [cashIn, setCashIn] = useState("");
+  const [upiIn, setUpiIn] = useState("");
+  const [creditIn, setCreditIn] = useState("");
+
+  // Payment pending: goods handed over but payment not yet collected.
   const [paymentPending, setPaymentPending] = useState(false);
-  // When payment is pending, how much the customer paid up front (blank = none).
+  // When pending, how much was paid now (blank = nothing upfront).
   const [paidNow, setPaidNow] = useState("");
-  // Split payment: how much of the total was paid in cash (UPI = total − cash).
-  const [cashAmount, setCashAmount] = useState("");
-  // "Pay by credit": how much of the order to draw from the wallet (blank = use
-  // the most it can cover); the rest is the shortfall collected by cash/UPI/split.
-  const [walletUse, setWalletUse] = useState("");
-  // For the "credit" mode, how shortfall is collected. credit_cash/credit_upi
-  // modes fix this automatically; only the plain "credit" mode exposes this UI.
-  const [shortfallMethod, setShortfallMethod] = useState<"cash" | "upi" | "split">("cash");
-  const [shortfallCash, setShortfallCash] = useState("");
-  // Cash physically received for a cash order — if it's more than the total and
-  // there's no change to give, the excess is parked in the customer's wallet.
-  const [cashReceived, setCashReceived] = useState("");
-  // Same idea for the cash leg of a credit shortfall: cash handed over above the
-  // shortfall (no change given) is parked in the customer's wallet.
-  const [shortfallCashReceived, setShortfallCashReceived] = useState("");
+
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -211,71 +201,49 @@ export function ManualOrderForm({
   const fee = orderType === "delivery" ? deliveryFee : 0;
   const total = subtotal + fee;
 
-  // Split payment: cash is clamped to [0, total]; UPI is the remainder.
-  const cashPaid = Math.min(Math.max(Number(cashAmount) || 0, 0), total);
-  const upiPaid = Math.max(total - cashPaid, 0);
-
-  // Store credit can only pay for a known account (their wallet). Balance comes
-  // from the directory; an unsaved name has no wallet to charge.
+  // Wallet info for the matched customer.
   const creditBalance = matchedAccount ? balances[matchedAccount.id] ?? 0 : 0;
-  // How much of the order the wallet can cover at most.
-  const maxWallet = Math.min(creditBalance, total);
+  const maxCredit = Math.min(creditBalance, total);
 
-  // True for any credit-backed payment mode.
-  const isCreditMode = payment === "credit" || payment === "credit_cash" || payment === "credit_upi";
+  // Parse the three amount fields (floor at 0).
+  const cashNum = Math.max(Number(cashIn) || 0, 0);
+  const upiNum = Math.max(Number(upiIn) || 0, 0);
+  // Credit is also capped by the wallet balance (can't spend what you don't have).
+  const creditNum = Math.min(Math.max(Number(creditIn) || 0, 0), creditBalance);
 
-  // Admin can use up to that — defaults to the max (blank = use max), but may use
-  // less and pay more by cash/UPI. Anything not on the wallet is the shortfall.
-  const walletPortion = isCreditMode
-    ? walletUse.trim() === ""
-      ? maxWallet
-      : Math.min(Math.max(Number(walletUse) || 0, 0), maxWallet)
+  const totalCollected = cashNum + upiNum + creditNum;
+
+  // Overpay in cash → park excess in wallet (no change given).
+  const overpay = cashIn.trim() !== "" && cashNum > total - upiNum - creditNum
+    ? Math.max(cashNum - (total - upiNum - creditNum), 0)
     : 0;
-  const shortfall = isCreditMode ? Math.max(total - walletPortion, 0) : 0;
 
-  // Resolve the effective shortfall method:
-  // credit_cash → always cash; credit_upi → always UPI; credit → user picks.
-  const effectiveShortfallMethod: "cash" | "upi" | "split" =
-    payment === "credit_cash" ? "cash" : payment === "credit_upi" ? "upi" : shortfallMethod;
+  // Derive the stored payment_method from what's been filled in.
+  const hasCash = cashNum > 0;
+  const hasUpi = upiNum > 0;
+  const hasCredit = creditNum > 0;
+  const derivedMethod: PaymentMethod = hasCredit
+    ? "credit"
+    : hasCash && hasUpi
+      ? "split"
+      : hasUpi
+        ? "upi"
+        : "cash";
 
-  const shortfallCashPaid =
-    effectiveShortfallMethod === "cash"
-      ? shortfall
-      : effectiveShortfallMethod === "upi"
-        ? 0
-        : Math.min(Math.max(Number(shortfallCash) || 0, 0), shortfall);
-  const shortfallUpiPaid = Math.max(shortfall - shortfallCashPaid, 0);
-  // Pay-by-credit requires a known account (to have a wallet) and some balance.
-  const creditUsable = !isCreditMode || (!!matchedAccount && creditBalance > 0);
+  // Credit requires a linked account.
+  const creditUsable = !hasCredit || (!!matchedAccount && creditBalance > 0);
 
-  // Cash overpayment → wallet (no change to give). Applies to a cash order, or to
-  // the cash leg of a credit shortfall — the excess is parked in the wallet.
-  const cashGiven = Math.max(Number(cashReceived) || 0, 0);
-  const shortfallCashGiven = Math.max(Number(shortfallCashReceived) || 0, 0);
-  const overpay =
-    payment === "cash"
-      ? cashGiven > total
-        ? cashGiven - total
-        : 0
-      : isCreditMode && effectiveShortfallMethod === "cash" && shortfallCashGiven > shortfall
-        ? shortfallCashGiven - shortfall
-        : 0;
-
-  // Credit shortfall: how much of it was actually collected at the counter. The
-  // cash leg is driven by "Cash received" — blank means the full shortfall was
-  // handed over; less leaves a pending balance the customer still owes (the
-  // wallet portion is always collected). UPI/split shortfalls settle on the spot.
-  const shortfallCollected = isCreditMode
-    ? effectiveShortfallMethod === "cash"
-      ? shortfallCashReceived.trim() === ""
-        ? shortfall
-        : Math.min(shortfallCashGiven, shortfall)
-      : shortfall
-    : 0;
-  // What's been collected now (wallet debit + collected shortfall) and what's left
-  // pending. The wallet is debited regardless; only the uncollected cash is owed.
-  const creditPaidNow = isCreditMode ? walletPortion + shortfallCollected : 0;
-  const creditPending = isCreditMode ? Math.max(total - creditPaidNow, 0) : 0;
+  /** Pre-fill one method's field with the full total, zeroing the others. */
+  function pickMethod(m: "cash" | "upi" | "credit") {
+    if (m === "cash") { setCashIn(String(total)); setUpiIn(""); setCreditIn(""); }
+    if (m === "upi")  { setUpiIn(String(total));  setCashIn(""); setCreditIn(""); }
+    if (m === "credit") {
+      const fillCredit = Math.min(creditBalance, total);
+      setCreditIn(String(fillCredit > 0 ? fillCredit : 0));
+      setCashIn("");
+      setUpiIn("");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -283,71 +251,74 @@ export function ManualOrderForm({
     if (!customer.name.trim()) return toast.error("Customer name is required.");
     if (orderType === "delivery" && !customer.room.trim())
       return toast.error("Room is required for delivery.");
-    if (isCreditMode && !matchedAccount) {
+    if (hasCredit && !matchedAccount)
       return toast.error("Pick a saved customer or app user to pay by credit.");
-    }
+    if (hasCredit && creditNum > creditBalance)
+      return toast.error(`Wallet only has ${formatCurrency(creditBalance, currency)}.`);
 
     setSaving(true);
+
+    // For credit orders the wallet covers (total − cash − upi).
+    // paid_cash / paid_upi record the non-wallet legs.
+    const paidCash = derivedMethod === "credit" ? cashNum : derivedMethod === "split" ? cashNum : 0;
+    const paidUpi  = derivedMethod === "credit" ? upiNum  : derivedMethod === "split" ? upiNum  : 0;
+
     const res = await createManualOrderAction({
       items: lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity, unit_price: l.unitPrice })),
       order_type: orderType,
       customer_name: customer.name,
       customer_phone: customer.phone,
       customer_room: customer.room,
-      // Billing an app user ties the order to their account, so it shows in their
-      // order history and any later settlement lands on their profile wallet.
+      // Billing an app user ties the order to their account.
       ...(matchedAccount?.kind === "user" ? { user_id: matchedAccount.id } : {}),
-      // credit_cash / credit_upi are UI-only — stored as "credit" in the DB.
-      payment_method: isCreditMode ? "credit" : (payment as PaymentMethod),
-      ...(payment === "split" ? { paid_cash: cashPaid, paid_upi: upiPaid } : {}),
-      // Pay by credit: wallet covers `walletPortion`, the shortfall is collected
-      // now as cash/UPI (recorded in paid_cash/paid_upi; wallet = total − those).
-      ...(isCreditMode && matchedAccount
+      payment_method: derivedMethod,
+      // Split breakdown (cash + UPI, no credit).
+      ...(derivedMethod === "split" ? { paid_cash: cashNum, paid_upi: upiNum } : {}),
+      // Credit: wallet covers the difference; cash/UPI are the upfront legs.
+      ...(derivedMethod === "credit" && matchedAccount
         ? {
             credit_owner:
               matchedAccount.kind === "user"
                 ? { profileId: matchedAccount.id }
                 : { customerId: matchedAccount.id },
-            paid_cash: shortfallCashPaid,
-            paid_upi: shortfallUpiPaid,
-            // Wallet portion is always collected; the cash shortfall may be only
-            // partly handed over now — the rest stays pending on the order.
-            amount_paid: creditPaidNow,
+            paid_cash: paidCash,
+            paid_upi: paidUpi,
+            // Full amount collected (wallet is always debited on the spot).
+            amount_paid: total,
           }
         : {}),
-      // Credit orders are settled from the wallet — never "payment pending".
-      payment_pending: isCreditMode ? false : paymentPending,
-      ...(!isCreditMode && paymentPending
+      // Credit orders are always paid on the spot — no pending state.
+      payment_pending: hasCredit ? false : paymentPending,
+      ...(!hasCredit && paymentPending
         ? { amount_paid: Math.min(Math.max(Number(paidNow) || 0, 0), total) }
         : {}),
       ...(overpay > 0 ? { overpay_to_wallet: overpay } : {}),
       notes,
     });
+
     setSaving(false);
     if (!res.ok || !res.order) return toast.error(res.error ?? "Failed to create order.");
+
+    // Reset all fields.
     setLines([]);
     setQuery("");
     setCustomer({ name: "", phone: "", room: "" });
     setPicked(null);
-    setPayment("cash");
+    setCashIn("");
+    setUpiIn("");
+    setCreditIn("");
     setPaymentPending(false);
     setPaidNow("");
-    setCashAmount("");
-    setWalletUse("");
-    setShortfallMethod("cash");
-    setShortfallCash("");
-    setCashReceived("");
-    setShortfallCashReceived("");
     setNotes("");
     setOrderType("pickup");
+
+    const creditDeducted = creditNum;
     toast.success(
       `Order ${res.order.order_number} completed` +
-        (paymentPending && !isCreditMode ? " · payment pending" : "") +
-        (creditPending > 0 ? ` · ${formatCurrency(creditPending, currency)} pending` : "") +
+        (paymentPending && !hasCredit ? " · payment pending" : "") +
+        (creditDeducted > 0 ? ` · ${formatCurrency(creditDeducted, currency)} deducted from wallet` : "") +
         (overpay > 0 ? ` · ${formatCurrency(overpay, currency)} added to wallet` : "")
     );
-    // Stay on the manual-order page (fields already reset above) so the admin
-    // can ring up the next walk-in immediately. refresh() re-pulls live stock.
     router.refresh();
   }
 
@@ -528,165 +499,130 @@ export function ManualOrderForm({
                 <option value="delivery">Delivery (+{formatCurrency(deliveryFee, currency)})</option>
               </Select>
             </div>
+
+            {/* ── Payment method buttons ── */}
             <div>
               <Label className="text-stone-700 dark:text-stone-300">Payment method</Label>
-              <Select value={payment} onChange={(e) => setPayment(e.target.value as UiPaymentMethod)} className={inputTheme}>
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="split">Split (Cash + UPI)</option>
-                <option value="credit">Pay by credit (wallet)</option>
-                <option value="credit_cash">Credit + Cash</option>
-                <option value="credit_upi">Credit + UPI</option>
-              </Select>
-            </div>
-            {isCreditMode && (
-              <div className="space-y-3">
-                <div
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    !matchedAccount
-                      ? "border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
-                      : "border-lime-500 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
-                  }`}
-                >
-                  {!matchedAccount ? (
-                    "Pick a saved customer or app user from the name field to charge their wallet."
-                  ) : (
-                    <>
-                      Wallet balance {formatCurrency(creditBalance, currency)} · using{" "}
-                      {formatCurrency(walletPortion, currency)}
-                      {shortfall > 0 && ` · collect ${formatCurrency(shortfall, currency)} more`}
-                    </>
-                  )}
-                </div>
-                {matchedAccount && maxWallet > 0 && (
-                  <div>
-                    <Label className="text-stone-700 dark:text-stone-300">
-                      Use from wallet ({currency}) — max {formatCurrency(maxWallet, currency)}
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max={maxWallet}
-                      step="0.01"
-                      value={walletUse}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === "") return setWalletUse("");
-                        const n = Math.min(Math.max(Number(v) || 0, 0), maxWallet);
-                        setWalletUse(String(n));
-                      }}
-                      placeholder={`${maxWallet}`}
-                      className={inputTheme}
-                    />
-                  </div>
-                )}
-                {matchedAccount && shortfall > 0 && (
-                  <div className="space-y-3">
-                    {/* Only the generic "credit" mode lets the admin pick the shortfall method */}
-                    {payment === "credit" && (
-                      <div>
-                        <Label className="text-stone-700 dark:text-stone-300">
-                          Collect {formatCurrency(shortfall, currency)} shortfall by
-                        </Label>
-                        <Select
-                          value={shortfallMethod}
-                          onChange={(e) => setShortfallMethod(e.target.value as "cash" | "upi" | "split")}
-                          className={inputTheme}
-                        >
-                          <option value="cash">Cash</option>
-                          <option value="upi">UPI</option>
-                          <option value="split">Split (Cash + UPI)</option>
-                        </Select>
-                      </div>
-                    )}
-                    {effectiveShortfallMethod === "split" && (
-                      <div>
-                        <Label className="text-stone-700 dark:text-stone-300">Shortfall by cash ({currency}) — rest UPI</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max={shortfall}
-                          step="0.01"
-                          value={shortfallCash}
-                          onChange={(e) => setShortfallCash(e.target.value)}
-                          placeholder="0"
-                          className={inputTheme}
-                        />
-                      </div>
-                    )}
-                    {effectiveShortfallMethod === "cash" && (
-                      <div>
-                        <Label className="text-stone-700 dark:text-stone-300">Cash received ({currency}) — optional</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={shortfallCashReceived}
-                          onChange={(e) => setShortfallCashReceived(e.target.value)}
-                          placeholder={`${shortfall}`}
-                          className={inputTheme}
-                        />
-                        {overpay > 0 && (
-                          <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
-                            No change? {formatCurrency(overpay, currency)} will be added to {matchedAccount.name}&apos;s wallet.
-                          </p>
-                        )}
-                        {creditPending > 0 && (
-                          <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
-                            Collected less than the shortfall — {formatCurrency(creditPending, currency)} stays
-                            pending (mark it paid later from the Orders page).
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-xs text-stone-500 dark:text-stone-400">
-                      Wallet {formatCurrency(walletPortion, currency)} · Cash{" "}
-                      {formatCurrency(shortfallCashPaid, currency)} · UPI{" "}
-                      {formatCurrency(shortfallUpiPaid, currency)} of {formatCurrency(total, currency)}
-                    </p>
-                  </div>
-                )}
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                {(["cash", "upi", "credit"] as const).map((m) => {
+                  const isActive =
+                    m === "cash"   ? hasCash && !hasUpi && !hasCredit :
+                    m === "upi"    ? hasUpi  && !hasCash && !hasCredit :
+                    hasCredit;
+                  const label = m === "cash" ? "Cash" : m === "upi" ? "UPI" : "Credit";
+                  const disabled = m === "credit" && (!matchedAccount || creditBalance <= 0);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={disabled}
+                      title={m === "credit" && disabled ? "Link a customer with wallet balance to use credit" : undefined}
+                      onClick={() => pickMethod(m)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                        isActive
+                          ? "border-indigo-500 bg-indigo-500 text-white dark:border-indigo-400 dark:bg-indigo-500"
+                          : "border-black/15 bg-white text-stone-700 hover:bg-stone-50 dark:border-white/15 dark:bg-black dark:text-stone-200 dark:hover:bg-white/5"
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            {payment === "split" && (
+              {matchedAccount && creditBalance > 0 && (
+                <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+                  Wallet: {formatCurrency(creditBalance, currency)} available
+                </p>
+              )}
+            </div>
+
+            {/* ── Three amount fields — always visible ── */}
+            <div className="space-y-3">
               <div>
-                <Label className="text-stone-700 dark:text-stone-300">Paid by cash ({currency})</Label>
+                <Label className="text-stone-700 dark:text-stone-300">
+                  Cash received ({currency})
+                </Label>
                 <Input
                   type="number"
                   min="0"
-                  max={total}
                   step="0.01"
-                  value={cashAmount}
-                  onChange={(e) => setCashAmount(e.target.value)}
+                  value={cashIn}
+                  onChange={(e) => setCashIn(e.target.value)}
+                  placeholder={hasCash || (!hasUpi && !hasCredit) ? `${total}` : "0"}
+                  className={inputTheme}
+                />
+              </div>
+
+              <div>
+                <Label className="text-stone-700 dark:text-stone-300">
+                  UPI received ({currency})
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={upiIn}
+                  onChange={(e) => setUpiIn(e.target.value)}
                   placeholder="0"
                   className={inputTheme}
                 />
-                <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
-                  Cash {formatCurrency(cashPaid, currency)} · UPI {formatCurrency(upiPaid, currency)} of {formatCurrency(total, currency)}
-                </p>
               </div>
-            )}
-            {payment === "cash" && (
+
               <div>
-                <Label className="text-stone-700 dark:text-stone-300">Cash received ({currency}) — optional</Label>
+                <Label className={`text-stone-700 dark:text-stone-300 ${!matchedAccount ? "opacity-50" : ""}`}>
+                  Credit received ({currency})
+                  {matchedAccount && maxCredit > 0 && (
+                    <span className="ml-1 font-normal text-stone-500 dark:text-stone-400">
+                      — max {formatCurrency(maxCredit, currency)}
+                    </span>
+                  )}
+                </Label>
                 <Input
                   type="number"
                   min="0"
+                  max={creditBalance > 0 ? creditBalance : undefined}
                   step="0.01"
-                  value={cashReceived}
-                  onChange={(e) => setCashReceived(e.target.value)}
-                  placeholder={`${total}`}
-                  className={inputTheme}
+                  value={creditIn}
+                  onChange={(e) => setCreditIn(e.target.value)}
+                  placeholder="0"
+                  disabled={!matchedAccount || creditBalance <= 0}
+                  className={`${inputTheme} disabled:opacity-40`}
                 />
-                {overpay > 0 && (
-                  <p className="mt-1.5 text-xs text-lime-600 dark:text-lime-400">
-                    No change? {formatCurrency(overpay, currency)} will be added to{" "}
-                    {matchedAccount ? matchedAccount.name : customer.name.trim() || "the customer"}&apos;s wallet.
+                {!matchedAccount && (
+                  <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">
+                    Link a customer to enable wallet deduction.
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* ── Breakdown hint ── */}
+            {(hasCash || hasUpi || hasCredit) && (
+              <div className="rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-white/10 dark:bg-white/5 dark:text-stone-300">
+                {hasCash && <span>Cash {formatCurrency(cashNum, currency)}</span>}
+                {hasCash && (hasUpi || hasCredit) && <span className="mx-1 opacity-40">+</span>}
+                {hasUpi && <span>UPI {formatCurrency(upiNum, currency)}</span>}
+                {hasUpi && hasCredit && <span className="mx-1 opacity-40">+</span>}
+                {hasCredit && <span>Wallet {formatCurrency(creditNum, currency)}</span>}
+                <span className="mx-1 opacity-40">=</span>
+                <span className={totalCollected < total ? "text-amber-600 dark:text-amber-400" : totalCollected > total ? "text-lime-600 dark:text-lime-400" : "font-semibold"}>
+                  {formatCurrency(totalCollected, currency)}
+                </span>
+                {totalCollected < total && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    ({formatCurrency(total - totalCollected, currency)} short)
+                  </span>
+                )}
+                {overpay > 0 && (
+                  <span className="ml-1 text-lime-600 dark:text-lime-400">
+                    · {formatCurrency(overpay, currency)} → wallet
+                  </span>
+                )}
+              </div>
             )}
-            {!isCreditMode && (
+
+            {/* Payment pending (non-credit only) */}
+            {!hasCredit && (
               <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
                 <input
                   type="checkbox"
@@ -702,7 +638,7 @@ export function ManualOrderForm({
                 </span>
               </label>
             )}
-            {!isCreditMode && paymentPending && (
+            {!hasCredit && paymentPending && (
               <div>
                 <Label className="text-stone-700 dark:text-stone-300">Paid now ({currency}) — optional</Label>
                 <Input
@@ -745,12 +681,8 @@ export function ManualOrderForm({
         </AdminCard>
 
         <Button type="submit" loading={saving} disabled={!creditUsable} variant="dark" className="w-full">
-          {isCreditMode
-            ? shortfall > 0
-              ? `Complete · ${formatCurrency(walletPortion, currency)} credit + ${formatCurrency(shortfall, currency)} ${
-                  payment === "credit_cash" ? "cash" : payment === "credit_upi" ? "UPI" : effectiveShortfallMethod
-                }`
-              : "Complete Order · Pay by credit"
+          {hasCredit
+            ? `Complete · ${formatCurrency(creditNum, currency)} wallet${cashNum > 0 ? ` + ${formatCurrency(cashNum, currency)} cash` : ""}${upiNum > 0 ? ` + ${formatCurrency(upiNum, currency)} UPI` : ""}`
             : "Complete Order"}
         </Button>
       </div>
