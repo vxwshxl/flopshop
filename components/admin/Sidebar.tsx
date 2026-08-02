@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -80,13 +80,55 @@ const sections: { title: string; items: NavItem[] }[] = [
   },
 ];
 
+const allHrefs = sections.flatMap((s) => s.items.map((i) => i.href));
+
+/**
+ * The row inside a nav link. Lives in its own component so it can read
+ * `useLinkStatus()` — the hook only reports the pending state of the <Link>
+ * it is rendered under. Admin pages are `force-dynamic`, so a click can take a
+ * beat before the new segment commits; highlighting the clicked row right away
+ * keeps the sidebar from looking stuck on the previous page.
+ */
+function NavRow({ item, active }: { item: NavItem; active: boolean }) {
+  const { pending } = useLinkStatus();
+  const Icon = item.icon;
+  const highlighted = active || pending;
+
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+        highlighted
+          ? "bg-lime-400 font-semibold text-stone-950"
+          : "text-stone-600 hover:bg-black/5 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-white",
+        pending && !active && "opacity-70"
+      )}
+    >
+      <Icon className={cn("h-4 w-4", pending && "animate-pulse")} />
+      {item.label}
+    </span>
+  );
+}
+
 export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  // Longest matching href wins, so /admin/orders/new lights up "Manual Order"
+  // alone rather than "Orders" as well — a plain startsWith() marks both.
+  const activeHref = useMemo(() => {
+    let best: string | null = null;
+    for (const href of allHrefs) {
+      const matches =
+        href === "/admin"
+          ? pathname === "/admin"
+          : pathname === href || pathname.startsWith(`${href}/`);
+      if (matches && (best === null || href.length > best.length)) best = href;
+    }
+    return best;
+  }, [pathname]);
 
+  const isActive = (href: string) => href === activeHref;
 
 
   useEffect(() => {
@@ -104,25 +146,16 @@ export function Sidebar({ shopName = "FlopShop" }: { shopName?: string }) {
               {section.title}
             </p>
             <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
-                      isActive(item.href)
-                        ? "bg-lime-400 font-semibold text-stone-950"
-                        : "text-stone-600 hover:bg-black/5 hover:text-stone-950 dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-white"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+              {section.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="block"
+                >
+                  <NavRow item={item} active={isActive(item.href)} />
+                </Link>
+              ))}
             </div>
           </div>
         ))}
