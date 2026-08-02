@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { HandCoins, CheckCircle2, Clock } from "lucide-react";
+import { HandCoins, CheckCircle2, Clock, Wallet as WalletIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { settleDeliveryPartnerAction } from "@/app/admin/delivery/actions";
@@ -13,7 +13,8 @@ export type PendingSettlement = {
   name: string;
   orderCount: number;
   cashToCollect: number;
-  upiPayout: number;
+  /** Earnings that will be paid into the partner's wallet on settle. */
+  walletCredit: number;
   net: number;
 };
 
@@ -85,8 +86,12 @@ export function DeliverySettlements({
                       <span className="text-stone-700 dark:text-stone-200">{formatCurrency(p.cashToCollect, currency)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>UPI payout (shop owes)</span>
-                      <span className="text-stone-700 dark:text-stone-200">{formatCurrency(p.upiPayout, currency)}</span>
+                      <span className="inline-flex items-center gap-1">
+                        <WalletIcon className="h-3 w-3" /> Earnings → wallet
+                      </span>
+                      <span className="text-lime-600 dark:text-lime-400">
+                        {formatCurrency(p.walletCredit, currency)}
+                      </span>
                     </div>
                   </div>
                   <div className={`mt-2 border-t border-black/10 pt-2 text-sm font-bold dark:border-white/10 ${nl.cls}`}>

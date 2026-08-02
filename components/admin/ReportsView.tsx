@@ -24,6 +24,8 @@ import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, istDateString, paymentSplit } from "@/lib/utils/formatters";
 import { distributeProfit } from "@/lib/utils/shareholders";
+import { usePersistentState } from "@/lib/hooks/usePersistentState";
+import type { CreditSources } from "@/lib/utils/income";
 import { MethodTransfers } from "@/components/admin/MethodTransfers";
 import type { Category, MethodTransfer, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
 
@@ -71,6 +73,7 @@ export function ReportsView({
   shareholders = [],
   cutoffById = {},
   transfers = [],
+  creditSources = { byOrder: {}, fallback: { cash: 0, upi: 0, bank: 0, other: 1 } },
 }: {
   orders: ReportOrder[];
   products: Product[];
@@ -83,9 +86,17 @@ export function ReportsView({
   cutoffById?: Record<string, string | null>;
   /** Manual income reclassifications between payment methods. */
   transfers?: MethodTransfer[];
+  /** Funding mix behind each credit-paid order, for the "by source" view. */
+  creditSources?: CreditSources;
 }) {
   const currency = settings.currency_symbol ?? "₹";
   const [tab, setTab] = useState<Tab>("Sales");
+  // "paid" shows wallet spend as its own bucket (what the till saw); "source"
+  // re-attributes it to the cash/UPI that funded the wallet in the first place.
+  const [incomeView, setIncomeView] = usePersistentState<"paid" | "source">(
+    "admin:reports:incomeView",
+    "paid"
+  );
 
   // Default the range to start at the very first sale on record (so it always
   // covers all history), falling back to 29 days ago when there are no orders.
@@ -135,37 +146,55 @@ export function ReportsView({
 
   // Income by payment method — split orders contribute to both cash & UPI, then
   // manual transfers (within range) reclassify amounts between methods.
-  const income = useMemo(() => {
-    const acc = validOrders.reduce(
-      (a, o) => {
-        const s = paymentSplit(o);
-        a.cash += s.cash;
-        a.upi += s.upi;
-        a.bank += s.bank;
-        a.credit += s.credit;
-        a.other += s.other;
-        return a;
-      },
-      { cash: 0, upi: 0, bank: 0, credit: 0, other: 0 }
-    );
+  //
+  // `bySource` is the same total, except wallet spend is pushed back onto the
+  // cash/UPI that funded that wallet. Top-ups are never booked as income when
+  // they happen (only when spent), so this reclassifies rather than double-counts.
+  const { income, incomeBySource } = useMemo(() => {
+    const paid = { cash: 0, upi: 0, bank: 0, credit: 0, other: 0 };
+    const source = { cash: 0, upi: 0, bank: 0, credit: 0, other: 0 };
+
+    for (const o of validOrders) {
+      const s = paymentSplit(o);
+      for (const acc of [paid, source]) {
+        acc.cash += s.cash;
+        acc.upi += s.upi;
+        acc.bank += s.bank;
+        acc.other += s.other;
+      }
+      paid.credit += s.credit;
+      if (s.credit > 0) {
+        const mix = creditSources.byOrder[o.id] ?? creditSources.fallback;
+        source.cash += s.credit * mix.cash;
+        source.upi += s.credit * mix.upi;
+        source.bank += s.credit * mix.bank;
+        source.other += s.credit * mix.other;
+      }
+    }
+
     for (const t of transfers) {
       if (!inRange(t.date)) continue;
       for (const leg of t.legs ?? []) {
-        if (leg.method in acc) acc[leg.method] += Number(leg.delta);
+        if (leg.method in paid) {
+          paid[leg.method] += Number(leg.delta);
+          source[leg.method] += Number(leg.delta);
+        }
       }
     }
-    return acc;
-  }, [validOrders, transfers, inRange]);
+    return { income: paid, incomeBySource: source };
+  }, [validOrders, transfers, inRange, creditSources]);
+
+  const shownIncome = incomeView === "source" ? incomeBySource : income;
   const incomePie = useMemo(
     () =>
       [
-        { name: "Cash", value: income.cash },
-        { name: "UPI", value: income.upi },
-        { name: "Bank Transfer", value: income.bank },
-        { name: "Wallet/Credit", value: income.credit },
-        { name: "Other", value: income.other },
+        { name: "Cash", value: shownIncome.cash },
+        { name: "UPI", value: shownIncome.upi },
+        { name: "Bank Transfer", value: shownIncome.bank },
+        { name: "Wallet/Credit", value: shownIncome.credit },
+        { name: "Other", value: shownIncome.other },
       ].filter((d) => d.value > 0),
-    [income]
+    [shownIncome]
   );
 
   const dailySeries = useMemo(() => {
@@ -333,7 +362,37 @@ export function ReportsView({
             <StatCard label="Bank / Other" value={formatCurrency(income.bank + income.other, currency)} />
           </div>
 
-          <AdminCard title="Income by Payment Method">
+          <AdminCard
+            title="Income by Payment Method"
+            action={
+              <div className="flex rounded-lg border border-black/10 p-0.5 text-xs dark:border-white/10">
+                {(
+                  [
+                    ["paid", "As paid"],
+                    ["source", "By source"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setIncomeView(key)}
+                    className={`rounded-md px-2.5 py-1 font-medium transition ${
+                      incomeView === key
+                        ? "bg-yellow-400 text-black"
+                        : "text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            {incomeView === "source" && (
+              <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+                Wallet spend is counted against the cash/UPI that funded it, so it has no slice of
+                its own. Totals match the “As paid” view.
+              </p>
+            )}
             {incomePie.length === 0 ? (
               <p className="py-10 text-center text-sm text-gray-500">No income in range.</p>
             ) : (
@@ -350,11 +409,17 @@ export function ReportsView({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 text-sm">
-                  <Line label="Cash" value={formatCurrency(income.cash, currency)} />
-                  <Line label="UPI" value={formatCurrency(income.upi, currency)} />
-                  {income.credit > 0 && <Line label="Wallet/Credit" value={formatCurrency(income.credit, currency)} />}
-                  {income.bank > 0 && <Line label="Bank Transfer" value={formatCurrency(income.bank, currency)} />}
-                  {income.other > 0 && <Line label="Other" value={formatCurrency(income.other, currency)} />}
+                  <Line label="Cash" value={formatCurrency(shownIncome.cash, currency)} />
+                  <Line label="UPI" value={formatCurrency(shownIncome.upi, currency)} />
+                  {shownIncome.credit > 0 && (
+                    <Line label="Wallet/Credit" value={formatCurrency(shownIncome.credit, currency)} />
+                  )}
+                  {shownIncome.bank > 0 && (
+                    <Line label="Bank Transfer" value={formatCurrency(shownIncome.bank, currency)} />
+                  )}
+                  {shownIncome.other > 0 && (
+                    <Line label="Other" value={formatCurrency(shownIncome.other, currency)} />
+                  )}
                 </div>
               </div>
             )}

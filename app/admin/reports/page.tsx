@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { ReportsView } from "@/components/admin/ReportsView";
+import { buildCreditSources, type LedgerRow } from "@/lib/utils/income";
 import type { Category, MethodTransfer, Product, Purchase, Shareholder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export default async function ReportsPage() {
     { data: shareholders },
     { data: settlements },
     { data: transfers },
+    { data: walletTxns },
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -37,7 +39,14 @@ export default async function ReportsPage() {
       .from("method_transfers")
       .select("*, legs:method_transfer_legs(*)")
       .order("date", { ascending: false }),
+    // The whole wallet ledger — used to trace credit-paid orders back to the
+    // cash/UPI that originally funded those wallets.
+    supabase.from("wallet_transactions").select("order_id, wallet_id, amount, type, method"),
   ]);
+
+  // Credit-paid orders traced back to the cash/UPI that funded the wallet, for
+  // the Reports "by source" income view.
+  const creditSources = buildCreditSources((walletTxns as LedgerRow[] | null) ?? []);
 
   // Each shareholder's most recent cutoff → their outstanding profit since then.
   const cutoffById: Record<string, string> = {};
@@ -58,6 +67,7 @@ export default async function ReportsPage() {
         shareholders={(shareholders as Shareholder[]) ?? []}
         cutoffById={cutoffById}
         transfers={(transfers as MethodTransfer[]) ?? []}
+        creditSources={creditSources}
       />
     </div>
   );

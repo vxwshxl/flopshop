@@ -294,7 +294,10 @@ export interface DeliverySettlement {
   delivery_person_id: string;
   order_count: number;
   cash_to_collect: number;
+  /** Legacy: cash/UPI payout owed to the partner. 0 on new settlements. */
   upi_payout: number;
+  /** Partner earnings paid into their wallet by this batch. */
+  wallet_credited: number;
   net_amount: number;
   created_by: string | null;
   created_at: string;

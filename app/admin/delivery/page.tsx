@@ -118,17 +118,17 @@ export default async function AdminDeliveryPage() {
         name: nameById.get(o.delivery_person_id) ?? "Partner",
         orderCount: 0,
         cashToCollect: 0,
-        upiPayout: 0,
+        walletCredit: 0,
         net: 0,
       };
     // Cash actually taken at the door (differs from the total when the partner
     // had no change and the difference went to/from the customer's wallet).
+    // Earnings are paid as store credit, so the partner hands over all of it.
     const cash = Number(o.cash_collected ?? o.total_amount);
-    const earning = Number(o.delivery_person_earning);
     e.orderCount += 1;
-    if ((o.payment_method ?? "").toLowerCase() === "upi") e.upiPayout += earning;
-    else e.cashToCollect += cash - earning;
-    e.net = e.cashToCollect - e.upiPayout;
+    e.walletCredit += Number(o.delivery_person_earning);
+    if ((o.payment_method ?? "").toLowerCase() !== "upi") e.cashToCollect += cash;
+    e.net = e.cashToCollect;
     pendingMap.set(o.delivery_person_id, e);
   }
   const pendingSettlements = Array.from(pendingMap.values()).sort((a, b) => b.orderCount - a.orderCount);
