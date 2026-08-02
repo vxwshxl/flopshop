@@ -32,6 +32,25 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   if (!data) notFound();
   const order = data as Order;
 
+  // Wallet the payment panel can charge credit to. Signed-up users own theirs
+  // directly; a walk-in's is found by the name on the order, the same way the
+  // server actions resolve it.
+  const walletQuery = supabase.from("wallets").select("balance");
+  const { data: walletRow } = order.user_id
+    ? await walletQuery.eq("profile_id", order.user_id).maybeSingle()
+    : await (async () => {
+        const name = order.customer_name?.trim();
+        if (!name) return { data: null };
+        const { data: c } = await supabase.from("customers").select("id").ilike("name", name).limit(1);
+        const customerId = c?.[0]?.id;
+        if (!customerId) return { data: null };
+        return supabase.from("wallets").select("balance").eq("customer_id", customerId).maybeSingle();
+      })();
+  // A wallet row may not exist yet — it's created on first charge, so having a
+  // customer at all is what decides whether credit is offered.
+  const hasWalletOwner = !!order.user_id || !!order.customer_name?.trim();
+  const walletBalance = walletRow ? Number(walletRow.balance) : 0;
+
   return (
     <div>
       <Link href="/admin/orders" className="mb-3 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white">
@@ -133,6 +152,8 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           <OrderManagePanel
             order={order}
             deliveryPeople={(people as Pick<Profile, "id" | "full_name">[]) ?? []}
+            hasWalletOwner={hasWalletOwner}
+            walletBalance={walletBalance}
           />
         </div>
       </div>

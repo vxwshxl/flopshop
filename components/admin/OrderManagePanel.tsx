@@ -7,7 +7,7 @@ import {
   setOrderStatusAction,
   assignDeliveryAction,
   setPaymentStatusAction,
-  setPaymentMethodAction,
+  setOrderPaymentAction,
   setOrderTypeAction,
   setAmountPaidAction,
 } from "@/app/admin/orders/actions";
@@ -19,24 +19,32 @@ import { Modal } from "@/components/ui/modal";
 import { adminSettableStatuses, statusLabel, nextStatuses } from "@/lib/utils/orderHelpers";
 import type { Order, OrderStatus, OrderType, Profile } from "@/lib/types";
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Cash",
-  upi: "UPI",
-  split: "Split (Cash + UPI)",
-  credit: "Pay by credit (wallet)",
-  "bank transfer": "Bank Transfer",
-  other: "Other",
-};
-
-// Same set the manual-order form offers, so an order can be relabelled to any of them.
-const METHOD_OPTIONS = ["cash", "upi", "split", "credit", "bank transfer", "other"];
+/**
+ * What the order already records for one leg of the payment, as a form value.
+ * A plain cash/UPI order stores the whole total under its method; a split
+ * stores the two legs explicitly.
+ */
+function seedLeg(order: Order, leg: "cash" | "upi", total: number): string {
+  const method = (order.payment_method ?? "").toLowerCase();
+  if (method === "split" || method === "credit") {
+    const amount = Number(leg === "cash" ? order.paid_cash : order.paid_upi) || 0;
+    return amount > 0 ? String(amount) : "";
+  }
+  return method === leg ? String(total) : "";
+}
 
 export function OrderManagePanel({
   order,
   deliveryPeople,
+  hasWalletOwner = false,
+  walletBalance = 0,
 }: {
   order: Order;
   deliveryPeople: Pick<Profile, "id" | "full_name">[];
+  /** Whether this order has a customer whose wallet credit can be charged. */
+  hasWalletOwner?: boolean;
+  /** That customer's current balance (negative = they owe the shop). */
+  walletBalance?: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -45,11 +53,18 @@ export function OrderManagePanel({
   const [cancelReason, setCancelReason] = useState("");
   const [statusTarget, setStatusTarget] = useState<OrderStatus | null>(null);
   const [amountPaid, setAmountPaid] = useState(String(order.amount_paid ?? ""));
-  // Payment-method picker: split/credit need a confirm step, so the dropdown
-  // only stages a choice and a Save below commits it. Single methods save at once.
-  const [methodDraft, setMethodDraft] = useState((order.payment_method ?? "").toLowerCase());
-  const [splitCash, setSplitCash] = useState(String(order.paid_cash ?? ""));
   const router = useRouter();
+
+  // Payment is entered as a cash / UPI / wallet mix, mirroring the manual-order
+  // form. Seeded from what the order already records so opening the panel shows
+  // the current split rather than a blank slate.
+  const total = Number(order.total_amount);
+  const initialMethod = (order.payment_method ?? "").toLowerCase();
+  const [cashIn, setCashIn] = useState(() => seedLeg(order, "cash", total));
+  const [upiIn, setUpiIn] = useState(() => seedLeg(order, "upi", total));
+  const [creditIn, setCreditIn] = useState(() =>
+    initialMethod === "credit" ? String(Math.max(total - Number(order.paid_cash ?? 0) - Number(order.paid_upi ?? 0), 0)) : ""
+  );
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) =>
     startTransition(async () => {
@@ -140,22 +155,46 @@ export function OrderManagePanel({
   // Delivered = OTP-verified, cancelled = terminal. Both are final: no edits.
   const finalized = order.status === "delivered" || order.status === "cancelled";
 
-  // Payment method is editable even on finalized orders (e.g. fixing how a
-  // completed walk-in was actually paid). Any current value not in the standard
-  // set is still shown first so nothing is silently dropped.
-  const paymentMethod = (order.payment_method ?? "").toLowerCase();
-  const methodOptions = METHOD_OPTIONS.includes(paymentMethod)
-    ? METHOD_OPTIONS
-    : [paymentMethod, ...METHOD_OPTIONS];
-  const total = Number(order.total_amount);
-  const splitCashNum = Math.min(Math.max(Number(splitCash) || 0, 0), total);
+  // Payment is editable even on finalized orders (e.g. fixing how a completed
+  // walk-in was actually paid).
+  const cashNum = Math.max(Number(cashIn) || 0, 0);
+  const upiNum = Math.max(Number(upiIn) || 0, 0);
+  const creditNum = Math.max(Number(creditIn) || 0, 0);
+  const collectedTotal = cashNum + upiNum + creditNum;
+  const hasCash = cashNum > 0;
+  const hasUpi = upiNum > 0;
+  const hasCredit = creditNum > 0;
+  // The wallet is the balancing item, so cash/UPI beyond the total parks there
+  // and anything the legs don't cover comes out of it.
+  const overpay = Math.max(cashNum + upiNum - total, 0);
+  const shortfall = Math.max(total - cashNum - upiNum, 0);
 
-  function onMethodChange(m: string) {
-    setMethodDraft(m);
-    // Split & credit open an inline confirm; everything else saves immediately.
-    if (m !== "split" && m !== "credit") {
-      run(() => setPaymentMethodAction(order.id, m), "Payment method updated");
+  /** Pre-fill one method's field with the full total, zeroing the others. */
+  function pickMethod(m: "cash" | "upi" | "credit") {
+    setCashIn(m === "cash" ? String(total) : "");
+    setUpiIn(m === "upi" ? String(total) : "");
+    setCreditIn(m === "credit" ? String(total) : "");
+  }
+
+  const savePaymentLabel = hasCash || hasUpi || hasCredit
+    ? `Save · ${[
+        hasCredit ? `${formatCurrency(creditNum)} wallet` : null,
+        hasCash ? `${formatCurrency(cashNum)} cash` : null,
+        hasUpi ? `${formatCurrency(upiNum)} UPI` : null,
+      ]
+        .filter(Boolean)
+        .join(" + ")}`
+    : "Save payment";
+
+  function savePayment() {
+    if (hasCredit && !hasWalletOwner) {
+      toast.error("This order has no customer wallet to charge.");
+      return;
     }
+    run(
+      () => setOrderPaymentAction(order.id, { cash: cashNum, upi: upiNum, credit: creditNum }),
+      "Payment updated"
+    );
   }
 
   return (
@@ -240,54 +279,132 @@ export function OrderManagePanel({
 
         <div>
           <p className="mb-2 text-xs font-medium uppercase text-black/50 dark:text-white/50">Payment method</p>
-          <Select value={methodDraft} disabled={pending} onChange={(e) => onMethodChange(e.target.value)}>
-            {methodOptions.map((m) => (
-              <option key={m} value={m}>
-                {METHOD_LABELS[m] ?? m}
-              </option>
-            ))}
-          </Select>
 
-          {/* Split needs the cash/UPI breakdown before it can be saved. */}
-          {methodDraft === "split" && (
-            <div className="mt-3 space-y-2 rounded-lg border border-black/10 p-3 dark:border-white/10">
-              <p className="text-xs text-black/50 dark:text-white/50">Cash collected (UPI is the rest)</p>
+          {/* Three method buttons — each pre-fills its field with the full total. */}
+          <div className="grid grid-cols-3 gap-2">
+            {(["cash", "upi", "credit"] as const).map((m) => {
+              const isActive =
+                m === "cash"
+                  ? hasCash && !hasUpi && !hasCredit
+                  : m === "upi"
+                    ? hasUpi && !hasCash && !hasCredit
+                    : hasCredit;
+              const label = m === "cash" ? "Cash" : m === "upi" ? "UPI" : "Credit";
+              const disabled = m === "credit" && !hasWalletOwner;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  disabled={disabled || pending}
+                  title={disabled ? "This order has no customer wallet to charge" : undefined}
+                  onClick={() => pickMethod(m)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "border-indigo-500 bg-indigo-500 text-white dark:border-indigo-400 dark:bg-indigo-500"
+                      : "border-black/15 bg-white text-stone-700 hover:bg-stone-50 dark:border-white/15 dark:bg-black dark:text-stone-200 dark:hover:bg-white/5"
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {hasWalletOwner && (
+            <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+              {walletBalance < 0
+                ? `Wallet: owes ${formatCurrency(Math.abs(walletBalance))}`
+                : `Wallet: ${formatCurrency(walletBalance)} available`}
+            </p>
+          )}
+
+          {/* Three amount fields — always visible. */}
+          <div className="mt-3 space-y-3">
+            <div>
+              <p className="mb-1 text-xs text-black/50 dark:text-white/50">Cash received</p>
               <Input
                 type="number"
-                inputMode="numeric"
-                value={splitCash}
-                onChange={(e) => setSplitCash(e.target.value)}
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={cashIn}
+                onChange={(e) => setCashIn(e.target.value)}
                 placeholder="0"
               />
-              <p className="text-xs text-black/60 dark:text-white/60">
-                Cash {formatCurrency(splitCashNum)} · UPI {formatCurrency(Math.max(total - splitCashNum, 0))}
+            </div>
+            <div>
+              <p className="mb-1 text-xs text-black/50 dark:text-white/50">UPI received</p>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={upiIn}
+                onChange={(e) => setUpiIn(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <p className={`mb-1 text-xs text-black/50 dark:text-white/50 ${!hasWalletOwner ? "opacity-50" : ""}`}>
+                Credit received
+                {hasWalletOwner && walletBalance > 0 && (
+                  <span className="ml-1">— max {formatCurrency(Math.min(walletBalance, total))}</span>
+                )}
               </p>
-              <Button
-                size="sm"
-                disabled={pending}
-                onClick={() => run(() => setPaymentMethodAction(order.id, "split", { paidCash: splitCashNum }), "Saved as split")}
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={creditIn}
+                onChange={(e) => setCreditIn(e.target.value)}
+                placeholder="0"
+                disabled={!hasWalletOwner}
+                className="disabled:opacity-40"
+              />
+              {!hasWalletOwner && (
+                <p className="mt-1 text-xs text-black/40 dark:text-white/40">
+                  This order has no customer to charge credit to.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Live breakdown — amber when short, lime when the excess parks in the wallet. */}
+          {(hasCash || hasUpi || hasCredit) && (
+            <div className="mt-3 rounded-lg border border-black/10 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-white/10 dark:bg-white/5 dark:text-stone-300">
+              {hasCash && <span>Cash {formatCurrency(cashNum)}</span>}
+              {hasCash && (hasUpi || hasCredit) && <span className="mx-1 opacity-40">+</span>}
+              {hasUpi && <span>UPI {formatCurrency(upiNum)}</span>}
+              {hasUpi && hasCredit && <span className="mx-1 opacity-40">+</span>}
+              {hasCredit && <span>Wallet {formatCurrency(creditNum)}</span>}
+              <span className="mx-1 opacity-40">=</span>
+              <span
+                className={
+                  collectedTotal < total
+                    ? "text-amber-600 dark:text-amber-400"
+                    : collectedTotal > total
+                      ? "text-lime-600 dark:text-lime-400"
+                      : "font-semibold"
+                }
               >
-                Save split
-              </Button>
+                {formatCurrency(collectedTotal)}
+              </span>
+              {shortfall > 0 && (
+                <span className="ml-1 text-amber-600 dark:text-amber-400">
+                  ({formatCurrency(shortfall)} {hasWalletOwner ? "from wallet" : "short"})
+                </span>
+              )}
+              {overpay > 0 && (
+                <span className="ml-1 text-lime-600 dark:text-lime-400">
+                  · {formatCurrency(overpay)} → wallet
+                </span>
+              )}
             </div>
           )}
 
-          {/* Pay-by-credit charges the whole order to the customer's wallet. */}
-          {methodDraft === "credit" && (
-            <div className="mt-3 space-y-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:border-amber-400/20 dark:bg-amber-400/10">
-              <p className="text-xs text-amber-800 dark:text-amber-200">
-                Charges {formatCurrency(total)} to {order.customer_name || "the customer"}&apos;s store credit. If they
-                don&apos;t have enough, the balance goes negative (they owe the shop).
-              </p>
-              <Button
-                size="sm"
-                disabled={pending}
-                onClick={() => run(() => setPaymentMethodAction(order.id, "credit"), "Charged to store credit")}
-              >
-                Charge store credit
-              </Button>
-            </div>
-          )}
+          <Button size="sm" className="mt-3 w-full" disabled={pending} onClick={savePayment}>
+            {savePaymentLabel}
+          </Button>
         </div>
 
         <div>

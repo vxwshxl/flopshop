@@ -12,7 +12,7 @@ import {
 } from "@/lib/server/wallet";
 import { statusDeductsStock, deliverySplit, DOOR_CHANGE_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
-import type { OrderStatus, OrderType, PaymentStatus, Role } from "@/lib/types";
+import type { OrderStatus, OrderType, PaymentMethod, PaymentStatus, Role } from "@/lib/types";
 
 async function requireRole(roles: Role[]): Promise<{ id: string; role: Role } | null> {
   const supabase = await createClient();
@@ -387,6 +387,96 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
   const { error } = await admin.from("orders").update(patch).eq("id", orderId);
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
+ * Record an order's payment as a cash / UPI / wallet mix — the same model the
+ * manual-order form uses, so an order can be corrected after the fact with the
+ * exact breakdown rather than a single method label.
+ *
+ * The wallet is the balancing item: whatever the cash and UPI legs don't cover
+ * is debited from the customer's store credit, and anything over the total is
+ * parked there as change. The `credit` argument is what the admin typed, used
+ * to derive the stored method and to check the wallet can cover it — the actual
+ * movement is always `(cash + upi) − total`, so the three legs can't disagree
+ * with the order's books.
+ */
+export async function setOrderPaymentAction(
+  orderId: string,
+  legs: { cash?: number; upi?: number; credit?: number }
+) {
+  const actor = await requireRole(["admin"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select("total_amount, payment_method, user_id, customer_name, customer_phone, customer_room, order_number")
+    .eq("id", orderId)
+    .single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  const total = Number(order.total_amount);
+  const cash = Math.max(Number(legs.cash) || 0, 0);
+  const upi = Math.max(Number(legs.upi) || 0, 0);
+  const typedCredit = Math.max(Number(legs.credit) || 0, 0);
+  const collected = cash + upi;
+
+  const method: PaymentMethod =
+    typedCredit > 0 ? "credit" : cash > 0 && upi > 0 ? "split" : upi > 0 ? "upi" : "cash";
+
+  const oldMethod = (order.payment_method ?? "").toLowerCase();
+  const owner = await resolveOrderWalletOwner(order);
+  const now = new Date().toISOString();
+
+  if (typedCredit > 0 && !owner) {
+    return { ok: false, error: "No customer wallet to charge. Add a name or phone to this order first." };
+  }
+
+  // Legacy credit charges were written as `order_payment` rows, which the
+  // adjustment ledger below doesn't net against — release them first so the
+  // order isn't charged twice.
+  if (oldMethod === "credit" && owner) await refundOrderCredit(orderId, actor.id);
+
+  if (owner) {
+    const gap = collected - total;
+    const rec = await reconcileOrderAdjustment({
+      owner,
+      orderId,
+      targetNet: gap,
+      actorId: actor.id,
+      note:
+        gap >= 0
+          ? `Order ${order.order_number}: ₹${gap.toFixed(2)} kept as credit`
+          : `Order ${order.order_number}: ₹${(-gap).toFixed(2)} paid from store credit`,
+    });
+    if (!rec.ok) return { ok: false, error: rec.error };
+  }
+
+  // With a wallet in play the order is always fully settled — the leftover lives
+  // on the customer. Without one, the shortfall stays an order-level partial.
+  const settled = !!owner || collected >= total;
+  const paid = owner ? total : Math.min(collected, total);
+  const status: PaymentStatus = settled ? "paid" : paid > 0 ? "partial" : "pending";
+
+  const { error } = await admin
+    .from("orders")
+    .update({
+      payment_method: method,
+      paid_cash: cash,
+      paid_upi: upi,
+      amount_paid: paid,
+      payment_status: status,
+      updated_at: now,
+    })
+    .eq("id", orderId);
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/customers");
+  revalidatePath("/admin/reports");
+  if (order.user_id) revalidatePath(`/admin/users/${order.user_id}`);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
