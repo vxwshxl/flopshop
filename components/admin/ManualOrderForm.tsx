@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Minus, Trash2, Search, Wallet as WalletIcon } from "lucide-react";
+import Image from "next/image";
+import { Plus, Minus, Trash2, Search, ChevronDown, Wallet as WalletIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { createManualOrderAction } from "@/app/admin/orders/actions";
 import { AdminCard } from "@/components/admin/StatCard";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { imagePositionStyle } from "@/lib/utils/image";
 import type { Customer, OrderType, PaymentMethod, Product, Profile, SettingsMap } from "@/lib/types";
 
 const inputTheme =
@@ -68,6 +70,11 @@ export function ManualOrderForm({
 
   const [lines, setLines] = useState<Line[]>([]);
   const [query, setQuery] = useState("");
+  // Product picker menu. With no query it lists every in-stock item (opened by
+  // the chevron or by focusing the field); typing narrows it.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const queryRef = useRef<HTMLInputElement>(null);
   const [orderType, setOrderType] = useState<OrderType>("pickup");
   const [customer, setCustomer] = useState({ name: "", phone: "", room: "" });
   // Keyboard-highlighted row in the product search dropdown (↑/↓ move, Enter picks).
@@ -150,13 +157,25 @@ export function ManualOrderForm({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const results = useMemo(
-    () =>
-      query.trim()
-        ? products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
-        : [],
-    [products, query]
-  );
+  // Typing searches everything (out-of-stock rows still show, disabled); with an
+  // empty box the menu lists the full in-stock catalogue.
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q) return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
+    return products.filter((p) => p.current_stock > 0);
+  }, [products, query]);
+
+  const showResults = pickerOpen && results.length > 0;
+
+  // Close the picker on an outside click.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [pickerOpen]);
 
   function add(p: Product) {
     setLines((ls) => {
@@ -168,6 +187,7 @@ export function ManualOrderForm({
       return [...ls, { product: p, quantity: 1, unitPrice: Number(p.selling_price) }];
     });
     setQuery("");
+    setPickerOpen(false);
   }
 
   function setQty(id: string, delta: number) {
@@ -326,16 +346,30 @@ export function ManualOrderForm({
     <form onSubmit={submit} className="grid gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <AdminCard title="Add Products">
-          <div className="relative">
+          <div className="relative" ref={pickerRef}>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
             <input
+              ref={queryRef}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setProductActive(0);
+                setPickerOpen(true);
               }}
+              onFocus={() => setPickerOpen(true)}
               onKeyDown={(e) => {
-                if (!results.length) return;
+                if (e.key === "Escape") {
+                  setQuery("");
+                  setPickerOpen(false);
+                  return;
+                }
+                if (e.key === "ArrowDown" && !pickerOpen) {
+                  e.preventDefault();
+                  setPickerOpen(true);
+                  setProductActive(0);
+                  return;
+                }
+                if (!showResults) return;
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
                   setProductActive((i) => Math.min(i + 1, results.length - 1));
@@ -346,15 +380,26 @@ export function ManualOrderForm({
                   e.preventDefault();
                   const p = results[productActive];
                   if (p && p.current_stock > 0) add(p);
-                } else if (e.key === "Escape") {
-                  setQuery("");
                 }
               }}
               placeholder="Search products to add…"
-              className={`h-10 w-full rounded-lg border pl-9 pr-3 text-sm ${inputTheme}`}
+              className={`h-10 w-full rounded-lg border pl-9 pr-11 text-sm ${inputTheme}`}
             />
-            {results.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
+            <button
+              type="button"
+              aria-label={pickerOpen ? "Hide product list" : "Show all in-stock products"}
+              aria-expanded={pickerOpen}
+              onClick={() => {
+                setProductActive(0);
+                setPickerOpen((o) => !o);
+                queryRef.current?.focus();
+              }}
+              className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-stone-500 transition hover:bg-black/5 dark:text-stone-400 dark:hover:bg-white/10"
+            >
+              <ChevronDown className={`h-4 w-4 transition ${pickerOpen ? "rotate-180" : ""}`} />
+            </button>
+            {showResults && (
+              <div className="absolute z-10 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-black/15 bg-white text-black shadow-xl dark:border-white/15 dark:bg-stone-900 dark:text-white">
                 {results.map((p, i) => (
                   <button
                     type="button"
@@ -362,12 +407,25 @@ export function ManualOrderForm({
                     onClick={() => add(p)}
                     onMouseEnter={() => setProductActive(i)}
                     disabled={p.current_stock <= 0}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 disabled:opacity-40 ${
+                    className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-stone-700 hover:bg-black/5 dark:text-stone-200 dark:hover:bg-white/10 disabled:opacity-40 ${
                       i === productActive ? "bg-black/5 dark:bg-white/10" : ""
                     }`}
                   >
-                    <span>{p.name}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-md bg-stone-100 dark:bg-stone-800">
+                      {p.image_url ? (
+                        <Image
+                          src={p.image_url}
+                          alt=""
+                          fill
+                          sizes="36px"
+                          style={imagePositionStyle(p.details)}
+                        />
+                      ) : (
+                        <span className="grid h-full w-full place-items-center text-base">🍫</span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                    <span className="shrink-0 text-xs text-gray-500">
                       {formatCurrency(p.selling_price, currency)} · stock {p.current_stock}
                     </span>
                   </button>

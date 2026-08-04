@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Plus, Minus } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -12,11 +13,38 @@ import { Autocomplete } from "@/components/ui/autocomplete";
 import { DatePicker } from "@/components/ui/date-picker";
 import { AdminCard } from "@/components/admin/StatCard";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
+import { imagePositionStyle } from "@/lib/utils/image";
 import type { Product, Supplier } from "@/lib/types";
 
 const inputDark = "border-[#333] bg-[#0a0a0a] text-white focus:border-indigo-500";
 const stepperBtn =
   "grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-[#333] bg-[#0a0a0a] text-white transition hover:bg-white/10";
+
+/**
+ * Row shown for a product in the picker — thumbnail, name and current stock.
+ * Built from spans so it nests cleanly inside the trigger's inline label too.
+ */
+function ProductOption({ product }: { product: Product }) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="relative block h-6 w-6 shrink-0 overflow-hidden rounded bg-white/10">
+        {product.image_url ? (
+          <Image
+            src={product.image_url}
+            alt=""
+            fill
+            sizes="24px"
+            style={imagePositionStyle(product.details)}
+          />
+        ) : (
+          <span className="grid h-full w-full place-items-center text-[11px]">🍫</span>
+        )}
+      </span>
+      <span className="truncate">{product.name}</span>
+      <span className="shrink-0 text-xs opacity-60">stock: {product.current_stock}</span>
+    </span>
+  );
+}
 
 export function PurchaseForm({ products, suppliers }: { products: Product[]; suppliers: Supplier[] }) {
   const router = useRouter();
@@ -127,10 +155,18 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label className="text-gray-300">Product</Label>
-            <Select value={form.product_id} onChange={set("product_id")} className={inputDark} required>
+            <Select
+              value={form.product_id}
+              onChange={set("product_id")}
+              className={inputDark}
+              searchable
+              searchPlaceholder="Search products…"
+              required
+            >
               {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} (stock: {p.current_stock})
+                // The label is a component, so give the search box plain text to match on.
+                <option key={p.id} value={p.id} data-search={p.name}>
+                  <ProductOption product={p} />
                 </option>
               ))}
             </Select>
