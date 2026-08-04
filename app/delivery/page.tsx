@@ -20,8 +20,7 @@ export default async function DeliveryDashboard({
   searchParams: Promise<{ range?: string }>;
 }) {
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
-  const settings = await getSettings();
+  const [profile, settings] = await Promise.all([getCurrentProfile(), getSettings()]);
   const currency = settings.currency_symbol;
 
   const sp = await searchParams;

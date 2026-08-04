@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSettings, getActiveHostels } from "@/lib/supabase/queries";
+import { getSettings } from "@/lib/supabase/queries";
 import { StoreGrid } from "@/components/store/StoreGrid";
-import { ProfileCompletionPrompt } from "@/components/store/ProfileCompletionPrompt";
 import { ShopClosedBanner } from "@/components/store/ShopClosedBanner";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import type { Category, Product } from "@/lib/types";
@@ -10,28 +9,22 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const settings = await getSettings();
 
-  const [{ data: categories }, { data: products }, hostels] = await Promise.all([
+  const [settings, { data: categories }, { data: products }] = await Promise.all([
+    getSettings(),
     supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
     supabase
       .from("products")
       .select("*, category:categories(*)")
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
-    getActiveHostels(),
   ]);
 
-  const sortedProducts = ((products as Product[]) ?? []).slice().sort((a, b) => {
-    const aOutOfStock = (a.current_stock ?? 0) <= 0;
-    const bOutOfStock = (b.current_stock ?? 0) <= 0;
-
-    if (aOutOfStock !== bOutOfStock) {
-      return aOutOfStock ? 1 : -1;
-    }
-
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  // Already ordered newest-first by the query — this only floats in-stock items
+  // above sold-out ones while preserving that order within each group.
+  const sortedProducts = ((products as Product[]) ?? [])
+    .slice()
+    .sort((a, b) => Number((a.current_stock ?? 0) <= 0) - Number((b.current_stock ?? 0) <= 0));
 
   return (
     <main>

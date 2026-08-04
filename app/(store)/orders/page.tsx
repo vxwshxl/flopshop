@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSettings } from "@/lib/supabase/queries";
+import { getAuthUser, getSettings } from "@/lib/supabase/queries";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { MyOrdersList } from "@/components/store/MyOrdersList";
 import { Package } from "lucide-react";
@@ -9,12 +9,8 @@ export const dynamic = "force-dynamic";
 
 export default async function MyOrdersPage() {
   const supabase = await createClient();
-  const settings = await getSettings();
+  const [settings, user] = await Promise.all([getSettings(), getAuthUser()]);
   const currency = settings.currency_symbol;
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data: orders } = await supabase
     .from("orders")

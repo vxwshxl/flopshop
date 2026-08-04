@@ -14,7 +14,11 @@ export const config = {
      * cookies themselves; running the session-refreshing proxy on them re-sets
      * the auth cookie and clobbers sign-out's deletion, so the user never
      * actually gets logged out.
+     *
+     * Every path that DOES match costs an `auth.getUser()` round-trip plus a
+     * profiles lookup, so the PWA/static files below (service worker, manifest,
+     * icons, fonts, robots) are excluded too — none of them are access-gated.
      */
-    "/((?!_next/static|_next/image|favicon.ico|auth/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|robots.txt|sitemap.xml|auth/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?|ttf|txt|xml)$).*)",
   ],
 };

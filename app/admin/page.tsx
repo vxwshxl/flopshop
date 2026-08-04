@@ -31,9 +31,6 @@ export default async function AdminDashboard({
   searchParams: Promise<{ range?: string }>;
 }) {
   const supabase = await createClient();
-  const settings = await getSettings();
-  const currency = settings.currency_symbol;
-
   const sp = await searchParams;
   const rangeKey = sp.range ?? "";
   const range: DashboardRange = rangeKey in DASHBOARD_RANGES ? (rangeKey as DashboardRange) : "all";
@@ -41,7 +38,8 @@ export default async function AdminDashboard({
 
   const { since, until: now } = getISTTimeBounds(rangeDays, offsetDays ?? 0);
 
-  const [{ data: ordersRaw }, { data: products }, { data: categories }, { data: profiles }] = await Promise.all([
+  const [settings, { data: ordersRaw }, { data: products }, { data: categories }, { data: profiles }] = await Promise.all([
+    getSettings(),
     supabase
       .from("orders")
       .select(
@@ -55,6 +53,7 @@ export default async function AdminDashboard({
     supabase.from("profiles").select("id, is_active"),
   ]);
 
+  const currency = settings.currency_symbol;
   const orders = (ordersRaw as unknown as DashOrder[]) ?? [];
   const productList = (products as Product[]) ?? [];
   const cats = (categories as Category[]) ?? [];
@@ -83,12 +82,17 @@ export default async function AdminDashboard({
   // Revenue series across the range — daily buckets for short ranges, monthly
   // for long ones so the chart stays readable.
   const days: { date: string; revenue: number; orders: number }[] = [];
-  
+
+  // Converting an order's timestamp to IST goes through Intl + a re-parse, so
+  // do it exactly once per order here. The buckets below then look up by key
+  // instead of re-scanning (and re-converting) every order for every bucket.
+  const orderDates = rangeOrders.map((o) => ({ ist: toISTDate(o.created_at), amount: Number(o.total_amount) }));
+
   let chartSince = since;
   if (range === "all") {
-    if (rangeOrders.length > 0) {
+    if (orderDates.length > 0) {
       // Get oldest date in IST to cleanly reset to midnight
-      const oldestIST = toISTDate(rangeOrders[rangeOrders.length - 1].created_at);
+      const oldestIST = new Date(orderDates[orderDates.length - 1].ist);
       oldestIST.setHours(0, 0, 0, 0);
       oldestIST.setDate(oldestIST.getDate() - 1);
       // Convert back to UTC date object to match how 'since' is structured
@@ -100,42 +104,48 @@ export default async function AdminDashboard({
 
   const actualDays = Math.max(1, Math.ceil((now.getTime() - chartSince.getTime()) / (1000 * 60 * 60 * 24)));
 
+  // One pass over the orders to fill the buckets, then one pass over the
+  // buckets to emit the series.
+  const bucket = new Map<string, { revenue: number; orders: number }>();
+  const addToBucket = (key: string, amount: number) => {
+    const b = bucket.get(key);
+    if (b) {
+      b.revenue += amount;
+      b.orders += 1;
+    } else {
+      bucket.set(key, { revenue: amount, orders: 1 });
+    }
+  };
+  const emit = (date: string, key: string) =>
+    days.push({ date, orders: 0, revenue: 0, ...bucket.get(key) });
+
   if (actualDays > 31) {
+    const monthKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
+    for (const o of orderDates) addToBucket(monthKey(o.ist), o.amount);
+
     const cursor = toISTDate(chartSince);
     cursor.setDate(1);
     const end = toISTDate(now);
     end.setDate(1);
     while (cursor <= end) {
-      const monthOrders = rangeOrders.filter((o) => {
-        const od = toISTDate(o.created_at);
-        return od.getFullYear() === cursor.getFullYear() && od.getMonth() === cursor.getMonth();
-      });
-      days.push({
-        date: cursor.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
-        revenue: monthOrders.reduce((s, o) => s + Number(o.total_amount), 0),
-        orders: monthOrders.length,
-      });
+      emit(cursor.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), monthKey(cursor));
       cursor.setMonth(cursor.getMonth() + 1);
     }
   } else {
+    for (const o of orderDates) addToBucket(o.ist.toDateString(), o.amount);
+
     // If it's exact end of day, now might be 00:00:00 of the next day.
     // If we include it in the loop with <= toISTDate(now), we might render an empty next day.
     // So we loop up to until - 1ms.
-    const endBound = new Date(now.getTime() - 1);
-    for (let d = toISTDate(chartSince); d <= toISTDate(endBound); d.setDate(d.getDate() + 1)) {
-      const key = d.toDateString();
-      const dayOrders = rangeOrders.filter((o) => toISTDate(o.created_at).toDateString() === key);
-      days.push({
-        date: new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
-        revenue: dayOrders.reduce((s, o) => s + Number(o.total_amount), 0),
-        orders: dayOrders.length,
-      });
+    const endBound = toISTDate(new Date(now.getTime() - 1));
+    for (const d = toISTDate(chartSince); d <= endBound; d.setDate(d.getDate() + 1)) {
+      emit(d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }), d.toDateString());
     }
   }
 
   // Category breakdown
   const catTotals = new Map<string, number>();
-  orders.filter(notCancelled).forEach((o) =>
+  rangeOrders.forEach((o) =>
     o.order_items?.forEach((it) => {
       const id = it.product?.category_id ?? "uncategorized";
       catTotals.set(id, (catTotals.get(id) ?? 0) + Number(it.total_price));

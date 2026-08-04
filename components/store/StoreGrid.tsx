@@ -17,11 +17,13 @@ interface Props {
 
 export function StoreGrid({ categories, products, currency = "₹" }: Props) {
   const [active, setActive] = useState("all");
-  const hydrated = useCart((s) => s.hydrated);
-  const items = useCart((s) => s.items);
-
-  const count = hydrated ? items.reduce((s, i) => s + i.quantity, 0) : 0;
-  const subtotal = hydrated ? items.reduce((s, i) => s + i.price * i.quantity, 0) : 0;
+  // Select the derived numbers, not the `items` array itself: the array gets a
+  // new identity on every cart mutation, which re-rendered this whole grid (and
+  // every ProductCard in it) even when the checkout bar didn't change.
+  const count = useCart((s) => (s.hydrated ? s.items.reduce((n, i) => n + i.quantity, 0) : 0));
+  const subtotal = useCart((s) =>
+    s.hydrated ? s.items.reduce((n, i) => n + i.price * i.quantity, 0) : 0
+  );
 
   const filtered = useMemo(
     () => (active === "all" ? products : products.filter((p) => p.category_id === active)),

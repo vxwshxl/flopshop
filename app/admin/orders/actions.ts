@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { createOrder, updateOrderStatus, type CreateOrderInput } from "@/lib/server/orders";
+import {
+  adjustStockForItems,
+  createOrder,
+  updateOrderStatus,
+  type CreateOrderInput,
+} from "@/lib/server/orders";
 import {
   refundOrderCredit,
   adjustWallet,
@@ -735,10 +740,7 @@ export async function deleteOrderAction(orderId: string) {
   // Put stock back if this order was holding it.
   if (statusDeductsStock(order.status as OrderStatus)) {
     const items = (order.order_items ?? []) as { product_id: string | null; quantity: number }[];
-    for (const it of items) {
-      if (it.product_id)
-        await admin.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: it.quantity });
-    }
+    await adjustStockForItems(admin, items, 1);
   }
 
   // Refund any store credit charged to this order BEFORE deleting it (the

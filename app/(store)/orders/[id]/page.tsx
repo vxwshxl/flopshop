@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getSettings } from "@/lib/supabase/queries";
+import { getAuthUser, getSettings } from "@/lib/supabase/queries";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { Invoice } from "@/components/Invoice";
 import { PrintButton } from "@/components/PrintButton";
@@ -17,18 +17,18 @@ export const dynamic = "force-dynamic";
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const settings = await getSettings();
 
-  const [{ data }, { data: auth }] = await Promise.all([
+  const [settings, { data }, user] = await Promise.all([
+    getSettings(),
     supabase.from("orders").select("*, order_items(*)").eq("id", id).single(),
-    supabase.auth.getUser(),
+    getAuthUser(),
   ]);
 
   if (!data) notFound();
   const order = data as Order;
   // Only the customer who placed the order sees the OTP — delivery staff and
   // admins must ask for it to verify handover.
-  const isOwner = !!auth.user && order.user_id === auth.user.id;
+  const isOwner = !!user && order.user_id === user.id;
   // The customer can call off their own order while it's still pending/confirmed.
   const canCancel = isOwner && (order.status === "pending" || order.status === "confirmed");
 

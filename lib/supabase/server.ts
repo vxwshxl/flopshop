@@ -1,11 +1,17 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 /**
  * Server-side Supabase client bound to the request cookies.
  * Use inside Server Components, Route Handlers, and Server Actions.
+ *
+ * `cache()`d so one request gets one client instead of a fresh one per caller
+ * (layout, page, and every helper each called this). They're all bound to the
+ * same request cookies anyway, and sharing one avoids re-instantiating GoTrue
+ * — and its in-memory session — a dozen times per render.
  */
-export async function createClient() {
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -28,7 +34,7 @@ export async function createClient() {
       },
     }
   );
-}
+});
 
 /**
  * Service-role client — bypasses RLS. SERVER ONLY.

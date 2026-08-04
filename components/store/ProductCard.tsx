@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import Image from "next/image";
 import { Minus, Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { useCart } from "@/lib/hooks/useCart"; // Ensure this import is organized
+import { useCart } from "@/lib/hooks/useCart";
 import { useSettings } from "@/lib/hooks/useSettings";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { imagePositionStyle } from "@/lib/utils/image";
 import { ProductDetailModal } from "./ProductDetailModal";
 import type { Product } from "@/lib/types";
 
-export function ProductCard({ product, currency = "₹" }: { product: Product; currency?: string }) {
+/**
+ * Memoized: each card subscribes to its OWN quantity slice, so a tap on one
+ * card must not re-render the other N-1. `product` comes from the server render
+ * and `currency` is a string, so the shallow prop compare is exact.
+ */
+export const ProductCard = memo(function ProductCard({
+  product,
+  currency = "₹",
+}: {
+  product: Product;
+  currency?: string;
+}) {
   const qty = useCart((s) => (s.hydrated ? s.items.find((i) => i.id === product.id)?.quantity ?? 0 : 0));
   const addItem = useCart((s) => s.addItem);
   const increment = useCart((s) => s.increment);
@@ -115,4 +126,4 @@ export function ProductCard({ product, currency = "₹" }: { product: Product; c
       </div>
     </div>
   );
-}
+});

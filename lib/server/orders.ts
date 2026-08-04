@@ -10,6 +10,27 @@ function generateOtp(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+/**
+ * Applies `sign * quantity` to each line's product stock in parallel.
+ * `sign` is -1 to deduct (order takes stock) and +1 to restore (cancel/delete).
+ */
+export async function adjustStockForItems(
+  supabase: ReturnType<typeof createAdminClient>,
+  items: { product_id: string | null; quantity: number }[],
+  sign: 1 | -1
+): Promise<void> {
+  await Promise.all(
+    items
+      .filter((it) => it.product_id)
+      .map((it) =>
+        supabase.rpc("adjust_stock", {
+          p_product_id: it.product_id,
+          p_delta: sign * it.quantity,
+        })
+      )
+  );
+}
+
 export interface CreateOrderInput {
   /** unit_price override is honoured only for manual (admin walk-in) orders. */
   items: { product_id: string; quantity: number; unit_price?: number }[];
@@ -231,9 +252,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     if (!debit.ok) {
       // Roll back: restore stock if it was deducted, then delete the order.
       if (input.confirm) {
-        for (const it of lineItems) {
-          await supabase.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: it.quantity });
-        }
+        await adjustStockForItems(supabase, lineItems, 1);
       }
       await supabase.from("orders").delete().eq("id", payload.order_id);
       return { ok: false, error: debit.error };
@@ -285,16 +304,11 @@ export async function updateOrderStatus(
   const items = (order.order_items ?? []) as { product_id: string; quantity: number }[];
 
   // pending → confirmed/etc: deduct. anything-deducted → cancelled: restore.
-  if (!wasDeducted && willDeduct) {
-    for (const it of items) {
-      if (it.product_id)
-        await supabase.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: -it.quantity });
-    }
-  } else if (wasDeducted && !willDeduct) {
-    for (const it of items) {
-      if (it.product_id)
-        await supabase.rpc("adjust_stock", { p_product_id: it.product_id, p_delta: it.quantity });
-    }
+  // Each line is an independent atomic RPC, so fire them together rather than
+  // paying a serial round-trip per item.
+  if (wasDeducted !== willDeduct) {
+    const sign = willDeduct ? -1 : 1;
+    await adjustStockForItems(supabase, items, sign);
   }
 
   const updatePayload: Record<string, unknown> = {
