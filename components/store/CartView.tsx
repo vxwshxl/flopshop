@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { deliverySplit, freeDeliveryPromo } from "@/lib/utils/orderHelpers";
 import { Button } from "@/components/ui/button";
 import type { OrderType, SettingsMap } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -55,8 +56,15 @@ export function CartView({ settings }: { settings: SettingsMap }) {
   }
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const fee = orderType === "delivery" ? deliveryFee : 0;
+  // Mirrors the server's split exactly (createOrder is the source of truth), so
+  // the promo shown here is the promo that gets charged.
+  const split = deliverySplit(settings, orderType, subtotal);
+  const fee = split.delivery_fee;
   const total = subtotal + fee;
+
+  const promo = freeDeliveryPromo(settings);
+  const freeDelivery = orderType === "delivery" && promo.live && subtotal >= promo.min;
+  const awayFromFree = promo.live ? promo.min - subtotal : 0;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
@@ -141,6 +149,26 @@ export function CartView({ settings }: { settings: SettingsMap }) {
         )}
       </div>
 
+      {/* Free-delivery promo: how close this basket is, or that it made it. */}
+      {promo.live && canDelivery && (
+        <div
+          className={`mt-4 rounded-lg border px-3 py-2.5 text-sm ${
+            awayFromFree <= 0
+              ? "border-lime-500/40 bg-lime-50 text-lime-800 dark:bg-lime-400/10 dark:text-lime-300"
+              : "border-black/10 bg-stone-50 text-stone-600 dark:border-white/10 dark:bg-white/5 dark:text-stone-300"
+          }`}
+        >
+          {awayFromFree <= 0 ? (
+            <>🎉 Your order gets <span className="font-semibold">free delivery</span>.</>
+          ) : (
+            <>
+              Add <span className="font-semibold">{formatCurrency(awayFromFree, currency)}</span> more
+              for free delivery on orders over {formatCurrency(promo.min, currency)}.
+            </>
+          )}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="mt-6 rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
         <div className="num-row text-sm text-stone-600 dark:text-stone-400">
@@ -151,11 +179,22 @@ export function CartView({ settings }: { settings: SettingsMap }) {
           <>
             <div className="num-row mt-2 text-sm text-stone-600 dark:text-stone-400">
               <span>Delivery fee</span>
-              <span>{formatCurrency(deliveryFee, currency)}</span>
+              {freeDelivery ? (
+                <span className="font-semibold text-lime-600 dark:text-lime-400">
+                  <s className="mr-1.5 font-normal text-stone-400 dark:text-stone-500">
+                    {formatCurrency(deliveryFee, currency)}
+                  </s>
+                  FREE
+                </span>
+              ) : (
+                <span>{formatCurrency(deliveryFee, currency)}</span>
+              )}
             </div>
-            <p className="mt-0.5 break-words text-xs text-stone-400 dark:text-stone-500">
-              {formatCurrency(deliveryShare, currency)} delivery person + {formatCurrency(adminShare, currency)} shop
-            </p>
+            {!freeDelivery && (
+              <p className="mt-0.5 break-words text-xs text-stone-400 dark:text-stone-500">
+                {formatCurrency(deliveryShare, currency)} delivery person + {formatCurrency(adminShare, currency)} shop
+              </p>
+            )}
           </>
         )}
         <div className="num-row mt-3 border-t border-black/10 pt-3 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">

@@ -115,7 +115,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     });
   }
 
-  const split = deliverySplit(settings, input.order_type);
+  const split = deliverySplit(settings, input.order_type, subtotal);
   const total_amount = subtotal + split.delivery_fee;
 
   // Resolve the wallet owner for credit payment up front. For credit orders the

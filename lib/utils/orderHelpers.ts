@@ -1,3 +1,4 @@
+import { istDateString } from "@/lib/utils/formatters";
 import type { OrderStatus, OrderType, SettingsMap } from "@/lib/types";
 
 /** Methods an admin can switch an order to. Stored lowercase to match how the
@@ -76,8 +77,40 @@ export function statusLabel(status: OrderStatus, type: OrderType): string {
   return STATUS_LABELS[status];
 }
 
-/** Computes the delivery fee split from dynamic settings. */
-export function deliverySplit(settings: SettingsMap, orderType: OrderType) {
+/**
+ * Free-delivery promo: is it running, and does this basket qualify?
+ *
+ * Driven entirely by settings so the promo can be extended or stopped from the
+ * admin Settings page without a deploy:
+ *   free_delivery_min    — subtotal (goods only, before the fee) that qualifies.
+ *                          "0" or blank switches the promo off.
+ *   free_delivery_until  — last day it runs, as an IST YYYY-MM-DD date,
+ *                          inclusive. Blank means no end date.
+ */
+export function freeDeliveryPromo(settings: SettingsMap) {
+  const min = Number(settings.free_delivery_min ?? 0);
+  const until = (settings.free_delivery_until ?? "").trim();
+  // ISO dates compare correctly as plain strings.
+  const live = min > 0 && (!until || istDateString() <= until);
+  return { live, min, until };
+}
+
+/** True when this order's goods total earns free delivery today. */
+export function qualifiesForFreeDelivery(settings: SettingsMap, subtotal: number): boolean {
+  const promo = freeDeliveryPromo(settings);
+  return promo.live && subtotal >= promo.min;
+}
+
+/**
+ * Computes the delivery fee split from dynamic settings.
+ *
+ * `subtotal` is the goods total, needed for the free-delivery promo. When the
+ * promo applies the customer pays no fee, but the delivery partner is still paid
+ * their usual share — so the shop's delivery earning goes NEGATIVE by that
+ * amount. That's deliberate: it flows straight through reports and the
+ * shareholder profit pool as the cost of the promo.
+ */
+export function deliverySplit(settings: SettingsMap, orderType: OrderType, subtotal: number) {
   if (orderType !== "delivery") {
     return { delivery_fee: 0, delivery_person_earning: 0, admin_delivery_earning: 0 };
   }
@@ -86,7 +119,20 @@ export function deliverySplit(settings: SettingsMap, orderType: OrderType) {
   const admin_delivery_earning = Number(
     settings.admin_delivery_share ?? delivery_fee - delivery_person_earning
   );
+
+  if (qualifiesForFreeDelivery(settings, subtotal)) {
+    return {
+      delivery_fee: 0,
+      delivery_person_earning,
+      admin_delivery_earning: -delivery_person_earning,
+    };
+  }
   return { delivery_fee, delivery_person_earning, admin_delivery_earning };
+}
+
+/** What the customer is charged for delivery on this basket (0 during the promo). */
+export function deliveryFeeFor(settings: SettingsMap, orderType: OrderType, subtotal: number): number {
+  return deliverySplit(settings, orderType, subtotal).delivery_fee;
 }
 
 /** Confirming an order deducts stock; cancelling a confirmed order restores it. */

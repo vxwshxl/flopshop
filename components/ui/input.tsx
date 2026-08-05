@@ -34,6 +34,12 @@ type CustomSelectProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onChange"> 
    */
   searchable?: boolean;
   searchPlaceholder?: string;
+  /**
+   * Action pinned to the bottom of the open menu — e.g. "Add a new product"
+   * when what you're looking for isn't in the list yet. Clicking it closes the
+   * menu; the node itself decides what to do.
+   */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -61,6 +67,7 @@ export function Select({
   disabled,
   searchable,
   searchPlaceholder = "Search…",
+  footer,
   children,
 }: CustomSelectProps) {
   const [open, setOpen] = React.useState(false);
@@ -351,6 +358,14 @@ export function Select({
                 </button>
               ))}
             </div>
+            {footer && (
+              <div
+                className="mt-1 shrink-0 border-t border-white/10 pt-1"
+                onClick={() => setOpen(false)}
+              >
+                {footer}
+              </div>
+            )}
           </div>,
           document.body
         )}

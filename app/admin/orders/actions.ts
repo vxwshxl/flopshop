@@ -575,7 +575,7 @@ export async function setOrderTypeAction(orderId: string, orderType: OrderType) 
   if (!order) return { ok: false, error: "Order not found." };
 
   const settings = settingsToMap((await admin.from("settings").select("key, value")).data);
-  const split = deliverySplit({ ...DEFAULT_SETTINGS, ...settings }, orderType);
+  const split = deliverySplit({ ...DEFAULT_SETTINGS, ...settings }, orderType, Number(order.subtotal));
 
   const { error } = await admin
     .from("orders")

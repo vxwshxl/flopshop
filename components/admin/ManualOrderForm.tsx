@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { deliverySplit } from "@/lib/utils/orderHelpers";
 import { imagePositionStyle } from "@/lib/utils/image";
 import type { Customer, OrderType, PaymentMethod, Product, Profile, SettingsMap } from "@/lib/types";
 
@@ -218,7 +219,10 @@ export function ManualOrderForm({
   }
 
   const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
-  const fee = orderType === "delivery" ? deliveryFee : 0;
+  // Mirrors createOrder's split so the total quoted here is the total saved —
+  // including the free-delivery promo when the basket qualifies.
+  const fee = deliverySplit(settings, orderType, subtotal).delivery_fee;
+  const freeDelivery = orderType === "delivery" && fee === 0 && deliveryFee > 0;
   const total = subtotal + fee;
 
   // Wallet info for the matched customer.
@@ -554,7 +558,9 @@ export function ManualOrderForm({
               <Label className="text-stone-700 dark:text-stone-300">Order type</Label>
               <Select value={orderType} onChange={(e) => setOrderType(e.target.value as OrderType)} className={inputTheme}>
                 <option value="pickup">Pickup (Free)</option>
-                <option value="delivery">Delivery (+{formatCurrency(deliveryFee, currency)})</option>
+                <option value="delivery">
+                  Delivery ({freeDelivery ? "free — promo" : `+${formatCurrency(deliveryFee, currency)}`})
+                </option>
               </Select>
             </div>
 
@@ -721,17 +727,26 @@ export function ManualOrderForm({
 
         <AdminCard title="Summary">
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-stone-600 dark:text-stone-400">
+            <div className="num-row text-stone-600 dark:text-stone-400">
               <span>Subtotal</span>
               <span className="text-stone-950 dark:text-white">{formatCurrency(subtotal, currency)}</span>
             </div>
             {orderType === "delivery" && (
-              <div className="flex justify-between text-stone-600 dark:text-stone-400">
+              <div className="num-row text-stone-600 dark:text-stone-400">
                 <span>Delivery fee</span>
-                <span className="text-stone-950 dark:text-white">{formatCurrency(fee, currency)}</span>
+                {freeDelivery ? (
+                  <span className="font-semibold text-lime-600 dark:text-lime-400">FREE</span>
+                ) : (
+                  <span className="text-stone-950 dark:text-white">{formatCurrency(fee, currency)}</span>
+                )}
               </div>
             )}
-            <div className="flex justify-between border-t border-black/10 pt-2 text-base font-bold text-stone-950 dark:border-white/10 dark:text-white">
+            {freeDelivery && (
+              <p className="break-words text-xs text-stone-500 dark:text-stone-400">
+                Promo — the shop still pays the partner {formatCurrency(Number(settings.delivery_person_share ?? 8), currency)}.
+              </p>
+            )}
+            <div className="num-row border-t border-black/10 pt-2 text-base font-bold text-stone-950 dark:border-white/10 dark:text-white">
               <span>Total</span>
               <span>{formatCurrency(total, currency)}</span>
             </div>

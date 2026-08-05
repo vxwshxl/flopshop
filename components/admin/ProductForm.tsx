@@ -26,15 +26,28 @@ interface OffResult {
 const inputDark =
   "border-[#333] bg-[#0a0a0a] text-white placeholder:text-gray-600 focus:border-indigo-500";
 
+/**
+ * Only same-origin paths may be redirected to after save — "//evil.com" is a
+ * protocol-relative URL the browser would treat as an external host.
+ */
+function safeReturnTo(path: string | undefined): string | null {
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return null;
+  return path;
+}
+
 export function ProductForm({
   categories,
   product,
+  returnTo,
 }: {
   categories: Category[];
   product?: Product;
+  /** Page to go back to after creating, instead of the products list. */
+  returnTo?: string;
 }) {
   const router = useRouter();
   const editing = !!product;
+  const backTo = safeReturnTo(returnTo);
   const [form, setForm] = useState({
     name: product?.name ?? "",
     description: product?.description ?? "",
@@ -145,13 +158,28 @@ export function ProductForm({
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = editing
-        ? await supabase.from("products").update(payload).eq("id", product!.id)
-        : await supabase.from("products").insert(payload);
-
-      if (error) throw error;
-      toast.success(editing ? "Product updated" : "Product created");
-      router.push("/admin/products");
+      if (editing) {
+        const { error } = await supabase.from("products").update(payload).eq("id", product!.id);
+        if (error) throw error;
+        toast.success("Product updated");
+        router.push("/admin/products");
+      } else {
+        const { data: saved, error } = await supabase
+          .from("products")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error) throw error;
+        toast.success("Product created");
+        // Came here mid-task (e.g. from New Purchase)? Go straight back, carrying
+        // the new product's id so that page can preselect it.
+        if (backTo) {
+          const sep = backTo.includes("?") ? "&" : "?";
+          router.push(saved?.id ? `${backTo}${sep}product=${saved.id}` : backTo);
+        } else {
+          router.push("/admin/products");
+        }
+      }
       router.refresh();
     } catch (err) {
       toast.error((err as Error).message);
@@ -285,8 +313,13 @@ export function ProductForm({
         </AdminCard>
 
         <Button type="submit" loading={saving} variant="dark" className="w-full">
-          {editing ? "Save changes" : "Create product"}
+          {editing ? "Save changes" : backTo ? "Create & continue purchase" : "Create product"}
         </Button>
+        {!editing && backTo && (
+          <p className="text-center text-xs text-gray-500">
+            You&apos;ll go back to the purchase with this product selected.
+          </p>
+        )}
       </div>
     </form>
   );

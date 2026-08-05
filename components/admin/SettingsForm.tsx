@@ -8,6 +8,7 @@ import { sendTestNotificationAction } from "@/app/admin/settings/actions";
 import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { SettingsMap } from "@/lib/types";
 
 export function SettingsForm({ settings }: { settings: SettingsMap }) {
@@ -30,6 +31,10 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
   const deliveryFee = Number(form.delivery_fee ?? 0);
   const deliveryShare = Number(form.delivery_person_share ?? 0);
   const adminShare = Math.max(deliveryFee - deliveryShare, 0);
+
+  // Free-delivery promo (0 = off, blank date = no end).
+  const promoMin = Number(form.free_delivery_min ?? 0);
+  const promoUntil = (form.free_delivery_until ?? "").trim();
 
   // Which order types customers may pick in the cart.
   const enabledTypes = new Set((form.order_types_enabled ?? "pickup,delivery").split(",").filter(Boolean));
@@ -63,14 +68,17 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
       "min_order_for_delivery",
       "shop_is_open",
       "order_types_enabled",
+      "free_delivery_min",
+      "free_delivery_until",
     ];
 
     for (const key of keys) {
       const value = next[key] ?? "";
+      // Upsert, not update: a key introduced after the shop's DB was seeded has
+      // no row yet, and a plain update would silently save nothing.
       const { error } = await supabase
         .from("settings")
-        .update({ value, updated_at: new Date().toISOString() })
-        .eq("key", key);
+        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
       if (error) {
         setSaving(false);
         return toast.error(`Failed to save ${key}: ${error.message}`);
@@ -108,6 +116,43 @@ export function SettingsForm({ settings }: { settings: SettingsMap }) {
             Split: {form.currency_symbol}{deliveryFee} total = {form.currency_symbol}{deliveryShare} delivery person +{" "}
             <span className="text-stone-950 dark:text-white">{form.currency_symbol}{adminShare} admin</span> (auto-calculated)
           </div>
+        </AdminCard>
+
+        <AdminCard title="Free Delivery Promo">
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label={`Free over (${form.currency_symbol ?? "₹"})`}
+              type="number"
+              value={form.free_delivery_min ?? "0"}
+              onChange={set("free_delivery_min")}
+            />
+            <div>
+              <Label>Runs until (last day)</Label>
+              <DatePicker
+                value={form.free_delivery_until ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, free_delivery_until: v }))}
+              />
+            </div>
+          </div>
+          <div className="mt-4 rounded-lg bg-stone-100 p-3 text-sm text-stone-600 dark:bg-stone-950 dark:text-stone-400">
+            {promoMin > 0 ? (
+              <>
+                Delivery orders of{" "}
+                <span className="text-stone-950 dark:text-white">
+                  {form.currency_symbol}{promoMin}
+                </span>{" "}
+                or more ship free{promoUntil ? <> until {promoUntil}</> : <> (no end date)</>}. The
+                delivery person is still paid {form.currency_symbol}{deliveryShare} — it comes out of
+                the shop&apos;s profit on that order.
+              </>
+            ) : (
+              <>Promo off — set an amount above 0 to run it.</>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+            Clear the date to run it indefinitely. Orders already placed keep the fee they were
+            charged.
+          </p>
         </AdminCard>
 
         <AdminCard title="Storefront">

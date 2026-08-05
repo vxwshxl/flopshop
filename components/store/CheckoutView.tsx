@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import { useCart } from "@/lib/hooks/useCart";
 import { useUser } from "@/lib/hooks/useUser";
 import { formatCurrency } from "@/lib/utils/formatters";
-import { COD_MAX } from "@/lib/utils/orderHelpers";
+import { COD_MAX, deliverySplit } from "@/lib/utils/orderHelpers";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import type { PaymentMethod, SettingsMap, Profile } from "@/lib/types";
@@ -73,7 +73,9 @@ export function CheckoutView({
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const isDelivery = orderType === "delivery";
-  const fee = isDelivery ? deliveryFee : 0;
+  // Same split the server charges, so the promo shown matches what's billed.
+  const fee = deliverySplit(settings, orderType, subtotal).delivery_fee;
+  const freeDelivery = isDelivery && fee === 0 && deliveryFee > 0;
   const total = subtotal + fee;
   // COD isn't allowed above the ceiling on delivery — customer must pay UPI.
   const mustUseUpi = isDelivery && total > COD_MAX;
@@ -316,7 +318,16 @@ export function CheckoutView({
           {orderType === "delivery" && (
             <div className="num-row text-sm text-stone-600 dark:text-stone-400">
               <span>Delivery fee</span>
-              <span>{formatCurrency(fee, currency)}</span>
+              {freeDelivery ? (
+                <span className="font-semibold text-lime-600 dark:text-lime-400">
+                  <s className="mr-1.5 font-normal text-stone-400 dark:text-stone-500">
+                    {formatCurrency(deliveryFee, currency)}
+                  </s>
+                  FREE
+                </span>
+              ) : (
+                <span>{formatCurrency(fee, currency)}</span>
+              )}
             </div>
           )}
           <div className="num-row mt-2 border-t border-black/10 pt-2 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">

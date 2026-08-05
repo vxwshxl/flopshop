@@ -21,4 +21,9 @@ export const DEFAULT_SETTINGS: SettingsMap = {
   timezone: "Asia/Kolkata",
   // Which order types customers may choose in the cart (comma-separated).
   order_types_enabled: "pickup,delivery",
+  // Free-delivery promo: baskets of ₹299+ ship free, with the delivery person's
+  // share paid out of the shop's margin. Runs to the end of 2026-08-12 (IST).
+  // Set free_delivery_min to "0" to switch it off. See freeDeliveryPromo().
+  free_delivery_min: "299",
+  free_delivery_until: "2026-08-12",
 };

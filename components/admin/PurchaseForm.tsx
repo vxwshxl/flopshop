@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { Plus, Minus } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -15,6 +16,9 @@ import { AdminCard } from "@/components/admin/StatCard";
 import { formatCurrency, toISODate } from "@/lib/utils/formatters";
 import { imagePositionStyle } from "@/lib/utils/image";
 import type { Product, Supplier } from "@/lib/types";
+
+/** Where "Add a new product" sends the admin back to once the product exists. */
+export const NEW_PURCHASE_PATH = "/admin/purchases/new";
 
 const inputDark = "border-[#333] bg-[#0a0a0a] text-white focus:border-indigo-500";
 const stepperBtn =
@@ -46,10 +50,22 @@ function ProductOption({ product }: { product: Product }) {
   );
 }
 
-export function PurchaseForm({ products, suppliers }: { products: Product[]; suppliers: Supplier[] }) {
+export function PurchaseForm({
+  products,
+  suppliers,
+  initialProductId,
+}: {
+  products: Product[];
+  suppliers: Supplier[];
+  /** Preselected product — set when returning here from "Add a new product". */
+  initialProductId?: string;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
-    product_id: products[0]?.id ?? "",
+    product_id:
+      (initialProductId && products.some((p) => p.id === initialProductId)
+        ? initialProductId
+        : products[0]?.id) ?? "",
     quantity: "1",
     unit_price: "",
     supplier: "",
@@ -162,6 +178,17 @@ export function PurchaseForm({ products, suppliers }: { products: Product[]; sup
               searchable
               searchPlaceholder="Search products…"
               required
+              footer={
+                // Not stocked yet? Create it and come straight back here with it
+                // already selected.
+                <Link
+                  href={`/admin/products/new?returnTo=${encodeURIComponent(NEW_PURCHASE_PATH)}`}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-lime-400 transition hover:bg-lime-400 hover:text-black"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  Add a new product
+                </Link>
+              }
             >
               {products.map((p) => (
                 // The label is a component, so give the search box plain text to match on.

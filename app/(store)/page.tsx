@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/supabase/queries";
 import { StoreGrid } from "@/components/store/StoreGrid";
 import { ShopClosedBanner } from "@/components/store/ShopClosedBanner";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+import { freeDeliveryPromo } from "@/lib/utils/orderHelpers";
 import type { Category, Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ export default async function HomePage() {
     .slice()
     .sort((a, b) => Number((a.current_stock ?? 0) <= 0) - Number((b.current_stock ?? 0) <= 0));
 
+  const promo = freeDeliveryPromo(settings);
+
   return (
     <main>
       <RealtimeRefresh table="products" channel="store:products" />
@@ -35,6 +38,11 @@ export default async function HomePage() {
       <div className="mx-auto max-w-5xl px-4 pt-5">
         <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">{settings.shop_tagline}</h1>
         <p className="text-sm text-stone-600 dark:text-stone-400">Pickup free • Delivery to your room +{settings.currency_symbol}{settings.delivery_fee}</p>
+        {promo.live && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-lime-500/40 bg-lime-50 px-3 py-1 text-xs font-semibold text-lime-800 dark:bg-lime-400/10 dark:text-lime-300">
+            🚴 Free delivery on orders over {settings.currency_symbol}{promo.min}
+          </p>
+        )}
       </div>
       <StoreGrid
         categories={(categories as Category[]) ?? []}
