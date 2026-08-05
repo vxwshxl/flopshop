@@ -220,25 +220,33 @@ export async function claimDeliveryOrderAction(orderId: string) {
     return { ok: false, error: "This order can no longer be claimed." };
   }
 
-  const updatePayload: Record<string, unknown> = {
-    delivery_person_id: actor.id,
-    updated_at: new Date().toISOString(),
-  };
-  if (order.status === "pending") {
-    updatePayload.status = "confirmed";
-  }
   // Whoever delivers the order — delivery partner OR an admin who claimed it —
   // always earns the delivery-person share from settings. The split set at
   // order creation (person 8 / shop 2) is kept regardless of payment method
   // (cash collected at the door, or UPI paid to the shop QR).
 
-  const { error: updErr } = await admin
+  // Take the order first. The `delivery_person_id IS NULL` guard makes this
+  // atomic: a second partner racing for the same order matches zero rows.
+  const { data: claimed, error: updErr } = await admin
     .from("orders")
-    .update(updatePayload)
+    .update({ delivery_person_id: actor.id, updated_at: new Date().toISOString() })
     .eq("id", orderId)
-    .is("delivery_person_id", null);
+    .is("delivery_person_id", null)
+    .select("id");
 
   if (updErr) return { ok: false, error: updErr.message };
+  if (!claimed?.length) return { ok: false, error: "Order already claimed." };
+
+  // Claiming a pending order also confirms it — and confirming is what takes the
+  // items off the shelf. This must go through updateOrderStatus: setting
+  // `status` on the row here (as this used to) skipped the pending → confirmed
+  // stock deduction entirely, so delivered orders never reduced stock.
+  // Payment is NOT auto-marked: a delivery is paid at the door, not on claim.
+  if (order.status === "pending") {
+    const res = await updateOrderStatus(orderId, "confirmed", null, { markPaid: false });
+    if (!res.ok) return res;
+  }
+
   revalidatePath("/admin/orders");
   revalidatePath("/delivery");
   return { ok: true };

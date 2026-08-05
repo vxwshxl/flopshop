@@ -280,11 +280,21 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
 /**
  * Updates an order's status, adjusting stock for the stock-affecting transition.
+ *
+ * This is the ONLY place an order's status may change — writing `status` to the
+ * row directly skips the stock adjustment and the order ships without ever
+ * leaving the shelf count.
+ *
+ * `markPaid` (default true) is the long-standing behaviour of auto-settling
+ * payment on confirm/deliver. Pass false when the transition doesn't imply money
+ * changed hands — e.g. a partner claiming a cash-on-delivery order, which is
+ * paid at the door, not at pickup.
  */
 export async function updateOrderStatus(
   orderId: string,
   newStatus: OrderStatus,
-  cancel_reason?: string | null
+  cancel_reason?: string | null,
+  options?: { markPaid?: boolean }
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = createAdminClient();
 
@@ -324,7 +334,7 @@ export async function updateOrderStatus(
   // delivery/completion — cash-on-delivery is collected at the door, and the
   // order is stored with whatever method ended up being used (cash, or UPI if
   // the delivery partner switched it via the shop QR).
-  if (newStatus === "confirmed" || newStatus === "delivered") {
+  if ((options?.markPaid ?? true) && (newStatus === "confirmed" || newStatus === "delivered")) {
     updatePayload.payment_status = "paid";
   }
 
