@@ -80,9 +80,9 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
   return (
     <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-stone-900 dark:text-white">{holder.name}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 break-words font-bold text-stone-900 dark:text-white">{holder.name}</span>
             <span className="text-xs text-stone-500">{holder.share_percent}%</span>
             {!holder.is_active && (
               <span className="rounded-full border border-black/15 px-2 py-0.5 text-[10px] text-stone-500 dark:border-white/15">
@@ -90,7 +90,7 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
               </span>
             )}
           </div>
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
+          <p className="mt-0.5 flex flex-wrap items-center gap-1 break-words text-xs text-stone-500">
             {holder.type && <span className="capitalize">{holder.type}</span>}
             {holder.type && holder.linkedLabel && " · "}
             {holder.linkedLabel ? (
@@ -102,11 +102,11 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
             )}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-extrabold text-stone-900 dark:text-white">
+        <div className="min-w-0 text-right">
+          <p className="num text-lg font-extrabold text-stone-900 dark:text-white">
             {formatCurrency(holder.outstandingAmount, currency)}
           </p>
-          <p className="text-[11px] text-stone-500">
+          <p className="break-words text-[11px] text-stone-500">
             {holder.share_percent}% of {formatCurrency(holder.outstandingBase, currency)}
             {holder.profit_from ? ` · from ${formatDate(holder.profit_from)}` : ""}
           </p>
@@ -131,17 +131,17 @@ function HolderCard({ holder, currency }: { holder: HolderView; currency: string
         <div className="mt-3 space-y-1.5 border-t border-black/10 pt-3 dark:border-white/10">
           {holder.history.map((h) => (
             <div key={h.id} className="flex items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-stone-900 dark:text-white">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="num font-semibold text-stone-900 dark:text-white">
                   {formatCurrency(h.amount, currency)}
                 </span>
                 <StatusBadge status={h.status} />
                 <span className="text-stone-500">{formatDateTime(h.created_at)}</span>
-                {h.note && <span className="text-stone-500">“{h.note}”</span>}
+                {h.note && <span className="min-w-0 break-words text-stone-500">“{h.note}”</span>}
               </div>
               <button
                 onClick={() => setReverseTarget(h)}
-                className="rounded-md p-1.5 text-black/40 hover:bg-red-500/15 hover:text-red-500 disabled:opacity-50 dark:text-white/40"
+                className="shrink-0 rounded-md p-1.5 text-black/40 hover:bg-red-500/15 hover:text-red-500 disabled:opacity-50 dark:text-white/40"
                 aria-label="Reverse settlement"
                 title="Reverse settlement"
               >

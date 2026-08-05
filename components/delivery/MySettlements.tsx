@@ -45,8 +45,8 @@ export function MySettlements({
 
   return (
     <section className="mt-7">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white">Settlements</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="min-w-0 text-lg font-bold text-white">Settlements</h2>
         {pending.length > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
             <BellRing className="h-3 w-3" /> {pending.length} to confirm
@@ -59,7 +59,7 @@ export function MySettlements({
           <p className="text-sm text-stone-400">
             The shop marked a settlement of {s.order_count} order{s.order_count === 1 ? "" : "s"} as paid.
           </p>
-          <p className="mt-1 text-lg font-extrabold text-white">{partnerNet(Number(s.net_amount), currency)}</p>
+          <p className="mt-1 break-words text-lg font-extrabold text-white">{partnerNet(Number(s.net_amount), currency)}</p>
           <p className="mt-0.5 text-xs text-stone-500">Marked {formatDateTime(s.created_at)}</p>
           <Button className="mt-3 w-full" disabled={busy} onClick={() => confirm(s.id)}>
             Confirm
@@ -72,14 +72,14 @@ export function MySettlements({
           {recent.map((s) => (
             <div
               key={s.id}
-              className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm"
             >
-              <div>
-                <p className="font-medium text-white">{partnerNet(Number(s.net_amount), currency)}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium text-white">{partnerNet(Number(s.net_amount), currency)}</p>
                 <p className="text-xs text-stone-500">{s.order_count} orders</p>
               </div>
-              <span className="inline-flex items-center gap-1 text-xs text-lime-400">
-                <CheckCircle2 className="h-3 w-3" />
+              <span className="inline-flex min-w-0 items-center gap-1 text-right text-xs text-lime-400">
+                <CheckCircle2 className="h-3 w-3 shrink-0" />
                 {s.confirmed_at ? formatDateTime(s.confirmed_at) : "Confirmed"}
               </span>
             </div>

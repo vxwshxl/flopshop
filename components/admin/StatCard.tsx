@@ -14,13 +14,15 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <div className={cn("glass rounded-2xl p-4", className)}>
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-stone-400">{label}</p>
-        {icon && <span className="text-stone-500">{icon}</span>}
+    <div className={cn("stat-card glass rounded-2xl p-4", className)}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 break-words text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+          {label}
+        </p>
+        {icon && <span className="shrink-0 text-stone-500">{icon}</span>}
       </div>
-      <p className="mt-2 text-2xl font-extrabold text-stone-950 dark:text-white">{value}</p>
-      {hint && <p className="mt-1 text-xs text-stone-500 dark:text-stone-500">{hint}</p>}
+      <p className="stat-value mt-2 font-extrabold text-stone-950 dark:text-white">{value}</p>
+      {hint && <p className="mt-1 break-words text-xs text-stone-500 dark:text-stone-500">{hint}</p>}
     </div>
   );
 }
@@ -39,12 +41,12 @@ export function AdminCard({
   return (
     <div className={cn("glass rounded-2xl", className)}>
       {(title || action) && (
-        <div className="glass-line flex items-center justify-between border-b px-4 py-3">
-          {title && <h3 className="text-sm font-bold text-stone-900 dark:text-white">{title}</h3>}
+        <div className="glass-line flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b px-4 py-3">
+          {title && <h3 className="min-w-0 break-words text-sm font-bold text-stone-900 dark:text-white">{title}</h3>}
           {action}
         </div>
       )}
-      <div className="p-4">{children}</div>
+      <div className="min-w-0 p-4">{children}</div>
     </div>
   );
 }
@@ -62,13 +64,13 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <div className={`flex items-center gap-2 sm:gap-3 flex-nowrap shrink-0 ${mobileJustifyBetween ? "w-full justify-between sm:w-auto sm:justify-start" : ""}`}>
+      <div className={`flex min-w-0 items-center gap-2 sm:gap-3 flex-nowrap ${mobileJustifyBetween ? "w-full justify-between sm:w-auto sm:justify-start" : ""}`}>
         {typeof title === "string" ? (
           <h1 className="truncate text-xl sm:text-2xl font-extrabold text-stone-950 dark:text-white">{title}</h1>
         ) : (
           title
         )}
-        {subtitle && <div className="shrink-0 text-sm text-stone-500 dark:text-stone-400">{subtitle}</div>}
+        {subtitle && <div className="min-w-0 truncate text-sm text-stone-500 dark:text-stone-400">{subtitle}</div>}
       </div>
       {action}
     </div>

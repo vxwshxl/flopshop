@@ -94,8 +94,8 @@ export function MethodTransfers({
               const srcs = (t.legs ?? []).filter((l) => Number(l.delta) < 0);
               const dests = (t.legs ?? []).filter((l) => Number(l.delta) > 0);
               return (
-                <div key={t.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#222] px-3 py-2 text-sm">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-300">
+                <div key={t.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-[#222] px-3 py-2 text-sm">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-gray-300">
                     {srcs.map((l, i) => (
                       <span key={l.id}>
                         {i > 0 && <span className="text-gray-600"> + </span>}
@@ -110,9 +110,9 @@ export function MethodTransfers({
                       </span>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="text-xs text-gray-500">{formatDate(t.date)}</span>
-                    {t.note && <span className="text-xs text-gray-500">“{t.note}”</span>}
+                  <div className="ml-auto flex min-w-0 items-center gap-2">
+                    <span className="shrink-0 text-xs text-gray-500">{formatDate(t.date)}</span>
+                    {t.note && <span className="min-w-0 truncate text-xs text-gray-500">“{t.note}”</span>}
                     <button
                       onClick={() => setDeleteTarget(t)}
                       className="rounded-md p-1.5 text-gray-500 hover:bg-red-500/15 hover:text-red-500"

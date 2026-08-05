@@ -96,20 +96,20 @@ export default async function DeliveryDashboard({
 
       {/* Stats row */}
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Active deliveries</p>
-            <Package className="h-4 w-4 text-stone-600" />
+        <div className="stat-card glass rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 break-words text-xs font-bold uppercase tracking-wide text-stone-500">Active deliveries</p>
+            <Package className="h-4 w-4 shrink-0 text-stone-600" />
           </div>
-          <p className="mt-2 text-2xl font-extrabold text-white">{active.length}</p>
+          <p className="stat-value mt-2 font-extrabold text-white">{active.length}</p>
         </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-stone-500">{rangeLabel} earnings</p>
-            <IndianRupee className="h-4 w-4 text-stone-600" />
+        <div className="stat-card glass rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 break-words text-xs font-bold uppercase tracking-wide text-stone-500">{rangeLabel} earnings</p>
+            <IndianRupee className="h-4 w-4 shrink-0 text-stone-600" />
           </div>
-          <p className="mt-2 text-2xl font-extrabold text-lime-400">{formatCurrency(earningsToday, currency)}</p>
-          <p className="mt-1 text-xs text-stone-500">{deliveredToday.length} delivered {rangeLabel.toLowerCase()}</p>
+          <p className="stat-value mt-2 font-extrabold text-lime-400">{formatCurrency(earningsToday, currency)}</p>
+          <p className="mt-1 break-words text-xs text-stone-500">{deliveredToday.length} delivered {rangeLabel.toLowerCase()}</p>
         </div>
       </div>
 

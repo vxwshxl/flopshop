@@ -221,7 +221,7 @@ export function CustomersManager({
           </TableToolbar>
         </div>
         <TableScroll>
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[46rem] text-sm">
             <thead className={stickyHead}>
               <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
                 <th className="w-10 p-3"></th>

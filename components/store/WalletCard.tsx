@@ -73,11 +73,11 @@ export function WalletCard({
   return (
     <div>
       <div className="glass space-y-4 rounded-2xl p-5">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-sm font-medium text-stone-600 dark:text-stone-300">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-stone-600 dark:text-stone-300">
             <WalletIcon className="h-4 w-4" /> Wallet balance
           </span>
-          <span className="text-xl font-extrabold text-stone-900 dark:text-white">
+          <span className="num max-w-full text-xl font-extrabold text-stone-900 dark:text-white">
             {formatCurrency(balance, currency)}
           </span>
         </div>
@@ -85,9 +85,12 @@ export function WalletCard({
         {pendingTopups.length > 0 && (
           <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300">
             {pendingTopups.map((t) => (
-              <div key={t.id} className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3" /> {formatCurrency(Number(t.amount), currency)} via{" "}
-                {t.method.toUpperCase()} — awaiting admin approval
+              <div key={t.id} className="flex items-start gap-1.5">
+                <Clock className="mt-0.5 h-3 w-3 shrink-0" />
+                <span className="min-w-0 break-words">
+                  {formatCurrency(Number(t.amount), currency)} via {t.method.toUpperCase()} — awaiting
+                  admin approval
+                </span>
               </div>
             ))}
           </div>

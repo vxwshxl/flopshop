@@ -53,7 +53,7 @@ export function InvoicesList({ orders, settings }: { orders: Row[]; settings: Se
       </div>
 
       <TableScroll className="rounded-xl border-[#222] bg-[#1a1a1a]">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[44rem] text-sm">
           <thead className="sticky top-0 z-10 [&_th]:bg-[#1a1a1a]">
             <tr className="border-b border-[#222] text-left text-xs text-gray-500">
               <SortHeader label="Invoice #" sortKey="invoice" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -85,7 +85,7 @@ export function InvoicesList({ orders, settings }: { orders: Row[]; settings: Se
                 <td className="p-3">{o.customer_name}</td>
                 <td className="p-3">{formatDate(o.created_at)}</td>
                 <td className="p-3">{o.order_items?.length ?? 0}</td>
-                <td className="p-3">{formatCurrency(o.total_amount, currency)}</td>
+                <td className="num p-3">{formatCurrency(o.total_amount, currency)}</td>
                 <td className="p-3">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs capitalize ${

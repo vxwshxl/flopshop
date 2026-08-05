@@ -165,7 +165,7 @@ export function ProductsTable({
       </div>
 
       <TableScroll>
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[48rem] text-sm">
           <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Product" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -206,8 +206,8 @@ export function ProductsTable({
                     </div>
                   </td>
                   <td className="p-3">{category ? `${category.icon} ${category.name}` : "—"}</td>
-                  <td className="p-3">{formatCurrency(p.cost_price, currency)}</td>
-                  <td className="p-3">{formatCurrency(p.selling_price, currency)}</td>
+                  <td className="num p-3">{formatCurrency(p.cost_price, currency)}</td>
+                  <td className="num p-3">{formatCurrency(p.selling_price, currency)}</td>
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
                       <input

@@ -176,18 +176,18 @@ export default async function AdminDashboard({
 
       {/* Users tracking card */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <div className="glass rounded-2xl p-5 lg:col-span-1">
-          <div className="flex items-start justify-between">
-            <div>
+        <div className="stat-card glass rounded-2xl p-5 lg:col-span-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-sm text-white/50">Users</p>
-              <p className="mt-1 text-3xl font-extrabold text-white">{totalUsers}</p>
+              <p className="stat-value-lg mt-1 font-extrabold text-white">{totalUsers}</p>
             </div>
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/5 text-white/70">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/5 text-white/70">
               <Users className="h-5 w-5" />
             </div>
-            <div className="text-right">
+            <div className="min-w-0 text-right">
               <p className="text-sm text-white/50">Active</p>
-              <p className="mt-1 text-3xl font-extrabold text-white">{activeUsers}</p>
+              <p className="stat-value-lg mt-1 font-extrabold text-white">{activeUsers}</p>
             </div>
           </div>
           <div className="mt-4 border-t border-white/10 pt-3 text-center text-sm text-white/40">
@@ -233,10 +233,10 @@ export default async function AdminDashboard({
           {recent.length === 0 ? (
             <p className="py-8 text-center text-sm text-stone-500 dark:text-stone-500">No recent orders.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[34rem] text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-stone-500 dark:text-stone-500">
+                  <tr className="whitespace-nowrap text-left text-xs text-stone-500 dark:text-stone-500">
                     <th className="pb-2">Order</th>
                     <th className="pb-2">Customer</th>
                     <th className="pb-2">Type</th>
@@ -252,9 +252,9 @@ export default async function AdminDashboard({
                           {o.order_number}
                         </Link>
                       </td>
-                      <td className="py-2">{o.customer_name}</td>
-                      <td className="py-2 capitalize">{o.order_type}</td>
-                      <td className="py-2">{formatCurrency(o.total_amount, currency)}</td>
+                      <td className="py-2 pr-3">{o.customer_name}</td>
+                      <td className="py-2 pr-3 capitalize">{o.order_type}</td>
+                      <td className="num py-2 pr-3">{formatCurrency(o.total_amount, currency)}</td>
                       <td className="py-2">
                         <OrderStatusBadge status={o.status as OrderStatus} />
                       </td>
@@ -273,7 +273,7 @@ export default async function AdminDashboard({
             ) : (
               <ul className="space-y-2">
                 {lowStock.slice(0, 6).map((p) => (
-                  <li key={p.id} className="flex items-center justify-between text-sm">
+                  <li key={p.id} className="num-row text-sm">
                     <Link href={`/admin/products/${p.id}`} className="text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
                       {p.name}
                     </Link>
@@ -286,11 +286,11 @@ export default async function AdminDashboard({
 
           <AdminCard title={`Delivery Earnings · ${rangeLabel}`}>
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-stone-600 dark:text-stone-400">
+              <div className="num-row text-stone-600 dark:text-stone-400">
                 <span>Delivery persons</span>
                 <span className="text-stone-950 dark:text-white">{formatCurrency(deliveryEarnings.person, currency)}</span>
               </div>
-              <div className="flex justify-between text-stone-600 dark:text-stone-400">
+              <div className="num-row text-stone-600 dark:text-stone-400">
                 <span>Shop (admin share)</span>
                 <span className="text-stone-950 dark:text-white">{formatCurrency(deliveryEarnings.admin, currency)}</span>
               </div>

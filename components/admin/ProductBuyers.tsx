@@ -41,13 +41,13 @@ export function ProductBuyers({ buyers, currency }: { buyers: BuyerRow[]; curren
         <p className="text-sm text-black/50 dark:text-white/50">No one has ordered this product yet.</p>
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-3 gap-3">
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Stat label="Units sold" value={String(unitsSold)} />
             <Stat label="Revenue" value={formatCurrency(revenue, currency)} />
             <Stat label="Buyers" value={String(distinctBuyers)} />
           </div>
           <div className="overflow-x-auto rounded-lg border border-black/15 dark:border-white/15">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[46rem] text-sm">
               <thead>
                 <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
                   <th className="p-3">Order</th>

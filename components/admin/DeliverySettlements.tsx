@@ -76,16 +76,16 @@ export function DeliverySettlements({
               const nl = netLabel(p.net, currency);
               return (
                 <div key={p.partnerId} className="rounded-xl border border-black/10 p-3 dark:border-white/10">
-                  <div className="flex items-center justify-between">
+                  <div className="num-row">
                     <p className="font-semibold text-stone-900 dark:text-white">{p.name}</p>
                     <span className="text-xs text-stone-500">{p.orderCount} orders</span>
                   </div>
                   <div className="mt-2 space-y-1 text-xs text-stone-500 dark:text-stone-400">
-                    <div className="flex justify-between">
+                    <div className="num-row">
                       <span>Cash held (owes shop)</span>
                       <span className="text-stone-700 dark:text-stone-200">{formatCurrency(p.cashToCollect, currency)}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="num-row">
                       <span className="inline-flex items-center gap-1">
                         <WalletIcon className="h-3 w-3" /> Earnings → wallet
                       </span>
@@ -94,7 +94,7 @@ export function DeliverySettlements({
                       </span>
                     </div>
                   </div>
-                  <div className={`mt-2 border-t border-black/10 pt-2 text-sm font-bold dark:border-white/10 ${nl.cls}`}>
+                  <div className={`mt-2 break-words border-t border-black/10 pt-2 text-sm font-bold dark:border-white/10 ${nl.cls}`}>
                     {nl.text}
                   </div>
                   <Button size="sm" className="mt-3 w-full" disabled={busy} onClick={() => settle(p.partnerId)}>
@@ -116,16 +116,16 @@ export function DeliverySettlements({
                 return (
                   <div
                     key={h.id}
-                    className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/10"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-black/10 px-3 py-2 text-sm dark:border-white/10"
                   >
-                    <div>
-                      <p className="font-medium text-stone-900 dark:text-white">{h.name}</p>
-                      <p className="text-xs text-stone-500">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium text-stone-900 dark:text-white">{h.name}</p>
+                      <p className="break-words text-xs text-stone-500">
                         {h.order_count} orders · {formatDateTime(h.created_at)}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${nl.cls}`}>{nl.text}</p>
+                    <div className="min-w-0 text-right">
+                      <p className={`break-words font-semibold ${nl.cls}`}>{nl.text}</p>
                       {h.confirmed ? (
                         <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-lime-500">
                           <CheckCircle2 className="h-3 w-3" /> Confirmed{" "}

@@ -112,10 +112,10 @@ export function ShareholdersManager({
 
   return (
     <div className="glass mt-4 rounded-2xl">
-      <div className="glass-line flex items-center justify-between gap-2 border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <UserCog className="h-4 w-4 text-yellow-400" />
-          <h3 className="text-sm font-bold text-stone-900 dark:text-white">Shareholder roster</h3>
+      <div className="glass-line flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <UserCog className="h-4 w-4 shrink-0 text-yellow-400" />
+          <h3 className="min-w-0 text-sm font-bold text-stone-900 dark:text-white">Shareholder roster</h3>
         </div>
         <Button onClick={openAdd} className="!px-3 !py-1.5 text-xs">
           <Plus className="h-3.5 w-3.5" /> Add
@@ -133,15 +133,15 @@ export function ShareholdersManager({
             className="flex items-center gap-3 rounded-lg border border-black/10 px-3 py-2.5 dark:border-white/10"
           >
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-stone-900 dark:text-white">{s.name}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 break-words font-semibold text-stone-900 dark:text-white">{s.name}</span>
                 {!s.is_active && (
                   <span className="rounded-full border border-black/15 px-2 py-0.5 text-[10px] text-stone-500 dark:border-white/15">
                     Inactive
                   </span>
                 )}
               </div>
-              <p className="text-xs text-stone-500">
+              <p className="break-words text-xs text-stone-500">
                 {s.type && <span className="capitalize">{s.type}</span>}
                 {s.type && s.profit_from && " · "}
                 {s.profit_from && <span>from {formatDate(s.profit_from)}</span>}
@@ -153,8 +153,8 @@ export function ShareholdersManager({
                 )}
               </p>
             </div>
-            <span className="text-sm font-bold text-stone-900 dark:text-white">{Number(s.share_percent)}%</span>
-            <div className="flex gap-1">
+            <span className="num shrink-0 text-sm font-bold text-stone-900 dark:text-white">{Number(s.share_percent)}%</span>
+            <div className="flex shrink-0 gap-1">
               <button
                 onClick={() => openEdit(s)}
                 className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
@@ -174,9 +174,9 @@ export function ShareholdersManager({
         ))}
 
         {rows.length > 0 && (
-          <div className="flex items-center justify-between pt-1 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-1 text-xs">
             <span className="text-stone-500">Active shares total</span>
-            <span className={`font-bold ${balanced ? "text-emerald-500" : "text-amber-500"}`}>
+            <span className={`max-w-full text-right font-bold ${balanced ? "text-emerald-500" : "text-amber-500"}`}>
               {activeTotal}%{balanced ? "" : " — must equal 100% to settle"}
             </span>
           </div>

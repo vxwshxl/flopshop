@@ -45,7 +45,7 @@ export default async function DeliveryHistory() {
         <p className="text-sm text-stone-500">{list.length} completed deliveries</p>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="This week" value={formatCurrency(weekEarnings, currency)} />
         <Stat label="This month" value={formatCurrency(monthEarnings, currency)} />
         <Stat label="All time" value={formatCurrency(totalEarnings, currency)} />
@@ -58,15 +58,15 @@ export default async function DeliveryHistory() {
           </div>
         )}
         {list.map((o) => (
-          <div key={o.id} className="glass flex items-center justify-between rounded-2xl p-4">
-            <div>
-              <p className="font-semibold text-white">{o.order_number}</p>
-              <p className="text-xs text-stone-500">
+          <div key={o.id} className="glass flex items-center justify-between gap-3 rounded-2xl p-4">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-white">{o.order_number}</p>
+              <p className="break-words text-xs text-stone-500">
                 {o.customer_name} · Room {o.customer_room ?? "—"} · {formatDateTime(o.updated_at)}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-lime-400">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+              <span className="num text-sm font-semibold text-lime-400">
                 +{formatCurrency(o.delivery_person_earning, currency)}
               </span>
               <OrderStatusBadge status={o.status} />
@@ -80,9 +80,9 @@ export default async function DeliveryHistory() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass rounded-2xl p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-2 text-xl font-extrabold text-lime-400">{value}</p>
+    <div className="stat-card glass rounded-2xl p-4">
+      <p className="break-words text-xs font-bold uppercase tracking-wide text-stone-500">{label}</p>
+      <p className="stat-value mt-2 font-extrabold text-lime-400">{value}</p>
     </div>
   );
 }

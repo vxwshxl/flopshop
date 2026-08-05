@@ -302,24 +302,24 @@ export function CheckoutView({
         <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
           <p className="mb-2 text-sm font-semibold text-stone-700 dark:text-stone-300">Order summary</p>
           {items.map((i) => (
-            <div key={i.id} className="flex justify-between py-0.5 text-sm text-stone-600 dark:text-stone-400">
+            <div key={i.id} className="num-row py-0.5 text-sm text-stone-600 dark:text-stone-400">
               <span>
                 {i.name} × {i.quantity}
               </span>
               <span>{formatCurrency(i.price * i.quantity, currency)}</span>
             </div>
           ))}
-          <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-sm text-stone-600 dark:border-white/10 dark:text-stone-400">
+          <div className="num-row mt-2 border-t border-black/10 pt-2 text-sm text-stone-600 dark:border-white/10 dark:text-stone-400">
             <span>Subtotal</span>
             <span>{formatCurrency(subtotal, currency)}</span>
           </div>
           {orderType === "delivery" && (
-            <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
+            <div className="num-row text-sm text-stone-600 dark:text-stone-400">
               <span>Delivery fee</span>
               <span>{formatCurrency(fee, currency)}</span>
             </div>
           )}
-          <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">
+          <div className="num-row mt-2 border-t border-black/10 pt-2 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">
             <span>Total</span>
             <span>{formatCurrency(total, currency)}</span>
           </div>

@@ -107,17 +107,18 @@ export function WalletPanel({
   return (
     <div className="space-y-4">
       <div
-        className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+        className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border px-4 py-3 ${
           balance < 0
             ? "border-amber-300 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/10"
             : "border-black/10 bg-lime-50 dark:border-white/10 dark:bg-lime-400/10"
         }`}
       >
-        <span className="flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-200">
-          <WalletIcon className="h-4 w-4" /> {balance < 0 ? "Owed to shop (debt)" : "Wallet balance"}
+        <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-200">
+          <WalletIcon className="h-4 w-4 shrink-0" />{" "}
+          {balance < 0 ? "Owed to shop (debt)" : "Wallet balance"}
         </span>
         <span
-          className={`text-lg font-extrabold ${
+          className={`num max-w-full text-lg font-extrabold ${
             balance < 0 ? "text-amber-700 dark:text-amber-300" : "text-stone-900 dark:text-white"
           }`}
         >
@@ -143,15 +144,15 @@ export function WalletPanel({
             <div>
               <Label>Send to</Label>
               {recipient ? (
-                <div className="flex items-center justify-between rounded-lg border border-indigo-400/40 bg-indigo-50 px-3 py-2 text-sm dark:bg-indigo-400/10">
-                  <span className="font-medium text-stone-900 dark:text-white">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-indigo-400/40 bg-indigo-50 px-3 py-2 text-sm dark:bg-indigo-400/10">
+                  <span className="min-w-0 break-words font-medium text-stone-900 dark:text-white">
                     {recipient.label}
                     {recipient.sublabel ? <span className="ml-1 text-xs text-stone-500">· {recipient.sublabel}</span> : null}
                   </span>
                   <button
                     type="button"
                     onClick={() => setRecipient(null)}
-                    className="text-xs font-medium text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                    className="shrink-0 text-xs font-medium text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
                   >
                     Change
                   </button>
@@ -175,10 +176,10 @@ export function WalletPanel({
                             setRecipient(r);
                             setRecipientResults([]);
                           }}
-                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10"
                         >
-                          <span>{r.label}</span>
-                          <span className="text-xs text-stone-500">{r.sublabel ?? r.kind}</span>
+                          <span className="min-w-0 truncate">{r.label}</span>
+                          <span className="shrink-0 text-xs text-stone-500">{r.sublabel ?? r.kind}</span>
                         </button>
                       ))}
                     </div>
@@ -261,7 +262,7 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium ${
+      className={`flex min-w-0 items-center justify-center gap-1.5 truncate rounded-lg border px-2 py-2 text-sm font-medium sm:px-3 [&>svg]:shrink-0 ${
         active ? activeCls : "border-black/10 text-stone-600 dark:border-white/10 dark:text-stone-300"
       }`}
     >

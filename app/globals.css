@@ -82,6 +82,61 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* ============ Numbers that never overflow their card ============
+   Amounts and counts are always printed in full — never rounded, shortened or
+   truncated — so the *card* has to adapt to the number instead. Each stat card
+   is a size-query container; its value scales with the card's own width (not
+   the viewport, so it works the same in a 2-up phone grid as in a 6-up desktop
+   one) and wraps as a last resort rather than spilling over the edge. */
+.stat-card {
+  container-type: inline-size;
+}
+.stat-value {
+  /* ~text-2xl on a roomy card, shrinking to a readable minimum on a narrow one. */
+  font-size: clamp(1rem, 13cqi, 1.5rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+/* Bigger variant for hero figures that were text-3xl. */
+.stat-value-lg {
+  font-size: clamp(1.125rem, 16cqi, 1.875rem);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A "label ……… amount" row. The label gives up space first (it ellipsises);
+   the amount keeps its width and, if even that doesn't fit, wraps inside the
+   row instead of pushing past the card. */
+.num-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.num-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.num-row > :last-child {
+  flex: 0 0 auto;
+  max-width: 100%;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Standalone figure: keeps digits aligned and stops a long amount from being
+   broken across lines inside a scrollable table cell. */
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* Hide scrollbars on horizontal scrollers */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

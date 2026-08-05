@@ -317,7 +317,7 @@ export function OrdersTable({
       </div>
 
       <TableScroll>
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[64rem] text-sm">
           <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Order" sortKey="order" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
@@ -358,7 +358,7 @@ export function OrdersTable({
                 </td>
                 <td className="p-3 capitalize">{o.order_type}</td>
                 <td className="p-3">{o.order_items?.length ?? 0}</td>
-                <td className="p-3">{formatCurrency(o.total_amount, currency)}</td>
+                <td className="num p-3">{formatCurrency(o.total_amount, currency)}</td>
                 <td className="p-3 whitespace-nowrap">
                   <div className="flex flex-col gap-1">
                     <span title={formatPaymentMethod(o, currency)}>{paymentMethodLabel(o.payment_method)}</span>

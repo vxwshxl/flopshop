@@ -17,7 +17,7 @@ export function UserOrdersTable({ orders, currency }: { orders: Order[]; currenc
   return (
     <>
       <div className="overflow-x-auto rounded-lg border border-black/15 dark:border-white/15">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[42rem] text-sm">
           <thead>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <th className="p-3">Order</th>
@@ -40,7 +40,7 @@ export function UserOrdersTable({ orders, currency }: { orders: Order[]; currenc
                 <td className="p-3 whitespace-nowrap text-xs text-black/60 dark:text-white/60">
                   {formatPaymentMethod(o, currency)} · {o.payment_status}
                 </td>
-                <td className="p-3">{formatCurrency(o.total_amount, currency)}</td>
+                <td className="num p-3">{formatCurrency(o.total_amount, currency)}</td>
                 <td className="p-3"><OrderStatusBadge status={o.status} /></td>
                 <td className="p-3 whitespace-nowrap text-xs text-black/50 dark:text-white/50">{formatDateTime(o.created_at)}</td>
               </tr>

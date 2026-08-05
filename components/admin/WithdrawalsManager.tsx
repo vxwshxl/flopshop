@@ -121,8 +121,8 @@ export function WithdrawalsManager({
 
   return (
     <div className="glass mt-4 rounded-2xl">
-      <div className="glass-line flex items-center justify-between gap-2 border-b px-4 py-3">
-        <h3 className="text-sm font-bold text-stone-900 dark:text-white">Withdrawal ledger</h3>
+      <div className="glass-line flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <h3 className="min-w-0 text-sm font-bold text-stone-900 dark:text-white">Withdrawal ledger</h3>
         <Button onClick={openAdd} className="!px-3 !py-1.5 text-xs">
           <Plus className="h-3.5 w-3.5" /> Add withdrawal
         </Button>
@@ -141,10 +141,10 @@ export function WithdrawalsManager({
           onClearDates={ctl.clearDates}
         />
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[34rem] text-sm">
             <thead>
-              <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
+              <tr className="whitespace-nowrap border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
                 <SortHeader label="Date" sortKey="date" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} defaultDir="desc" />
                 <SortHeader label="Amount" sortKey="amount" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} className="text-right" defaultDir="desc" />
                 <th className="p-3">Method</th>

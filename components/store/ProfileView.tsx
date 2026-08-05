@@ -87,7 +87,7 @@ export function ProfileView({ profile, hostels }: { profile: Profile; hostels: H
             ))}
           </Select>
         </div>
-        <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm">
+        <div className="num-row rounded-lg bg-white/5 px-3 py-2 text-sm">
           <span className="text-white/50">Account</span>
           <span className="font-semibold capitalize text-white">{profile.role}</span>
         </div>

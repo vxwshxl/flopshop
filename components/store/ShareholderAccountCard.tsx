@@ -57,14 +57,14 @@ export function ShareholderAccountCard({
   return (
     <div className="mt-6">
       <div className="glass rounded-2xl">
-      <div className="glass-line flex items-center justify-between gap-2 border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-yellow-400" />
-          <h3 className="text-sm font-bold text-stone-900 dark:text-white">
+      <div className="glass-line flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <TrendingUp className="h-4 w-4 shrink-0 text-yellow-400" />
+          <h3 className="min-w-0 break-words text-sm font-bold text-stone-900 dark:text-white">
             Your shareholder payouts
           </h3>
         </div>
-        <span className="text-xs text-stone-500">
+        <span className="min-w-0 break-words text-xs text-stone-500">
           {name} · {sharePercent}%
         </span>
       </div>
@@ -90,8 +90,8 @@ export function ShareholderAccountCard({
                 key={s.id}
                 className="rounded-lg border border-black/10 px-3 py-2.5 dark:border-white/10"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-stone-900 dark:text-white">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <span className="num font-bold text-stone-900 dark:text-white">
                     {formatCurrency(Number(s.amount), currency)}
                   </span>
                   {s.status === "confirmed" ? (

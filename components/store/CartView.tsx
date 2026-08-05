@@ -74,9 +74,9 @@ export function CartView({ settings }: { settings: SettingsMap }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-stone-950 dark:text-white">{item.name}</p>
-              <p className="text-sm text-stone-500 dark:text-stone-400">{formatCurrency(item.price, currency)}</p>
+              <p className="num text-sm text-stone-500 dark:text-stone-400">{formatCurrency(item.price, currency)}</p>
             </div>
-            <div className="flex items-center gap-2 rounded-lg bg-lime-500 text-stone-950">
+            <div className="flex shrink-0 items-center gap-2 rounded-lg bg-lime-500 text-stone-950">
               <button onClick={() => decrement(item.id)} className="grid h-7 w-7 place-items-center">
                 <Minus className="h-3 w-3" />
               </button>
@@ -143,22 +143,22 @@ export function CartView({ settings }: { settings: SettingsMap }) {
 
       {/* Summary */}
       <div className="mt-6 rounded-lg border border-black/10 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-stone-900">
-        <div className="flex justify-between text-sm text-stone-600 dark:text-stone-400">
+        <div className="num-row text-sm text-stone-600 dark:text-stone-400">
           <span>Subtotal</span>
           <span>{formatCurrency(subtotal, currency)}</span>
         </div>
         {orderType === "delivery" && (
           <>
-            <div className="mt-2 flex justify-between text-sm text-stone-600 dark:text-stone-400">
+            <div className="num-row mt-2 text-sm text-stone-600 dark:text-stone-400">
               <span>Delivery fee</span>
               <span>{formatCurrency(deliveryFee, currency)}</span>
             </div>
-            <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
+            <p className="mt-0.5 break-words text-xs text-stone-400 dark:text-stone-500">
               {formatCurrency(deliveryShare, currency)} delivery person + {formatCurrency(adminShare, currency)} shop
             </p>
           </>
         )}
-        <div className="mt-3 flex justify-between border-t border-black/10 pt-3 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">
+        <div className="num-row mt-3 border-t border-black/10 pt-3 text-base font-extrabold text-stone-950 dark:border-white/10 dark:text-white">
           <span>Total</span>
           <span>{formatCurrency(total, currency)}</span>
         </div>

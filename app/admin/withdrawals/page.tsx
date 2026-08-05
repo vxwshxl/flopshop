@@ -29,7 +29,7 @@ export default async function WithdrawalsPage() {
       <RealtimeRefresh table="withdrawals" channel="admin:withdrawals" />
       <PageHeader title="Withdrawals" subtitle="Money taken out of revenue (cash / UPI)" />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard label="Total withdrawn" value={formatCurrency(total, currency)} hint={`${rows.length} entries`} />
         <StatCard label="UPI" value={formatCurrency(upi, currency)} />
         <StatCard label="Cash" value={formatCurrency(cash, currency)} />

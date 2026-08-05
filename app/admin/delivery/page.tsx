@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, PageHeader } from "@/components/admin/StatCard";
-import { tablePageClass } from "@/components/admin/TableShell";
 import { Truck, Users, Clock, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/formatters";
 import type { Profile, Order, DeliverySettlement } from "@/lib/types";
@@ -146,14 +145,16 @@ export default async function AdminDeliveryPage() {
   }));
 
   return (
-    <div className={tablePageClass}>
+    // Not a viewport-locked table page: the settlements section sits below the
+    // partners card, so the page has to scroll normally or the two collide.
+    <div className="pb-6">
       <AdminDeliveryRefresh />
       <RealtimeRefresh table="orders" channel="admin:delivery:orders" />
       <RealtimeRefresh table="profiles" channel="admin:delivery:profiles" />
       <RealtimeRefresh table="delivery_settlements" channel="admin:delivery:settlements" />
       <PageHeader title="Delivery Partners" />
 
-      <div className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Active Now"
           value={activeCount}
@@ -177,11 +178,11 @@ export default async function AdminDeliveryPage() {
         />
       </div>
 
-      <div className="glass mt-4 flex min-h-0 flex-1 flex-col rounded-2xl">
-        <div className="glass-line flex shrink-0 items-center border-b px-4 py-3">
+      <div className="glass mt-4 rounded-2xl">
+        <div className="glass-line flex items-center border-b px-4 py-3">
           <h3 className="text-sm font-bold text-stone-900 dark:text-white">Delivery Partners</h3>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="p-4">
           <DeliveryPartnersTable partners={partnerStats} currency={currency} />
         </div>
       </div>

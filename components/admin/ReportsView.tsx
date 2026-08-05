@@ -326,12 +326,13 @@ export function ReportsView({
   return (
     <div>
       <div className="mb-4 flex flex-col items-center gap-3 lg:flex-row lg:justify-between">
-        <div className="flex justify-center gap-2">
+        {/* Tabs scroll sideways on a phone instead of squeezing off-screen. */}
+        <div className="no-scrollbar -mx-1 flex w-full justify-start gap-2 overflow-x-auto px-1 lg:w-auto lg:justify-center">
           {tabs.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
                 tab === t ? "bg-white text-black" : "bg-[#1a1a1a] text-gray-400 hover:text-white"
               }`}
             >
@@ -339,10 +340,10 @@ export function ReportsView({
             </button>
           ))}
         </div>
-        <div className="flex items-center justify-center gap-2">
-          <DatePicker value={from} onChange={setFrom} className="w-40" />
-          <span className="text-white/40">→</span>
-          <DatePicker value={to} onChange={setTo} className="w-40" />
+        <div className="flex w-full items-center justify-center gap-2 lg:w-auto">
+          <DatePicker value={from} onChange={setFrom} className="min-w-0 flex-1 sm:w-40 sm:flex-none" />
+          <span className="shrink-0 text-white/40">→</span>
+          <DatePicker value={to} onChange={setTo} className="min-w-0 flex-1 sm:w-40 sm:flex-none" />
         </div>
       </div>
 
@@ -452,29 +453,31 @@ export function ReportsView({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <AdminCard title="Top Selling Products">
-              <table className="w-full text-sm text-gray-300">
-                <thead>
-                  <tr className="text-left text-xs text-gray-500">
-                    <th className="pb-2">Product</th>
-                    <th className="pb-2 text-right">Qty</th>
-                    <th className="pb-2 text-right">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topProducts.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="py-6 text-center text-gray-500">No data</td>
+              <div className="-mx-1 overflow-x-auto px-1">
+                <table className="w-full min-w-[20rem] text-sm text-gray-300">
+                  <thead>
+                    <tr className="whitespace-nowrap text-left text-xs text-gray-500">
+                      <th className="pb-2">Product</th>
+                      <th className="pb-2 text-right">Qty</th>
+                      <th className="pb-2 text-right">Revenue</th>
                     </tr>
-                  )}
-                  {topProducts.map((p) => (
-                    <tr key={p.name} className="border-t border-[#222]">
-                      <td className="py-2">{p.name}</td>
-                      <td className="py-2 text-right">{p.qty}</td>
-                      <td className="py-2 text-right">{formatCurrency(p.revenue, currency)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {topProducts.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-6 text-center text-gray-500">No data</td>
+                      </tr>
+                    )}
+                    {topProducts.map((p) => (
+                      <tr key={p.name} className="border-t border-[#222]">
+                        <td className="py-2 pr-3">{p.name}</td>
+                        <td className="num py-2 pl-3 text-right">{p.qty}</td>
+                        <td className="num py-2 pl-3 text-right">{formatCurrency(p.revenue, currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </AdminCard>
 
             <AdminCard title="Sales by Category">
@@ -515,19 +518,19 @@ export function ReportsView({
                 <Line label="Shop (admin share)" value={formatCurrency(deliveryTotals.admin, currency)} />
               </div>
             </AdminCard>
-            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
-              <AdminCard title="Purchase Cost">
-                <p className="text-2xl font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
-                <p className="mt-1 text-xs text-gray-500">{rangePurchases.length} purchase records</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
+              <AdminCard title="Purchase Cost" className="stat-card">
+                <p className="stat-value font-bold text-white">{formatCurrency(purchaseCost, currency)}</p>
+                <p className="mt-1 break-words text-xs text-gray-500">{rangePurchases.length} purchase records</p>
               </AdminCard>
               <Link href="/admin/shareholders" className="block">
-                <AdminCard title="Shareholder Split">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-2xl font-bold text-white">{formatCurrency(profitPool, currency)}</p>
+                <AdminCard title="Shareholder Split" className="stat-card">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="stat-value font-bold text-white">{formatCurrency(profitPool, currency)}</p>
                       <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                         {profitSplit.map((sh) => (
-                          <p key={sh.id}>
+                          <p key={sh.id} className="break-words">
                             · {sh.name} {Number(sh.share_percent)}% — {formatCurrency(sh.amount, currency)}
                           </p>
                         ))}
@@ -548,10 +551,10 @@ export function ReportsView({
               placeholder="Search product…"
               showDateRange={false}
             />
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-gray-300">
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[30rem] text-sm text-gray-300">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500">
+                  <tr className="whitespace-nowrap text-left text-xs text-gray-500">
                     <SortHeader label="Product" sortKey="name" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2" />
                     <SortHeader label="Revenue" sortKey="revenue" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
                     <SortHeader label="Cost" sortKey="cost" activeKey={pfCtl.sortKey} dir={pfCtl.dir} onSort={pfCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
@@ -564,10 +567,10 @@ export function ReportsView({
                   )}
                   {pfPag.pageItems.map((p) => (
                     <tr key={p.name} className="border-t border-[#222]">
-                      <td className="py-2">{p.name}</td>
-                      <td className="py-2 text-right">{formatCurrency(p.revenue, currency)}</td>
-                      <td className="py-2 text-right">{formatCurrency(p.cost, currency)}</td>
-                      <td className={`py-2 text-right font-medium ${p.profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      <td className="py-2 pr-3">{p.name}</td>
+                      <td className="num py-2 pl-3 text-right">{formatCurrency(p.revenue, currency)}</td>
+                      <td className="num py-2 pl-3 text-right">{formatCurrency(p.cost, currency)}</td>
+                      <td className={`num py-2 pl-3 text-right font-medium ${p.profit >= 0 ? "text-green-400" : "text-red-400"}`}>
                         {formatCurrency(p.profit, currency)}
                       </td>
                     </tr>
@@ -602,10 +605,10 @@ export function ReportsView({
               placeholder="Search product…"
               showDateRange={false}
             />
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-gray-300">
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[34rem] text-sm text-gray-300">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500">
+                  <tr className="whitespace-nowrap text-left text-xs text-gray-500">
                     <SortHeader label="Product" sortKey="name" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2" />
                     <SortHeader label="Stock" sortKey="stock" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
                     <SortHeader label="Min" sortKey="min" activeKey={invCtl.sortKey} dir={invCtl.dir} onSort={invCtl.toggleSort} className="!p-0 !pb-2 text-right" defaultDir="desc" />
@@ -619,13 +622,13 @@ export function ReportsView({
                   )}
                   {invPag.pageItems.map((p) => (
                     <tr key={p.id} className="border-t border-[#222]">
-                      <td className="py-2">{p.name}</td>
-                      <td className={`py-2 text-right font-medium ${p.stock <= 0 ? "text-red-400" : p.stock <= p.min ? "text-amber-400" : "text-green-400"}`}>
+                      <td className="py-2 pr-3">{p.name}</td>
+                      <td className={`num py-2 pl-3 text-right font-medium ${p.stock <= 0 ? "text-red-400" : p.stock <= p.min ? "text-amber-400" : "text-green-400"}`}>
                         {p.stock}
                       </td>
-                      <td className="py-2 text-right text-gray-500">{p.min}</td>
-                      <td className="py-2 text-right">{formatCurrency(p.cost, currency)}</td>
-                      <td className="py-2 text-right">{formatCurrency(p.value, currency)}</td>
+                      <td className="num py-2 pl-3 text-right text-gray-500">{p.min}</td>
+                      <td className="num py-2 pl-3 text-right">{formatCurrency(p.cost, currency)}</td>
+                      <td className="num py-2 pl-3 text-right">{formatCurrency(p.value, currency)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -648,7 +651,7 @@ export function ReportsView({
 
 function Line({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-gray-400">
+    <div className="num-row text-gray-400">
       <span>{label}</span>
       <span className="text-white">{value}</span>
     </div>

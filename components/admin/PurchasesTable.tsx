@@ -138,7 +138,7 @@ export function PurchasesTable({
       </div>
 
       <TableScroll className="rounded-xl border-[#222] bg-[#1a1a1a]">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[40rem] text-sm">
           <thead className="sticky top-0 z-10 [&_th]:bg-[#1a1a1a]">
             <tr className="border-b border-[#222] text-left text-xs text-gray-500">
               {sortTh("purchase_date", "Date")}
@@ -165,8 +165,8 @@ export function PurchasesTable({
                 <td className="p-3 whitespace-nowrap">{formatDate(p.purchase_date)}</td>
                 <td className="p-3 font-medium text-white">{p.product_name}</td>
                 <td className="p-3">{p.quantity}</td>
-                <td className="p-3">{formatCurrency(p.unit_price, currency)}</td>
-                <td className="p-3">{formatCurrency(p.total_cost, currency)}</td>
+                <td className="num p-3">{formatCurrency(p.unit_price, currency)}</td>
+                <td className="num p-3">{formatCurrency(p.total_cost, currency)}</td>
                 <td className="p-3">{p.supplier ?? "—"}</td>
                 <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-1">

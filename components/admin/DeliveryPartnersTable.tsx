@@ -60,11 +60,10 @@ export function DeliveryPartnersTable({
 
   return (
     <>
-      <div className="shrink-0">
-        <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search partner…" showDateRange={false} />
-      </div>
-      <TableScroll>
-        <table className="w-full text-sm">
+      <TableToolbar query={ctl.query} onQuery={ctl.setQuery} placeholder="Search partner…" showDateRange={false} />
+      {/* Capped height: the page scrolls, so the list scrolls inside the card. */}
+      <TableScroll className="max-h-[26rem]">
+        <table className="w-full min-w-[36rem] text-sm">
           <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
               <SortHeader label="Partner" sortKey="name" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />

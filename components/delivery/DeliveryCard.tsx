@@ -135,34 +135,37 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
 
   return (
     <div className="glass rounded-2xl p-4 transition-all hover:border-lime-400/30">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-semibold text-white">{order.order_number}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-white">{order.order_number}</p>
           <p className="text-xs text-stone-500">{formatTime(order.created_at)}</p>
         </div>
         <OrderStatusBadge status={order.status} />
       </div>
 
       <div className="mt-3 space-y-1.5 text-sm text-stone-400">
-        <p className="font-medium text-white">{order.customer_name}</p>
+        <p className="break-words font-medium text-white">{order.customer_name}</p>
         {order.customer_room && (
-          <p className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-lime-400/70" /> Room {order.customer_room}
+          <p className="flex items-start gap-2">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-lime-400/70" />
+            <span className="min-w-0 break-words">Room {order.customer_room}</span>
           </p>
         )}
         {order.customer_phone && (
           <p className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-lime-400/70" />
-            <a href={`tel:${order.customer_phone}`} className="hover:underline">
+            <Phone className="h-4 w-4 shrink-0 text-lime-400/70" />
+            <a href={`tel:${order.customer_phone}`} className="min-w-0 break-words hover:underline">
               {order.customer_phone}
             </a>
           </p>
         )}
-        <p className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-lime-400/70" />
-          {order.order_items?.length ?? 0} item{(order.order_items?.length ?? 0) > 1 ? "s" : ""} ·{" "}
-          {formatCurrency(order.total_amount, currency)} ·{" "}
-          {prepaid ? "PREPAID" : order.payment_method.toUpperCase()}
+        <p className="flex items-start gap-2">
+          <Package className="mt-0.5 h-4 w-4 shrink-0 text-lime-400/70" />
+          <span className="min-w-0 break-words">
+            {order.order_items?.length ?? 0} item{(order.order_items?.length ?? 0) > 1 ? "s" : ""} ·{" "}
+            {formatCurrency(order.total_amount, currency)} ·{" "}
+            {prepaid ? "PREPAID" : order.payment_method.toUpperCase()}
+          </span>
         </p>
         {prepaid && (
           <p className="inline-flex items-center gap-1.5 rounded-full bg-lime-400/10 px-2.5 py-1 text-xs font-semibold text-lime-300">
@@ -293,7 +296,9 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
         ) : (
           <>
             <div className="mb-5 flex flex-col items-center rounded-2xl bg-white p-4 shadow-lg">
-              <p className="text-2xl font-extrabold text-stone-900">{formatCurrency(order.total_amount, currency)}</p>
+              <p className="num max-w-full text-2xl font-extrabold text-stone-900">
+                {formatCurrency(order.total_amount, currency)}
+              </p>
               <Image
                 src="/QR.jpeg"
                 alt="Shop UPI QR code — scan to pay"

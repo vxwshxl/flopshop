@@ -60,7 +60,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         title={order.order_number}
         subtitle={formatDateTime(order.created_at)}
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <OrderStatusBadge status={order.status} />
             <DeleteOrderButton orderId={order.id} orderNumber={order.order_number} />
             <PrintButton label="Print invoice" />
@@ -103,38 +103,40 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               />
             }
           >
-            <table className="w-full text-sm text-gray-300">
-              <thead>
-                <tr className="text-left text-xs text-gray-500">
-                  <th className="pb-2">Product</th>
-                  <th className="pb-2 text-center">Qty</th>
-                  <th className="pb-2 text-right">Unit</th>
-                  <th className="pb-2 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.order_items?.map((it) => (
-                  <tr key={it.id} className="border-t border-[#222]">
-                    <td className="py-2">{it.product_name}</td>
-                    <td className="py-2 text-center">{it.quantity}</td>
-                    <td className="py-2 text-right">{formatCurrency(it.unit_price, currency)}</td>
-                    <td className="py-2 text-right">{formatCurrency(it.total_price, currency)}</td>
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[26rem] text-sm text-gray-300">
+                <thead>
+                  <tr className="whitespace-nowrap text-left text-xs text-gray-500">
+                    <th className="pb-2">Product</th>
+                    <th className="pb-2 text-center">Qty</th>
+                    <th className="pb-2 text-right">Unit</th>
+                    <th className="pb-2 text-right">Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {order.order_items?.map((it) => (
+                    <tr key={it.id} className="border-t border-[#222]">
+                      <td className="py-2 pr-3">{it.product_name}</td>
+                      <td className="num py-2 text-center">{it.quantity}</td>
+                      <td className="num py-2 pl-3 text-right">{formatCurrency(it.unit_price, currency)}</td>
+                      <td className="num py-2 pl-3 text-right">{formatCurrency(it.total_price, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="mt-3 space-y-1 border-t border-[#222] pt-3 text-sm">
               <Line label="Subtotal" value={formatCurrency(order.subtotal, currency)} />
               {order.order_type === "delivery" && (
                 <>
                   <Line label="Delivery fee" value={formatCurrency(order.delivery_fee, currency)} />
-                  <p className="text-right text-xs text-gray-500">
+                  <p className="break-words text-right text-xs text-gray-500">
                     Delivery person {formatCurrency(order.delivery_person_earning, currency)} · Shop{" "}
                     {formatCurrency(order.admin_delivery_earning, currency)}
                   </p>
                 </>
               )}
-              <div className="flex justify-between pt-1 text-base font-bold text-white">
+              <div className="num-row pt-1 text-base font-bold text-white">
                 <span>Total</span>
                 <span>{formatCurrency(order.total_amount, currency)}</span>
               </div>
@@ -167,16 +169,16 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs text-gray-500">{label}</p>
-      <p className="font-medium capitalize text-white">{value}</p>
+      <p className="break-words font-medium capitalize text-white">{value}</p>
     </div>
   );
 }
 
 function Line({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-gray-400">
+    <div className="num-row text-gray-400">
       <span>{label}</span>
       <span className="text-white">{value}</span>
     </div>
