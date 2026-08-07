@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Merge, Wallet as WalletIcon } from "lucide-react";
+import { Pencil, Trash2, Plus, Merge, Wallet as WalletIcon, History } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   createCustomerAction,
@@ -271,6 +272,14 @@ export function CustomersManager({
                   </td>
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/admin/customers/${c.id}`}
+                        className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50"
+                        aria-label={`Order history for ${c.name}`}
+                        title="Order history"
+                      >
+                        <History className="h-4 w-4" />
+                      </Link>
                       <button onClick={() => setCreditCustomer(c)} className="rounded-md p-1.5 text-black/50 hover:bg-yellow-400 hover:text-black dark:text-white/50" aria-label="Credit">
                         <WalletIcon className="h-4 w-4" />
                       </button>

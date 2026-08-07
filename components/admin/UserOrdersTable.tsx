@@ -6,12 +6,20 @@ import { Pagination, usePagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateTime, formatPaymentMethod } from "@/lib/utils/formatters";
 import type { Order } from "@/lib/types";
 
-/** Paginated list of a single user's orders, newest first. */
-export function UserOrdersTable({ orders, currency }: { orders: Order[]; currency: string }) {
+/** Paginated list of a single user's (or customer's) orders, newest first. */
+export function UserOrdersTable({
+  orders,
+  currency,
+  emptyText = "This user has no orders yet.",
+}: {
+  orders: Order[];
+  currency: string;
+  emptyText?: string;
+}) {
   const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(orders, 10);
 
   if (orders.length === 0) {
-    return <p className="text-sm text-black/50 dark:text-white/50">This user has no orders yet.</p>;
+    return <p className="text-sm text-black/50 dark:text-white/50">{emptyText}</p>;
   }
 
   return (
