@@ -190,7 +190,7 @@ export function DeliveryCard({ order, currency }: { order: Order; currency: stri
         </p>
         <div className="grid grid-cols-2 gap-2.5">
           <Link
-            href={`/orders/${order.id}`}
+            href={`/orders/${order.id}?from=delivery`}
             className={`w-full ${order.status === "delivered" ? "col-span-2" : ""}`}
           >
             <Button size="sm" variant="outline" className="w-full">

@@ -4,12 +4,13 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { PageHeader, AdminCard, StatCard } from "@/components/admin/StatCard";
+import { CustomerEditButton } from "@/components/admin/CustomerEditButton";
 import { UserOrdersTable } from "@/components/admin/UserOrdersTable";
 import { WalletPanel } from "@/components/admin/WalletPanel";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { getWalletWithTransactions } from "@/lib/server/wallet";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils/formatters";
-import type { Customer, Order } from "@/lib/types";
+import type { Customer, Hostel, Order } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,12 @@ export default async function AdminCustomerDetail({ params }: { params: Promise<
   const { data: customerData } = await supabase.from("customers").select("*").eq("id", id).single();
   if (!customerData) notFound();
   const customer = customerData as Customer;
+
+  const { data: hostelsData } = await supabase
+    .from("hostels")
+    .select("*")
+    .eq("is_active", true)
+    .order("name");
 
   // Orders carry a name snapshot rather than a customer FK, so history is matched
   // by name (case-insensitive, the same rule `upsertCustomerByName` and merging use).
@@ -60,6 +67,7 @@ export default async function AdminCustomerDetail({ params }: { params: Promise<
       <PageHeader
         title={customer.name}
         subtitle={`Added ${formatDate(customer.created_at)}`}
+        action={<CustomerEditButton customer={customer} hostels={(hostelsData as Hostel[]) ?? []} />}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -95,6 +103,7 @@ export default async function AdminCustomerDetail({ params }: { params: Promise<
             orders={orders}
             currency={currency}
             emptyText="This customer has no orders yet."
+            backTo={`/admin/customers/${id}`}
           />
         </AdminCard>
       </div>

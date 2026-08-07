@@ -12,13 +12,21 @@ import { DeleteOrderButton } from "@/components/admin/DeleteOrderButton";
 import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { Invoice } from "@/components/Invoice";
+import { adminOrderBackLink } from "@/lib/utils/backLink";
 import { formatCurrency, formatDateTime, formatPaymentMethod } from "@/lib/utils/formatters";
 import type { Order, Product, Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminOrderDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminOrderDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { id } = await params;
+  const back = adminOrderBackLink((await searchParams).from);
   const supabase = await createClient();
   const settings = await getSettings();
   const currency = settings.currency_symbol;
@@ -53,8 +61,8 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
 
   return (
     <div>
-      <Link href="/admin/orders" className="mb-3 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white">
-        <ArrowLeft className="h-4 w-4" /> Back to orders
+      <Link href={back.href} className="mb-3 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white">
+        <ArrowLeft className="h-4 w-4" /> {back.label}
       </Link>
       <PageHeader
         title={order.order_number}

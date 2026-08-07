@@ -77,7 +77,7 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
         </AdminCard>
 
         <AdminCard title="Orders" className="lg:col-span-2">
-          <UserOrdersTable orders={orders} currency={currency} />
+          <UserOrdersTable orders={orders} currency={currency} backTo={`/admin/users/${id}`} />
         </AdminCard>
       </div>
 

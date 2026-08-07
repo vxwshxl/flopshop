@@ -9,13 +9,21 @@ import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { CancelOrderButton } from "@/components/store/CancelOrderButton";
+import { storeOrderBackLink } from "@/lib/utils/backLink";
 import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/utils/orderHelpers";
 import type { Order } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { id } = await params;
+  const back = storeOrderBackLink((await searchParams).from);
   const supabase = await createClient();
 
   const [settings, { data }, user] = await Promise.all([
@@ -42,8 +50,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="mx-auto max-w-2xl px-4 py-5">
       <RealtimeRefresh table="orders" channel={`order-${id}`} />
-      <Link href="/orders" className="mb-4 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-950 dark:hover:text-white">
-        <ArrowLeft className="h-4 w-4" /> Back to orders
+      <Link href={back.href} className="mb-4 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-stone-950 dark:hover:text-white">
+        <ArrowLeft className="h-4 w-4" /> {back.label}
       </Link>
 
       <div className="mb-5 flex items-center justify-between">
