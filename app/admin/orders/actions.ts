@@ -15,6 +15,7 @@ import {
   reconcileOrderAdjustment,
   type WalletOwner,
 } from "@/lib/server/wallet";
+import { sendPushToUsers } from "@/lib/push/server";
 import { statusDeductsStock, deliverySplit, DOOR_CHANGE_MAX } from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { OrderStatus, OrderType, PaymentMethod, PaymentStatus, Role } from "@/lib/types";
@@ -301,6 +302,150 @@ export async function confirmUpiToShopAction(orderId: string, otp_code: string) 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/delivery");
   return result;
+}
+
+/**
+ * A delivery partner (or admin) trims an order at pickup because something on it
+ * isn't on the shelf. Deliberately NOT a general item editor: quantities may only
+ * go DOWN, and prices, product swaps and new lines stay admin-only — a partner
+ * standing at the shelf should be able to fix what they can't supply and nothing
+ * more. Totals are recomputed, anything already overpaid goes back to the
+ * customer's wallet, and the customer is told what changed.
+ *
+ * Stock is intentionally NOT returned: the units weren't on the shelf, so the
+ * count the order already took off is the count that reflects reality. An
+ * admin corrects the shelf figure if it turns out otherwise.
+ */
+export async function reportOutOfStockAction(
+  orderId: string,
+  lines: { id: string; quantity: number }[]
+): Promise<{ ok: boolean; error?: string; removed?: string[]; refunded?: number }> {
+  const actor = await requireRole(["admin", "delivery"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select(
+      "id, order_number, status, delivery_person_id, user_id, customer_name, customer_phone, customer_room, amount_paid, total_amount"
+    )
+    .eq("id", orderId)
+    .single();
+  if (!order) return { ok: false, error: "Order not found." };
+
+  if (order.status === "delivered" || order.status === "cancelled") {
+    return { ok: false, error: "This order is already closed." };
+  }
+  // An admin can fix any order; a partner only the one they're carrying.
+  if (actor.role !== "admin" && order.delivery_person_id !== actor.id) {
+    return { ok: false, error: "Only the assigned delivery partner can change this order." };
+  }
+
+  const { data: existing } = await admin
+    .from("order_items")
+    .select("id, product_name, quantity, unit_price")
+    .eq("order_id", orderId);
+  const current = (existing ?? []) as {
+    id: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+  }[];
+  if (!current.length) return { ok: false, error: "This order has no items." };
+
+  const wanted = new Map<string, number>();
+  for (const line of lines) {
+    const item = current.find((c) => c.id === line.id);
+    if (!item) return { ok: false, error: "That item isn't on this order." };
+    const qty = Math.floor(Number(line.quantity));
+    if (!Number.isFinite(qty) || qty < 0) return { ok: false, error: "Invalid quantity." };
+    if (qty > item.quantity) return { ok: false, error: "Quantities can only be reduced." };
+    wanted.set(line.id, qty);
+  }
+
+  // Everything left over keeps the quantity it already had.
+  const next = current.map((it) => ({ ...it, next: wanted.get(it.id) ?? it.quantity }));
+  if (next.every((it) => it.next === 0)) {
+    return { ok: false, error: "Nothing would be left — cancel the order instead." };
+  }
+  const changed = next.filter((it) => it.next !== it.quantity);
+  if (!changed.length) return { ok: true, removed: [] };
+
+  for (const it of next) {
+    if (it.next === 0) {
+      const { error } = await admin.from("order_items").delete().eq("id", it.id).eq("order_id", orderId);
+      if (error) return { ok: false, error: error.message };
+    } else if (it.next !== it.quantity) {
+      const { error } = await admin
+        .from("order_items")
+        .update({ quantity: it.next, total_price: it.next * Number(it.unit_price) })
+        .eq("id", it.id)
+        .eq("order_id", orderId);
+      if (error) return { ok: false, error: error.message };
+    }
+  }
+
+  const { error: recalcErr } = await admin.rpc("recompute_order_totals", { p_order_id: orderId });
+  if (recalcErr) return { ok: false, error: recalcErr.message };
+
+  // A shrunken order may now cost less than what's already been collected —
+  // typically a wallet-paid order. Hand the difference back as store credit.
+  const { data: after } = await admin
+    .from("orders")
+    .select("total_amount")
+    .eq("id", orderId)
+    .single();
+  const newTotal = Number(after?.total_amount ?? 0);
+  const paid = Number(order.amount_paid ?? 0);
+  const overpaid = Math.round((paid - newTotal) * 100) / 100;
+  let refunded = 0;
+
+  if (overpaid >= 0.005) {
+    const owner = await resolveOrderWalletOwner(order);
+    if (owner) {
+      const res = await adjustWallet({
+        owner,
+        amount: overpaid,
+        type: "refund",
+        actorId: actor.id,
+        orderId,
+        note: "Item unavailable — difference refunded",
+      });
+      if (res.ok) refunded = overpaid;
+    }
+    await admin
+      .from("orders")
+      .update({
+        // Collected now matches the smaller total, so the order is square again.
+        amount_paid: newTotal,
+        payment_status: "paid",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+  }
+
+  const removed = changed.map((it) =>
+    it.next === 0 ? it.product_name : `${it.product_name} ×${it.quantity} → ×${it.next}`
+  );
+
+  // Tell the customer before they wonder why their total moved.
+  if (order.user_id) {
+    await sendPushToUsers([order.user_id], {
+      title: "Item unavailable 😔",
+      body: `${removed.join(", ")} — your total is now ₹${newTotal.toFixed(0)}${
+        refunded > 0 ? `, ₹${refunded.toFixed(0)} back in your wallet` : ""
+      }`,
+      url: `/orders/${orderId}`,
+      tag: `order-${order.order_number}`,
+    });
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/delivery");
+  return { ok: true, removed, refunded };
 }
 
 /**

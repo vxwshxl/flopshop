@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Truck, Phone } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthUser, getSettings } from "@/lib/supabase/queries";
+import { getAuthUser, getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { Invoice } from "@/components/Invoice";
 import { PrintButton } from "@/components/PrintButton";
 import { PrintPortal } from "@/components/PrintPortal";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { CancelOrderButton } from "@/components/store/CancelOrderButton";
+import { DeliveryActions } from "@/components/delivery/DeliveryActions";
 import { storeOrderBackLink } from "@/lib/utils/backLink";
 import { ORDER_STATUSES, STATUS_LABELS } from "@/lib/utils/orderHelpers";
 import type { Order } from "@/lib/types";
@@ -26,10 +27,11 @@ export default async function OrderDetailPage({
   const back = storeOrderBackLink((await searchParams).from);
   const supabase = await createClient();
 
-  const [settings, { data }, user] = await Promise.all([
+  const [settings, { data }, user, profile] = await Promise.all([
     getSettings(),
     supabase.from("orders").select("*, order_items(*)").eq("id", id).single(),
     getAuthUser(),
+    getCurrentProfile(),
   ]);
 
   if (!data) notFound();
@@ -37,8 +39,20 @@ export default async function OrderDetailPage({
   // Only the customer who placed the order sees the OTP — delivery staff and
   // admins must ask for it to verify handover.
   const isOwner = !!user && order.user_id === user.id;
+  const isAssignedPartner =
+    !!profile && !!order.delivery_person_id && order.delivery_person_id === profile.id;
+  // The partner carrying this order gets the same door actions they have on
+  // their queue card, so opening Details doesn't cost them a trip back. Once the
+  // order is closed out nothing is actionable, so the panel goes away rather
+  // than rendering an empty box.
+  const isOpen = order.status !== "delivered" && order.status !== "cancelled";
+  // Staff view wins when the viewer is both — you can order from your own shop
+  // and then claim your own delivery, and in that case the page you came to is
+  // the partner's, not the shopper's.
+  const asPartner = isAssignedPartner && isOpen;
   // The customer can call off their own order while it's still pending/confirmed.
-  const canCancel = isOwner && (order.status === "pending" || order.status === "confirmed");
+  const canCancel =
+    isOwner && !asPartner && (order.status === "pending" || order.status === "confirmed");
 
   // Build a simple progress timeline (skips cancelled which is terminal).
   const flow =
@@ -81,6 +95,24 @@ export default async function OrderDetailPage({
               <span className="mt-1 text-[10px] text-stone-500 dark:text-stone-400">{STATUS_LABELS[s]}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {asPartner && (
+        <div className="mb-6 rounded-lg border border-lime-500/40 bg-lime-50 p-4 shadow-sm dark:border-lime-400/25 dark:bg-lime-400/[0.06]">
+          <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-lime-700 dark:text-lime-300">
+            <Truck className="h-4 w-4" /> You&apos;re delivering this order
+          </p>
+          {order.customer_phone && (
+            <a
+              href={`tel:${order.customer_phone}`}
+              className="mb-3 flex items-center gap-2 text-sm font-medium text-stone-700 hover:underline dark:text-stone-200"
+            >
+              <Phone className="h-4 w-4 text-lime-600 dark:text-lime-400" />
+              {order.customer_name} · {order.customer_phone}
+            </a>
+          )}
+          <DeliveryActions order={order} currency={settings.currency_symbol} allowItemFix />
         </div>
       )}
 
