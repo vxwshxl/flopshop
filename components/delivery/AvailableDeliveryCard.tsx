@@ -34,7 +34,10 @@ export function AvailableDeliveryCard({ order, currency }: { order: Order; curre
         }
         toast.success("Order claimed. Head to pickup now.");
         setShowDetails(false);
-        router.refresh();
+        // Straight to the order the partner just took — the customer's number,
+        // the full item list and the door actions all live there, and that's
+        // what they need next.
+        router.push(`/orders/${order.id}?from=delivery`);
       } catch {
         toast.error("Unable to claim order. Please try again.");
       }

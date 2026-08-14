@@ -53,6 +53,12 @@ export default async function OrderDetailPage({
   // The customer can call off their own order while it's still pending/confirmed.
   const canCancel =
     isOwner && !asPartner && (order.status === "pending" || order.status === "confirmed");
+  // The OTP is the handover proof, so it's the customer's alone and only until
+  // the handover happens. Anyone viewing as the assigned partner is hidden from
+  // it even when they're also the customer — an order you placed and then
+  // claimed yourself would otherwise hand you the code you're meant to be asking
+  // for, and the OTP check stops meaning anything.
+  const showOtp = isOwner && !asPartner && isOpen;
 
   // Build a simple progress timeline (skips cancelled which is terminal).
   const flow =
@@ -133,20 +139,11 @@ export default async function OrderDetailPage({
       )}
 
       <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-        {/* OTP only for the owner, and only until handover (delivered/cancelled). */}
-        <Invoice
-          order={order}
-          settings={settings}
-          showOtp={isOwner && order.status !== "delivered" && order.status !== "cancelled"}
-        />
+        <Invoice order={order} settings={settings} showOtp={showOtp} />
       </div>
 
       <PrintPortal>
-        <Invoice
-          order={order}
-          settings={settings}
-          showOtp={isOwner && order.status !== "delivered" && order.status !== "cancelled"}
-        />
+        <Invoice order={order} settings={settings} showOtp={showOtp} />
       </PrintPortal>
     </div>
   );
