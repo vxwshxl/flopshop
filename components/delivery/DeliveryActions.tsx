@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { QrCode, CheckCircle2, PackageX } from "lucide-react";
+import { QrCode, CheckCircle2, PackageX, Ban } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   setOrderStatusAction,
@@ -33,6 +33,7 @@ export function DeliveryActions({
   currency,
   detailsHref,
   allowItemFix = false,
+  afterDropHref,
   className,
 }: {
   order: Order;
@@ -45,6 +46,12 @@ export function DeliveryActions({
    * only prints a one-line item summary.
    */
   allowItemFix?: boolean;
+  /**
+   * Where to send the partner after they hand the order back or cancel it. Set
+   * on the order detail page — once the order isn't theirs, that page turns back
+   * into the customer's own order view under them.
+   */
+  afterDropHref?: string;
   className?: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -214,6 +221,20 @@ export function DeliveryActions({
         Mark delivered
       </Button>
     ),
+    // Last in the row, tinted red: dropping an order sits with the other door
+    // actions but should never be mistaken for one of them.
+    !done && order.delivery_person_id && (
+      <Button
+        key="drop"
+        size="sm"
+        variant="outline"
+        className="w-full border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-400/30 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white"
+        disabled={pending}
+        onClick={() => setShowDrop(true)}
+      >
+        <Ban className="h-4 w-4" /> Cancel
+      </Button>
+    ),
   ].filter(Boolean);
 
   if (actions.length === 0) return null;
@@ -232,24 +253,17 @@ export function DeliveryActions({
         ))}
       </div>
 
-      {/* Kept out of the button grid and worded as a question: dropping an order
-          is a last resort, not a peer of "Mark delivered". */}
-      {!done && order.delivery_person_id && (
-        <button
-          type="button"
-          onClick={() => setShowDrop(true)}
-          disabled={pending}
-          className="mt-2.5 w-full text-xs font-medium text-stone-500 underline-offset-2 transition hover:text-red-400 hover:underline disabled:opacity-50"
-        >
-          Can&apos;t deliver this order?
-        </button>
-      )}
-
       {showStock && (
         <OutOfStockModal order={order} currency={currency} onClose={() => setShowStock(false)} />
       )}
 
-      {showDrop && <CantDeliverModal order={order} onClose={() => setShowDrop(false)} />}
+      {showDrop && (
+        <CantDeliverModal
+          order={order}
+          redirectTo={afterDropHref}
+          onClose={() => setShowDrop(false)}
+        />
+      )}
 
       <Modal open={showOtp} onClose={closeOtp} title="Enter delivery OTP">
         <p className="mb-5 text-center text-sm text-stone-400">

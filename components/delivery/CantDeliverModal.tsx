@@ -27,7 +27,21 @@ const REASONS: Record<Mode, string[]> = {
  * them towards, while cancelling ends their order and is worded so nobody picks
  * it by accident.
  */
-export function CantDeliverModal({ order, onClose }: { order: Order; onClose: () => void }) {
+export function CantDeliverModal({
+  order,
+  redirectTo,
+  onClose,
+}: {
+  order: Order;
+  /**
+   * Where to send the partner once the order stops being theirs. Set on the
+   * order detail page: staying there would silently re-render it as the
+   * customer's own order view (the shopper's "Cancel order" button and all),
+   * which is confusing at best and wrong for a partner who isn't the customer.
+   */
+  redirectTo?: string;
+  onClose: () => void;
+}) {
   const [mode, setMode] = useState<Mode | null>(null);
   const [reason, setReason] = useState("");
   const [pending, startTransition] = useTransition();
@@ -53,6 +67,7 @@ export function CantDeliverModal({ order, onClose }: { order: Order; onClose: ()
             : "Order cancelled · customer notified"
         );
         onClose();
+        if (redirectTo) router.push(redirectTo);
         router.refresh();
       } catch {
         toast.error("Something went wrong. Please try again.");

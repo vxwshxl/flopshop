@@ -68,12 +68,17 @@ export default async function OrderDetailPage({
         <ArrowLeft className="h-4 w-4" /> {back.label}
       </Link>
 
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-stone-950 dark:text-white">{order.order_number}</h1>
+      {/* Order numbers are long enough to wrap on a phone and shove the buttons
+          into each other, so the actions get their own row until there's width
+          for them to sit alongside. */}
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-extrabold text-stone-950 dark:text-white">
+            {order.order_number}
+          </h1>
           <OrderStatusBadge status={order.status} />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {canCancel && <CancelOrderButton orderId={order.id} />}
           <PrintButton label="Print invoice" />
         </div>
@@ -112,7 +117,12 @@ export default async function OrderDetailPage({
               {order.customer_name} · {order.customer_phone}
             </a>
           )}
-          <DeliveryActions order={order} currency={settings.currency_symbol} allowItemFix />
+          <DeliveryActions
+            order={order}
+            currency={settings.currency_symbol}
+            allowItemFix
+            afterDropHref="/delivery"
+          />
         </div>
       )}
 
