@@ -24,7 +24,8 @@ export default async function OrderDetailPage({
   searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
-  const back = storeOrderBackLink((await searchParams).from);
+  const from = (await searchParams).from;
+  const back = storeOrderBackLink(from);
   const supabase = await createClient();
 
   const [settings, { data }, user, profile] = await Promise.all([
@@ -46,10 +47,13 @@ export default async function OrderDetailPage({
   // order is closed out nothing is actionable, so the panel goes away rather
   // than rendering an empty box.
   const isOpen = order.status !== "delivered" && order.status !== "cancelled";
-  // Staff view wins when the viewer is both — you can order from your own shop
-  // and then claim your own delivery, and in that case the page you came to is
-  // the partner's, not the shopper's.
-  const asPartner = isAssignedPartner && isOpen;
+  // You can order from your own shop and then claim your own delivery, so the
+  // same person can be both customer and partner on one order. When they are,
+  // the door they came through decides which hat they're wearing: opening it
+  // from the delivery queue is partner work, opening it from My Orders is the
+  // shopper looking at their own order (OTP and all). A partner who isn't the
+  // customer only ever reaches this page as staff, so no hint is needed.
+  const asPartner = isAssignedPartner && isOpen && (!isOwner || from === "delivery");
   // The customer can call off their own order while it's still pending/confirmed.
   const canCancel =
     isOwner && !asPartner && (order.status === "pending" || order.status === "confirmed");
