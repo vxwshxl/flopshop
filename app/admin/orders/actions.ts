@@ -254,6 +254,166 @@ export async function claimDeliveryOrderAction(orderId: string) {
 }
 
 /**
+ * The partner can't take the order after all (bike trouble, off shift, wrong end
+ * of campus). Hands it straight back to the pool — the order itself is untouched
+ * apart from losing its partner, so anyone else can claim it seconds later. This
+ * is deliberately NOT a cancellation: the customer keeps their order, and only
+ * the admins are told, so nobody is alarmed by a handover the shop can absorb.
+ *
+ * A partner who'd already picked the goods up is stepped back to "confirmed" —
+ * "out for delivery" with no one carrying it is a lie to the customer. Stock
+ * stays deducted (both statuses deduct) and payment is untouched: nothing was
+ * collected, so `markPaid` must stay off.
+ */
+export async function releaseDeliveryOrderAction(orderId: string, reason?: string) {
+  const actor = await requireRole(["delivery", "admin"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const admin = createAdminClient();
+  const { data: order, error } = await admin
+    .from("orders")
+    .select("id, order_number, status, delivery_person_id, customer_name, total_amount")
+    .eq("id", orderId)
+    .single();
+
+  if (error || !order) return { ok: false, error: error?.message ?? "Order not found." };
+  if (order.status === "delivered" || order.status === "cancelled") {
+    return { ok: false, error: "This order is already closed." };
+  }
+  if (!order.delivery_person_id) return { ok: false, error: "This order isn't claimed." };
+  // An admin can pull any order back; a partner only the one they're carrying.
+  if (actor.role !== "admin" && order.delivery_person_id !== actor.id) {
+    return { ok: false, error: "Only the assigned delivery partner can drop this order." };
+  }
+
+  // Guarded on the current holder so two taps (or an admin reassigning at the
+  // same moment) can't strip a partner who has since taken it over.
+  const { data: released, error: updErr } = await admin
+    .from("orders")
+    .update({ delivery_person_id: null, updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("delivery_person_id", order.delivery_person_id)
+    .select("id");
+
+  if (updErr) return { ok: false, error: updErr.message };
+  if (!released?.length) return { ok: false, error: "This order has already moved on." };
+
+  if (order.status === "out_for_delivery") {
+    await updateOrderStatus(orderId, "confirmed", null, { markPaid: false });
+  }
+
+  // Tell the admins who dropped it and why, and put it back in front of the
+  // other partners — an unclaimed order that nobody sees just sits there.
+  try {
+    const { data: people } = await admin
+      .from("profiles")
+      .select("id, role, full_name")
+      .in("role", ["admin", "delivery"]);
+    const who = (people ?? []).find((p) => p.id === actor.id)?.full_name?.trim() || "A partner";
+    const note = reason?.trim();
+
+    await sendPushToUsers(
+      (people ?? []).filter((p) => p.role === "admin").map((p) => p.id),
+      {
+        title: "Delivery dropped",
+        body: `${who} released ${order.order_number}${note ? ` — ${note}` : ""}`,
+        url: `/admin/orders/${orderId}`,
+        tag: `order-${order.order_number}`,
+      }
+    );
+
+    await sendPushToUsers(
+      (people ?? []).filter((p) => p.role === "delivery" && p.id !== actor.id).map((p) => p.id),
+      {
+        title: "Delivery available again 🛵",
+        body: `${order.customer_name} · ₹${Number(order.total_amount).toFixed(0)} — tap to claim`,
+        url: "/delivery",
+        tag: `order-${order.order_number}`,
+      }
+    );
+  } catch {
+    // Best-effort — the order is already back in the pool.
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/delivery");
+  return { ok: true };
+}
+
+/**
+ * Last resort for the partner holding the order: nothing on it can be delivered
+ * (the shelf is empty, not just short — a short order is fixed with
+ * reportOutOfStockAction). Goes through updateOrderStatus so the stock is put
+ * back and any wallet credit is refunded, and the reason is stamped on the order
+ * with the partner's name so an admin can see who called it and why.
+ */
+export async function cancelDeliveryOrderAction(orderId: string, reason: string) {
+  const actor = await requireRole(["delivery", "admin"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const trimmed = reason?.trim() ?? "";
+  if (trimmed.length < 3) return { ok: false, error: "Enter a reason for the cancellation." };
+
+  const admin = createAdminClient();
+  const { data: order, error } = await admin
+    .from("orders")
+    .select("id, order_number, status, delivery_person_id, user_id, customer_name")
+    .eq("id", orderId)
+    .single();
+
+  if (error || !order) return { ok: false, error: error?.message ?? "Order not found." };
+  if (order.status === "delivered" || order.status === "cancelled") {
+    return { ok: false, error: "This order is already closed." };
+  }
+  if (actor.role !== "admin" && order.delivery_person_id !== actor.id) {
+    return { ok: false, error: "Only the assigned delivery partner can cancel this order." };
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", actor.id)
+    .single();
+  const who = profile?.full_name?.trim() || "Delivery partner";
+
+  const result = await updateOrderStatus(orderId, "cancelled", `${trimmed} — cancelled by ${who}`);
+  if (!result.ok) return result;
+
+  try {
+    if (order.user_id) {
+      await sendPushToUsers([order.user_id], {
+        title: "Order cancelled 😔",
+        body: `${order.order_number} — ${trimmed}. Anything you paid is back in your wallet.`,
+        url: `/orders/${orderId}`,
+        tag: `order-${order.order_number}`,
+      });
+    }
+    const { data: admins } = await admin.from("profiles").select("id").eq("role", "admin");
+    await sendPushToUsers(
+      (admins ?? []).map((p) => p.id),
+      {
+        title: "Delivery cancelled",
+        body: `${who} cancelled ${order.order_number} — ${trimmed}`,
+        url: `/admin/orders/${orderId}`,
+        tag: `order-${order.order_number}`,
+      }
+    );
+  } catch {
+    // Best-effort — the order is already cancelled.
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/delivery");
+  return { ok: true };
+}
+
+/**
  * Customer paid the shop's UPI at the door (the delivery person couldn't accept
  * UPI). The order's OTP is the shared proof: a correct OTP — read out by the
  * customer only after they've paid — marks the order PAID (UPI) and delivered in

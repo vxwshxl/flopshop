@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { OtpInput } from "@/components/ui/otp-input";
 import { Modal } from "@/components/ui/modal";
 import { OutOfStockModal } from "./OutOfStockModal";
+import { CantDeliverModal } from "./CantDeliverModal";
 import { cn } from "@/lib/utils/cn";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { DOOR_CHANGE_MAX } from "@/lib/utils/orderHelpers";
@@ -56,6 +57,7 @@ export function DeliveryActions({
   const [upiOtp, setUpiOtp] = useState("");
   const [upiPaid, setUpiPaid] = useState(false);
   const [showStock, setShowStock] = useState(false);
+  const [showDrop, setShowDrop] = useState(false);
   const router = useRouter();
 
   // Wallet-credit orders are already paid for — nothing is collected at the door,
@@ -230,9 +232,24 @@ export function DeliveryActions({
         ))}
       </div>
 
+      {/* Kept out of the button grid and worded as a question: dropping an order
+          is a last resort, not a peer of "Mark delivered". */}
+      {!done && order.delivery_person_id && (
+        <button
+          type="button"
+          onClick={() => setShowDrop(true)}
+          disabled={pending}
+          className="mt-2.5 w-full text-xs font-medium text-stone-500 underline-offset-2 transition hover:text-red-400 hover:underline disabled:opacity-50"
+        >
+          Can&apos;t deliver this order?
+        </button>
+      )}
+
       {showStock && (
         <OutOfStockModal order={order} currency={currency} onClose={() => setShowStock(false)} />
       )}
+
+      {showDrop && <CantDeliverModal order={order} onClose={() => setShowDrop(false)} />}
 
       <Modal open={showOtp} onClose={closeOtp} title="Enter delivery OTP">
         <p className="mb-5 text-center text-sm text-stone-400">
