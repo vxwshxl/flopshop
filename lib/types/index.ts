@@ -133,6 +133,8 @@ export interface ShareholderSettlement {
   /** Profit that accrued to this shareholder for this settlement. */
   profit_base: number;
   amount: number;
+  /** Outstanding left unpaid here (partial settlement); rolls into their next balance. */
+  carry_forward: number;
   settled_through: string;
   status: "pending" | "confirmed";
   confirmed_at: string | null;

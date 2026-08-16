@@ -12,6 +12,8 @@ import { confirmSettlementAction } from "@/app/admin/shareholders/actions";
 export type MySettlement = {
   id: string;
   amount: number;
+  /** Change left in your share by this payout instead of being paid out. */
+  carry_forward: number;
   settled_through: string;
   status: "pending" | "confirmed";
   confirmed_at: string | null;
@@ -108,6 +110,11 @@ export function ShareholderAccountCard({
                   Settled {formatDateTime(s.created_at)}
                   {s.confirmed_at ? ` · confirmed ${formatDateTime(s.confirmed_at)}` : ""}
                 </p>
+                {Number(s.carry_forward) > 0 && (
+                  <p className="mt-0.5 text-xs text-stone-500">
+                    {formatCurrency(Number(s.carry_forward), currency)} kept in your share.
+                  </p>
+                )}
                 {s.note && (
                   <p className="mt-0.5 text-xs text-stone-600 dark:text-stone-300">“{s.note}”</p>
                 )}

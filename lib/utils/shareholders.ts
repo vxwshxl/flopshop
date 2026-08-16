@@ -10,6 +10,11 @@ import { istDateString } from "@/lib/utils/formatters";
  * Settlements record a `settled_through` cutoff; the outstanding balance is the
  * profit accrued over orders created AFTER the latest settlement (or all-time
  * when nothing has been settled yet), so settling resets the balance to zero.
+ *
+ * A settlement may pay out less than the balance (partial settlement). The
+ * remainder is stored on that settlement as `carry_forward` and added back on
+ * top of the profit accrued since its cutoff — otherwise the change left behind
+ * would be lost when the cutoff moves forward.
  */
 export interface ProfitOrder {
   created_at: string;
@@ -53,16 +58,28 @@ export interface ProfitHolder {
   profit_from?: string | null;
 }
 
+export interface HolderShare {
+  /** Profit pool accrued to this holder since their cutoff. */
+  base: number;
+  /** Their percentage cut of `base`. */
+  share: number;
+  /** Change left unpaid by their last (partial) settlement. */
+  carry: number;
+  /** What they are actually owed now: `share` + `carry`. */
+  amount: number;
+}
+
 /**
  * One shareholder's outstanding profit since `sinceIso` (their last settlement
- * cutoff, or null for all-time). Profit is also floored by the holder's own
- * `profit_from` date. Returns the accrued base and the holder's cut.
+ * cutoff, or null for all-time), plus any `carry` left unpaid by that
+ * settlement. Profit is also floored by the holder's own `profit_from` date.
  */
 export function shareholderShare(
   orders: ProfitOrder[],
   holder: ProfitHolder,
-  sinceIso?: string | null
-): { base: number; amount: number } {
+  sinceIso?: string | null,
+  carry: number = 0
+): HolderShare {
   const r = (n: number) => Number(n.toFixed(2));
   const base = orders.reduce((sum, o) => {
     if (o.status === "cancelled") return sum;
@@ -70,21 +87,26 @@ export function shareholderShare(
     if (holder.profit_from && istDateString(o.created_at) < holder.profit_from) return sum;
     return sum + orderProfit(o);
   }, 0);
-  return { base: r(base), amount: r((base * Number(holder.share_percent)) / 100) };
+  const share = r((base * Number(holder.share_percent)) / 100);
+  const carried = r(Number(carry) || 0);
+  return { base: r(base), share, carry: carried, amount: r(share + carried) };
 }
 
 /**
  * Outstanding profit per shareholder. Each holder is settled independently, so
- * `cutoffById` maps a shareholder id to their last settlement cutoff; holders
- * not present accrue all-time (still floored by their own `profit_from`).
+ * `cutoffById` maps a shareholder id to their last settlement cutoff and
+ * `carryById` to that settlement's unpaid remainder; holders not present accrue
+ * all-time (still floored by their own `profit_from`).
  */
 export function distributeProfit<T extends ProfitHolder>(
   orders: ProfitOrder[],
   holders: T[],
-  cutoffById?: Record<string, string | null>
-): (T & { base: number; amount: number })[] {
+  cutoffById?: Record<string, string | null>,
+  carryById?: Record<string, number>
+): (T & HolderShare)[] {
   return holders.map((h) => {
     const sinceIso = (h.id && cutoffById?.[h.id]) || null;
-    return { ...h, ...shareholderShare(orders, h, sinceIso) };
+    const carry = (h.id && carryById?.[h.id]) || 0;
+    return { ...h, ...shareholderShare(orders, h, sinceIso, carry) };
   });
 }

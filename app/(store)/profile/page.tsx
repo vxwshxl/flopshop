@@ -42,6 +42,7 @@ export default async function ProfilePage() {
     mySettlements = ((data as ShareholderSettlement[] | null) ?? []).map((s) => ({
       id: s.id,
       amount: Number(s.amount),
+      carry_forward: Number(s.carry_forward ?? 0),
       settled_through: s.settled_through,
       status: s.status,
       confirmed_at: s.confirmed_at,

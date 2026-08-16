@@ -638,6 +638,9 @@ CREATE TABLE shareholder_settlements (
   share_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
   profit_base DECIMAL(10,2) NOT NULL DEFAULT 0,
   amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  -- Outstanding left unpaid on purpose (partial settlement); rolls into the
+  -- holder's next balance, since the cutoff below wipes the period clean.
+  carry_forward DECIMAL(10,2) NOT NULL DEFAULT 0,
   settled_through TIMESTAMPTZ NOT NULL DEFAULT NOW(),  -- this holder's cutoff
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed')),
   confirmed_at TIMESTAMPTZ,

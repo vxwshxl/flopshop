@@ -72,6 +72,7 @@ export function ReportsView({
   settings,
   shareholders = [],
   cutoffById = {},
+  carryById = {},
   transfers = [],
   creditSources = { byOrder: {}, fallback: { cash: 0, upi: 0, bank: 0, other: 1 } },
 }: {
@@ -84,6 +85,8 @@ export function ReportsView({
   shareholders?: Shareholder[];
   /** Each shareholder's last settlement cutoff (id → ISO), for outstanding profit. */
   cutoffById?: Record<string, string | null>;
+  /** Change each holder's last settlement left unpaid (id → amount), added on top. */
+  carryById?: Record<string, number>;
   /** Manual income reclassifications between payment methods. */
   transfers?: MethodTransfer[];
   /** Funding mix behind each credit-paid order, for the "by source" view. */
@@ -255,7 +258,7 @@ export function ReportsView({
   // Shareholder profit pool — item margin + the shop's delivery share, owned in
   // full by the shareholders. After a settlement, only orders created since its
   // cutoff count, so the card reflects the OUTSTANDING (unsettled) balance.
-  const profitSplit = distributeProfit(validOrders, shareholders, cutoffById);
+  const profitSplit = distributeProfit(validOrders, shareholders, cutoffById, carryById);
   const profitPool = profitSplit.reduce((s, d) => s + d.amount, 0);
   const netProfit = grossProfit + deliveryTotals.admin;
 

@@ -33,7 +33,7 @@ export default async function ReportsPage() {
     supabase.from("shareholders").select("*").eq("is_active", true).order("sort_order"),
     supabase
       .from("shareholder_settlements")
-      .select("shareholder_id, settled_through")
+      .select("shareholder_id, settled_through, carry_forward")
       .order("settled_through", { ascending: false }),
     supabase
       .from("method_transfers")
@@ -48,10 +48,19 @@ export default async function ReportsPage() {
   // the Reports "by source" income view.
   const creditSources = buildCreditSources((walletTxns as LedgerRow[] | null) ?? []);
 
-  // Each shareholder's most recent cutoff → their outstanding profit since then.
+  // Each shareholder's most recent cutoff → their outstanding profit since then,
+  // plus the change that settlement left unpaid (partial settlement).
   const cutoffById: Record<string, string> = {};
-  for (const s of (settlements as { shareholder_id: string; settled_through: string }[] | null) ?? []) {
-    if (!cutoffById[s.shareholder_id]) cutoffById[s.shareholder_id] = s.settled_through;
+  const carryById: Record<string, number> = {};
+  const settlementRows =
+    (settlements as
+      | { shareholder_id: string; settled_through: string; carry_forward: number | string }[]
+      | null) ?? [];
+  for (const s of settlementRows) {
+    if (!cutoffById[s.shareholder_id]) {
+      cutoffById[s.shareholder_id] = s.settled_through;
+      carryById[s.shareholder_id] = Number(s.carry_forward ?? 0);
+    }
   }
 
   return (
@@ -66,6 +75,7 @@ export default async function ReportsPage() {
         settings={settings}
         shareholders={(shareholders as Shareholder[]) ?? []}
         cutoffById={cutoffById}
+        carryById={carryById}
         transfers={(transfers as MethodTransfer[]) ?? []}
         creditSources={creditSources}
       />

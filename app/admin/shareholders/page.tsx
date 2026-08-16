@@ -39,15 +39,25 @@ export default async function ShareholdersPage() {
   const users = (usersRaw as LinkUser[]) ?? [];
   const userById = new Map(users.map((u) => [u.id, u]));
 
-  // Each shareholder's own last cutoff → their outstanding since then.
+  // Each shareholder's own last cutoff → their outstanding since then, plus the
+  // change that settlement deliberately left in their share.
   const lastCutoff = new Map<string, string>();
+  const lastCarry = new Map<string, number>();
   for (const s of settlements) {
-    if (!lastCutoff.has(s.shareholder_id)) lastCutoff.set(s.shareholder_id, s.settled_through);
+    if (!lastCutoff.has(s.shareholder_id)) {
+      lastCutoff.set(s.shareholder_id, s.settled_through);
+      lastCarry.set(s.shareholder_id, Number(s.carry_forward ?? 0));
+    }
   }
 
   const holders: HolderView[] = shareholders.map((sh) => {
     const since = lastCutoff.get(sh.id) ?? null;
-    const { base, amount } = shareholderShare(orders, sh, since);
+    const { base, share, carry, amount } = shareholderShare(
+      orders,
+      sh,
+      since,
+      lastCarry.get(sh.id) ?? 0
+    );
     const linked = sh.profile_id ? userById.get(sh.profile_id) : undefined;
     return {
       id: sh.id,
@@ -58,12 +68,15 @@ export default async function ShareholdersPage() {
       is_active: sh.is_active,
       linkedLabel: linked ? linked.full_name || linked.email || "Linked account" : null,
       outstandingBase: base,
+      outstandingShare: share,
+      outstandingCarry: carry,
       outstandingAmount: amount,
       history: settlements
         .filter((s) => s.shareholder_id === sh.id)
         .map((s) => ({
           id: s.id,
           amount: Number(s.amount),
+          carry_forward: Number(s.carry_forward ?? 0),
           profit_base: Number(s.profit_base),
           settled_through: s.settled_through,
           status: s.status,
