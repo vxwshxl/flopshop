@@ -33,7 +33,17 @@ type Row = Order & {
 
 const TABS: ("all" | OrderStatus)[] = ["all", ...ORDER_STATUSES];
 
-type PayFilter = "all" | "cash" | "upi" | "split" | "bank" | "other" | "paid" | "unpaid";
+type PayFilter =
+  | "all"
+  | "cash"
+  | "upi"
+  | "split"
+  | "bank"
+  | "other"
+  | "paid"
+  | "unpaid"
+  | "short"
+  | "unsettled";
 const PAY_FILTERS: { key: PayFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "cash", label: "Cash" },
@@ -43,6 +53,8 @@ const PAY_FILTERS: { key: PayFilter; label: string }[] = [
   { key: "other", label: "Other" },
   { key: "paid", label: "Paid" },
   { key: "unpaid", label: "Unpaid" },
+  { key: "short", label: "Short" },
+  { key: "unsettled", label: "Unsettled" },
 ];
 
 // Normalised payment method so imported rows ("Cash", "Bank Transfer") match
@@ -51,8 +63,21 @@ const payMethod = (o: { payment_method: string }) =>
   (o.payment_method ?? "").trim().toLowerCase();
 const KNOWN_METHODS = ["cash", "upi", "split", "bank transfer"];
 
+// Money still owed on an order. Anything marked paid is zero by definition —
+// imported rows never had `amount_paid` backfilled, so the subtraction alone
+// would report the whole total as outstanding. A cancelled order owes nothing.
+const balanceOf = (o: Row) =>
+  o.payment_status === "paid" || o.status === "cancelled"
+    ? 0
+    : Math.max(Number(o.total_amount) - Number(o.amount_paid ?? 0), 0);
+
+/** Still has money to collect — the shop hasn't been settled for this order. */
+const isOwing = (o: Row) => balanceOf(o) > 0.005;
+
 // Predicate per filter chip. Cash/UPI/Split/Bank/Other key off the payment
-// method; Paid/Unpaid key off the payment status (Unpaid = still pending).
+// method; the rest key off what's still owed: Paid = nothing outstanding,
+// Unpaid = nothing collected yet, Short = part-collected with a balance left,
+// Unsettled = either of those (every order the shop is still owed money on).
 const PAY_MATCHERS: Record<Exclude<PayFilter, "all">, (o: Row) => boolean> = {
   cash: (o) => payMethod(o) === "cash",
   upi: (o) => payMethod(o) === "upi",
@@ -60,7 +85,9 @@ const PAY_MATCHERS: Record<Exclude<PayFilter, "all">, (o: Row) => boolean> = {
   bank: (o) => payMethod(o) === "bank transfer",
   other: (o) => !KNOWN_METHODS.includes(payMethod(o)),
   paid: (o) => o.payment_status === "paid",
-  unpaid: (o) => o.payment_status === "pending",
+  unpaid: (o) => isOwing(o) && o.payment_status === "pending",
+  short: (o) => isOwing(o) && o.payment_status === "partial",
+  unsettled: isOwing,
 };
 
 export function OrdersTable({
@@ -181,6 +208,13 @@ export function OrdersTable({
     [ctl.rows]
   );
 
+  // How much of that is still to be collected, so an "Unpaid"/"Short" view
+  // answers "what are we owed?" without adding the balances up by hand.
+  const filteredOutstanding = useMemo(
+    () => ctl.rows.reduce((s, o) => s + balanceOf(o), 0),
+    [ctl.rows]
+  );
+
   function changeStatus(id: string, status: OrderStatus) {
     // Cancelling needs a reason — capture it in a popup right from the list.
     if (status === "cancelled") {
@@ -298,6 +332,15 @@ export function OrdersTable({
             <span className="font-semibold text-black dark:text-white">
               {formatCurrency(filteredRevenue, currency)}
             </span>
+            {filteredOutstanding > 0.005 && (
+              <>
+                <span className="mx-2 text-black/25 dark:text-white/25">·</span>
+                Outstanding:{" "}
+                <span className="font-semibold text-amber-600 dark:text-amber-300">
+                  {formatCurrency(filteredOutstanding, currency)}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
