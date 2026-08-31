@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, FileText, Printer, Trash2 } from "lucide-react";
+import { Search, FileText, Printer, Trash2, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   setOrderStatusAction,
   assignDeliveryAction,
   setPaymentStatusAction,
+  setPaymentStatusBulkAction,
   deleteOrderAction,
 } from "@/app/admin/orders/actions";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
@@ -23,7 +24,13 @@ import { TableScroll, tablePageClass, tableCardClass, stickyHead } from "@/compo
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import { formatCurrency, formatDateTime, formatPaymentMethod, paymentMethodLabel } from "@/lib/utils/formatters";
-import { ORDER_STATUSES, STATUS_LABELS, adminSettableStatuses, statusLabel } from "@/lib/utils/orderHelpers";
+import {
+  ORDER_STATUSES,
+  STATUS_LABELS,
+  BULK_PAYMENT_LIMIT,
+  adminSettableStatuses,
+  statusLabel,
+} from "@/lib/utils/orderHelpers";
 import type { Order, OrderItem, OrderStatus, PaymentStatus, Profile, SettingsMap } from "@/lib/types";
 
 type Row = Order & {
@@ -111,6 +118,13 @@ export function OrdersTable({
   // Optimistic payment status (same idea) so "Mark paid" reflects instantly.
   const [payStatusOverrides, setPayStatusOverrides] = useState<Record<string, PaymentStatus>>({});
   const payStatusOf = (o: Row) => payStatusOverrides[o.id] ?? o.payment_status;
+  // Bulk selection: settle a batch of orders (a day's cash, one customer's tab)
+  // in one action instead of clicking "Mark paid" down the column.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  // Anchor row for shift-click range selection, as an index into the page.
+  const lastPickedRef = useRef<number | null>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
   // Invoice-preview modal target + delete-confirm target.
   const [invoiceTarget, setInvoiceTarget] = useState<Row | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
@@ -139,6 +153,66 @@ export function OrdersTable({
         toast.error("Something went wrong. Please try again.");
       }
     });
+  }
+
+  function toggleSelect(index: number, rows: Row[], shiftKey: boolean) {
+    const id = rows[index]?.id;
+    if (!id) return;
+    setSelected((s) => {
+      const next = new Set(s);
+      const add = !next.has(id);
+      // Shift-click paints every row between the anchor and this one to the
+      // same state — selecting twenty orders is two clicks, not twenty.
+      const anchor = shiftKey && lastPickedRef.current !== null ? lastPickedRef.current : index;
+      const [from, to] = anchor <= index ? [anchor, index] : [index, anchor];
+      for (let i = from; i <= to; i++) {
+        const rowId = rows[i]?.id;
+        if (!rowId) continue;
+        if (add) next.add(rowId);
+        else next.delete(rowId);
+      }
+      return next;
+    });
+    lastPickedRef.current = index;
+  }
+
+  /** Mark every selected order paid in one round trip. */
+  async function markSelectedPaid() {
+    const ids = payableIds;
+    if (ids.length === 0) return;
+    if (ids.length > BULK_PAYMENT_LIMIT) {
+      toast.error(`Select ${BULK_PAYMENT_LIMIT} orders or fewer at a time.`);
+      return;
+    }
+    const revert = () =>
+      setPayStatusOverrides((m) => {
+        const n = { ...m };
+        ids.forEach((id) => delete n[id]);
+        return n;
+      });
+    setBulkBusy(true);
+    setPayStatusOverrides((m) => {
+      const n = { ...m };
+      ids.forEach((id) => (n[id] = "paid"));
+      return n;
+    });
+    try {
+      const res = await setPaymentStatusBulkAction(ids, "paid");
+      if (!res.ok) {
+        revert();
+        toast.error(res.error ?? "Failed");
+        return;
+      }
+      toast.success(`Marked ${ids.length} order${ids.length === 1 ? "" : "s"} paid`);
+      setSelected(new Set());
+      lastPickedRef.current = null;
+      router.refresh();
+    } catch {
+      revert();
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   async function confirmDelete() {
@@ -201,6 +275,38 @@ export function OrdersTable({
     20,
     "admin:orders:pg"
   );
+
+  // Selection spans pages and filters — the bar always says how many are held,
+  // so nothing gets settled that the admin can't see the count of.
+  const selectedRows = useMemo(() => orders.filter((o) => selected.has(o.id)), [orders, selected]);
+  const payableIds = useMemo(
+    () => selectedRows.filter((o) => payStatusOf(o) !== "paid").map((o) => o.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedRows, payStatusOverrides]
+  );
+  const selectedOutstanding = useMemo(
+    () => selectedRows.reduce((s, o) => s + (payStatusOf(o) === "paid" ? 0 : balanceOf(o)), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedRows, payStatusOverrides]
+  );
+
+  // Header checkbox covers the rows actually on screen.
+  const pageIds = useMemo(() => pageItems.map((o) => o.id), [pageItems]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const somePageSelected = pageIds.some((id) => selected.has(id));
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = somePageSelected && !allPageSelected;
+  }, [somePageSelected, allPageSelected]);
+
+  function toggleSelectPage() {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+    lastPickedRef.current = null;
+  }
 
   // Revenue of the currently-filtered rows (status + payment + search + date).
   const filteredRevenue = useMemo(
@@ -359,10 +465,59 @@ export function OrdersTable({
         />
       </div>
 
+      {selected.size > 0 && (
+        <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm">
+          <span className="font-semibold text-black dark:text-white">
+            {selected.size} selected
+          </span>
+          {selectedOutstanding > 0.005 && (
+            <span className="text-black/60 dark:text-white/60">
+              · {formatCurrency(selectedOutstanding, currency)} to collect
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSelected(new Set());
+                lastPickedRef.current = null;
+              }}
+              disabled={bulkBusy}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={markSelectedPaid}
+              disabled={bulkBusy || payableIds.length === 0}
+              loading={bulkBusy}
+              className="bg-emerald-500 text-white hover:bg-emerald-600"
+            >
+              {!bulkBusy && <Check className="h-4 w-4" />}
+              {payableIds.length === 0
+                ? "All paid"
+                : `Mark ${payableIds.length} paid`}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <TableScroll>
         <table className="w-full min-w-[64rem] text-sm">
           <thead className={stickyHead}>
             <tr className="border-b border-black/10 text-left text-xs text-black/50 dark:border-white/10 dark:text-white/50">
+              <th className="w-10 p-3">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allPageSelected}
+                  onChange={toggleSelectPage}
+                  disabled={pageIds.length === 0}
+                  className="h-4 w-4 accent-yellow-400"
+                  aria-label="Select all orders on this page"
+                />
+              </th>
               <SortHeader label="Order" sortKey="order" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <SortHeader label="Customer" sortKey="customer" activeKey={ctl.sortKey} dir={ctl.dir} onSort={ctl.toggleSort} />
               <th className="p-3">Type</th>
@@ -379,17 +534,30 @@ export function OrdersTable({
           <tbody className="text-black/75 dark:text-white/75">
             {ctl.rows.length === 0 && (
               <tr>
-                <td colSpan={11} className="p-8 text-center text-black/50 dark:text-white/50">
+                <td colSpan={12} className="p-8 text-center text-black/50 dark:text-white/50">
                   No orders.
                 </td>
               </tr>
             )}
-            {pageItems.map((o) => (
+            {pageItems.map((o, i) => (
               <tr
                 key={o.id}
                 onClick={() => router.push(`/admin/orders/${o.id}`)}
-                className="cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10"
+                className={`cursor-pointer border-b border-black/10 last:border-0 hover:bg-yellow-400/10 dark:border-white/10 ${
+                  selected.has(o.id) ? "bg-yellow-400/10" : ""
+                }`}
               >
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(o.id)}
+                    onChange={(e) =>
+                      toggleSelect(i, pageItems, (e.nativeEvent as MouseEvent).shiftKey === true)
+                    }
+                    className="h-4 w-4 accent-yellow-400"
+                    aria-label={`Select order ${o.order_number}`}
+                  />
+                </td>
                 <td className="p-3">
                   <span className="font-medium text-black underline decoration-yellow-400 underline-offset-4 dark:text-white">
                     {o.order_number}

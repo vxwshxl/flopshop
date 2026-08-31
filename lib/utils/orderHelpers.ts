@@ -15,6 +15,11 @@ export const COD_MAX = 1000;
  *  more likely a typo than a real handover, and has to be paid exactly or by
  *  shop QR. */
 export const DOOR_CHANGE_MAX = 500;
+
+/** How many orders one bulk payment update may touch. Big enough to settle a
+ *  whole filtered page in one go, small enough that the `in (…)` list stays a
+ *  sane query. */
+export const BULK_PAYMENT_LIMIT = 500;
 export type EditablePaymentMethod = (typeof EDITABLE_PAYMENT_METHODS)[number];
 
 export const ORDER_STATUSES: OrderStatus[] = [

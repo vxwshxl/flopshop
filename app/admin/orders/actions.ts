@@ -16,7 +16,12 @@ import {
   type WalletOwner,
 } from "@/lib/server/wallet";
 import { sendPushToUsers } from "@/lib/push/server";
-import { statusDeductsStock, deliverySplit, DOOR_CHANGE_MAX } from "@/lib/utils/orderHelpers";
+import {
+  statusDeductsStock,
+  deliverySplit,
+  DOOR_CHANGE_MAX,
+  BULK_PAYMENT_LIMIT,
+} from "@/lib/utils/orderHelpers";
 import { settingsToMap, DEFAULT_SETTINGS } from "@/lib/utils/settings";
 import type { OrderStatus, OrderType, PaymentMethod, PaymentStatus, Role } from "@/lib/types";
 
@@ -706,6 +711,80 @@ export async function setPaymentStatusAction(orderId: string, status: PaymentSta
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
   return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+/**
+ * Mark many orders at once — the bulk twin of `setPaymentStatusAction`, so a
+ * day's worth of cash can be settled in one round trip instead of one per row.
+ *
+ * `amount_paid` is kept consistent the same way (full when paid, zero when
+ * reverted to pending); orders that share a total are updated together, so this
+ * costs a handful of queries rather than one per order.
+ */
+export async function setPaymentStatusBulkAction(orderIds: string[], status: PaymentStatus) {
+  const actor = await requireRole(["admin", "delivery"]);
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const ids = [...new Set(orderIds.filter(Boolean))];
+  if (ids.length === 0) return { ok: false, error: "No orders selected." };
+  if (ids.length > BULK_PAYMENT_LIMIT)
+    return { ok: false, error: `Too many orders at once — select ${BULK_PAYMENT_LIMIT} or fewer.` };
+
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+
+  const done = (count: number) => {
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/orders/[id]", "page");
+    revalidatePath("/admin/reports");
+    return { ok: true as const, count };
+  };
+
+  // "partial" implies no particular amount, so it's a plain status write.
+  if (status === "partial") {
+    const { error } = await admin
+      .from("orders")
+      .update({ payment_status: status, updated_at: now })
+      .in("id", ids);
+    return error ? { ok: false, error: error.message } : done(ids.length);
+  }
+
+  if (status === "pending") {
+    const { error } = await admin
+      .from("orders")
+      .update({ payment_status: status, amount_paid: 0, updated_at: now })
+      .in("id", ids);
+    return error ? { ok: false, error: error.message } : done(ids.length);
+  }
+
+  // Paid: `amount_paid` differs per order, so group the ids by total and write
+  // one update per distinct amount.
+  const { data: rows, error: readError } = await admin
+    .from("orders")
+    .select("id, total_amount")
+    .in("id", ids);
+  if (readError) return { ok: false, error: readError.message };
+  if (!rows?.length) return { ok: false, error: "Orders not found." };
+
+  const byTotal = new Map<number, string[]>();
+  for (const row of rows) {
+    const total = Number(row.total_amount ?? 0);
+    const group = byTotal.get(total);
+    if (group) group.push(row.id);
+    else byTotal.set(total, [row.id]);
+  }
+
+  const results = await Promise.all(
+    [...byTotal].map(([total, groupIds]) =>
+      admin
+        .from("orders")
+        .update({ payment_status: "paid", amount_paid: total, updated_at: now })
+        .in("id", groupIds)
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { ok: false, error: failed.error.message };
+  return done(rows.length);
 }
 
 /**
