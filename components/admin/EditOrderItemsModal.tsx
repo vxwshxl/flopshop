@@ -103,7 +103,9 @@ export function EditOrderItemsModal({
     );
     setSaving(false);
     if (!res.ok) return toast.error(res.error ?? "Failed to save.");
-    toast.success("Items updated");
+    // Saved, but the shelf count didn't move — the admin needs to fix it by hand.
+    if ("warning" in res && res.warning) toast.error(res.warning, { duration: 6000 });
+    else toast.success("Items updated");
     onSaved();
   }
 

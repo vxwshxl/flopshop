@@ -106,6 +106,18 @@ CREATE TABLE products (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- A product can sit in several categories. products.category_id remains the
+-- PRIMARY one (sales reports attribute a line to exactly one category, and it's
+-- the label on the product row); this table holds the full set including the
+-- primary, so filtering is a single lookup.
+CREATE TABLE product_categories (
+  product_id  UUID NOT NULL REFERENCES products(id)   ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (product_id, category_id)
+);
+CREATE INDEX product_categories_category_idx ON product_categories (category_id);
+
 -- ORDERS -------------------------------------------------------
 CREATE TABLE orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -356,6 +368,7 @@ $$;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
@@ -384,6 +397,8 @@ CREATE POLICY "Admin manages categories" ON categories FOR ALL USING (is_admin()
 -- Products
 CREATE POLICY "Anyone can view active products" ON products FOR SELECT USING (is_active = true OR is_staff());
 CREATE POLICY "Admin manages products" ON products FOR ALL USING (is_admin());
+CREATE POLICY "Anyone can view product categories" ON product_categories FOR SELECT USING (true);
+CREATE POLICY "Admin manages product categories" ON product_categories FOR ALL USING (is_admin());
 
 -- Orders
 CREATE POLICY "Users see own orders" ON orders FOR SELECT USING (user_id = auth.uid());
@@ -427,6 +442,7 @@ CREATE POLICY "Admin manages settings" ON settings FOR ALL USING (is_admin());
 ALTER PUBLICATION supabase_realtime ADD TABLE settings;
 ALTER PUBLICATION supabase_realtime ADD TABLE orders;
 ALTER PUBLICATION supabase_realtime ADD TABLE products;
+ALTER PUBLICATION supabase_realtime ADD TABLE product_categories;
 ALTER PUBLICATION supabase_realtime ADD TABLE categories;
 ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE purchases;
@@ -436,6 +452,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE purchases;
 ALTER TABLE orders REPLICA IDENTITY FULL;
 ALTER TABLE profiles REPLICA IDENTITY FULL;
 ALTER TABLE products REPLICA IDENTITY FULL;
+ALTER TABLE product_categories REPLICA IDENTITY FULL;
 ALTER TABLE categories REPLICA IDENTITY FULL;
 ALTER TABLE settings REPLICA IDENTITY FULL;
 ALTER TABLE purchases REPLICA IDENTITY FULL;

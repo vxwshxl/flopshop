@@ -16,7 +16,10 @@ export default async function AdminProductsPage() {
   const settings = await getSettings();
 
   const [{ data: products }, { data: categories }] = await Promise.all([
-    supabase.from("products").select("*").order("created_at", { ascending: false }),
+    supabase
+      .from("products")
+      .select("*, product_categories(category_id)")
+      .order("created_at", { ascending: false }),
     supabase.from("categories").select("*").order("sort_order"),
   ]);
 
@@ -24,6 +27,7 @@ export default async function AdminProductsPage() {
     <div className={tablePageClass}>
       <RealtimeRefresh table="products" channel="admin:products" />
       <RealtimeRefresh table="categories" channel="admin:categories" />
+      <RealtimeRefresh table="product_categories" channel="admin:product_categories" />
       <PageHeader
         title="Products"
         subtitle={<span className="hidden lg:inline">{products?.length ?? 0} products</span>}

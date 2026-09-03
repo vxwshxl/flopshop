@@ -16,7 +16,7 @@ export default async function HomePage() {
     supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
     supabase
       .from("products")
-      .select("*, category:categories(*)")
+      .select("*, category:categories(*), product_categories(category_id)")
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
   ]);
@@ -33,6 +33,9 @@ export default async function HomePage() {
     <main>
       <RealtimeRefresh table="products" channel="store:products" />
       <RealtimeRefresh table="categories" channel="store:categories" />
+      {/* Re-categorising a product doesn't touch the products row, so the
+          membership table needs its own subscription or the chip goes stale. */}
+      <RealtimeRefresh table="product_categories" channel="store:product_categories" />
       <RealtimeRefresh table="settings" channel="store:settings" />
       <ShopClosedBanner />
       <div className="mx-auto max-w-5xl px-4 pt-5">

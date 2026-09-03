@@ -16,7 +16,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const supabase = await createClient();
   const settings = await getSettings();
   const [{ data: product }, { data: categories }, { data: lines }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", id).single(),
+    supabase.from("products").select("*, product_categories(category_id)").eq("id", id).single(),
     supabase.from("categories").select("*").order("sort_order"),
     // Every order line for this product, with its order's customer details.
     supabase

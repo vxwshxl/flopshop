@@ -6,10 +6,11 @@ import { Upload, Search, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Textarea, Select } from "@/components/ui/input";
+import { Input, Label, Textarea, MultiSelect } from "@/components/ui/input";
 import { AdminCard } from "@/components/admin/StatCard";
 import { ImageAdjuster, type ImagePosition } from "@/components/admin/ImageAdjuster";
 import { DEFAULT_IMAGE_POSITION } from "@/lib/utils/image";
+import { productCategoryIds } from "@/lib/utils/categories";
 import type { Category, Product, ProductDetails } from "@/lib/types";
 
 interface OffResult {
@@ -51,12 +52,18 @@ export function ProductForm({
   const [form, setForm] = useState({
     name: product?.name ?? "",
     description: product?.description ?? "",
-    category_id: product?.category_id ?? categories[0]?.id ?? "",
     cost_price: String(product?.cost_price ?? ""),
     selling_price: String(product?.selling_price ?? ""),
     current_stock: String(product?.current_stock ?? 0),
     minimum_stock: String(product?.minimum_stock ?? 5),
     is_active: product?.is_active ?? true,
+  });
+  // A product can sit in several categories. The FIRST is the primary one —
+  // it's what reports attribute the product's revenue to and the label shown on
+  // the product row — so order matters and is preserved as picked.
+  const [categoryIds, setCategoryIds] = useState<string[]>(() => {
+    if (product) return productCategoryIds(product);
+    return categories[0]?.id ? [categories[0].id] : [];
   });
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
   const [file, setFile] = useState<File | null>(null);
@@ -125,6 +132,28 @@ export function ProductForm({
     setImgPos(DEFAULT_IMAGE_POSITION); // fresh image → reset framing
   }
 
+  /**
+   * Replaces the product's category memberships with the current selection.
+   * The rows to drop go first and the rest are upserted, so a category the
+   * product keeps is never momentarily missing (the store filters off these
+   * rows and refreshes on realtime).
+   */
+  async function syncCategories(supabase: ReturnType<typeof createClient>, productId: string) {
+    const del = supabase.from("product_categories").delete().eq("product_id", productId);
+    const { error: delErr } = categoryIds.length
+      ? await del.not("category_id", "in", `(${categoryIds.map((id) => `"${id}"`).join(",")})`)
+      : await del;
+    if (delErr) throw delErr;
+    if (!categoryIds.length) return;
+    const { error: insErr } = await supabase
+      .from("product_categories")
+      .upsert(
+        categoryIds.map((category_id) => ({ product_id: productId, category_id })),
+        { onConflict: "product_id,category_id" }
+      );
+    if (insErr) throw insErr;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -147,7 +176,7 @@ export function ProductForm({
       const payload = {
         name: form.name.trim(),
         description: form.description || null,
-        category_id: form.category_id || null,
+        category_id: categoryIds[0] ?? null,
         cost_price: Number(form.cost_price) || 0,
         selling_price: Number(form.selling_price) || 0,
         current_stock: parseInt(form.current_stock) || 0,
@@ -161,6 +190,7 @@ export function ProductForm({
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", product!.id);
         if (error) throw error;
+        await syncCategories(supabase, product!.id);
         toast.success("Product updated");
         router.push("/admin/products");
       } else {
@@ -170,6 +200,7 @@ export function ProductForm({
           .select("id")
           .single();
         if (error) throw error;
+        if (saved?.id) await syncCategories(supabase, saved.id);
         toast.success("Product created");
         // Came here mid-task (e.g. from New Purchase)? Go straight back, carrying
         // the new product's id so that page can preselect it.
@@ -249,14 +280,23 @@ export function ProductForm({
               <Textarea value={form.description} onChange={set("description")} className={inputDark} />
             </div>
             <div>
-              <Label className="text-gray-300">Category</Label>
-              <Select value={form.category_id} onChange={set("category_id")} className={inputDark}>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.icon} {c.name}
-                  </option>
-                ))}
-              </Select>
+              <Label className="text-gray-300">Categories</Label>
+              <MultiSelect
+                values={categoryIds}
+                onChange={setCategoryIds}
+                placeholder="Pick one or more"
+                options={categories.map((c) => ({
+                  value: c.id,
+                  label: `${c.icon} ${c.name}`,
+                  text: c.name,
+                }))}
+                hint="The product shows under every one you pick. The first is its primary category — the one used in sales reports."
+              />
+              {categoryIds.length === 0 && (
+                <p className="mt-1.5 text-xs text-amber-400/80">
+                  With no category the product only turns up in search, never under a chip.
+                </p>
+              )}
             </div>
           </div>
         </AdminCard>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
   adjustStockForItems,
+  applyStockDeltas,
   createOrder,
   updateOrderStatus,
   type CreateOrderInput,
@@ -619,6 +620,12 @@ export async function reportOutOfStockAction(
  * rows without an `id` are inserted; any existing item the admin dropped from
  * the list is deleted. The order's subtotal/total are recomputed afterwards,
  * and the customer's order page updates live (it subscribes to realtime).
+ *
+ * Stock moves with the edit: if the order is already holding stock (any
+ * non-pending, non-cancelled status) the NET difference per product is applied,
+ * so an added line comes off the shelf and a removed one goes back. A pending
+ * order isn't holding anything yet, so its lines change freely and the eventual
+ * confirm deducts the final quantities.
  */
 export async function updateOrderItemsAction(
   orderId: string,
@@ -628,10 +635,36 @@ export async function updateOrderItemsAction(
   if (!items.length) return { ok: false, error: "An order must have at least one item." };
   const admin = createAdminClient();
 
+  const { data: order } = await admin.from("orders").select("status").eq("id", orderId).single();
+  if (!order) return { ok: false, error: "Order not found." };
+  const holdsStock = statusDeductsStock(order.status as OrderStatus);
+
   // Anything currently on the order but not resubmitted gets removed.
-  const { data: existing } = await admin.from("order_items").select("id").eq("order_id", orderId);
+  const { data: existing } = await admin
+    .from("order_items")
+    .select("id, product_id, quantity")
+    .eq("order_id", orderId);
+  const currentRows = (existing ?? []) as { id: string; product_id: string | null; quantity: number }[];
   const keepIds = new Set(items.filter((i) => i.id).map((i) => i.id as string));
-  const toDelete = (existing ?? []).map((r) => r.id).filter((id) => !keepIds.has(id));
+  const toDelete = currentRows.map((r) => r.id).filter((id) => !keepIds.has(id));
+
+  // Net stock movement per product: every quantity currently held goes back on
+  // the shelf, every quantity the edit asks for comes off it. Rows that didn't
+  // change cancel out to zero and are skipped. An existing row keeps its
+  // product_id (only name/qty/price are editable), so it's read from the DB row.
+  const rowProduct = new Map(currentRows.map((r) => [r.id, r.product_id]));
+  const deltas = new Map<string, number>();
+  const bump = (pid: string | null | undefined, by: number) => {
+    if (!pid) return;
+    deltas.set(pid, (deltas.get(pid) ?? 0) + by);
+  };
+  if (holdsStock) {
+    for (const r of currentRows) bump(r.product_id, r.quantity);
+    for (const it of items) {
+      const qty = Math.max(1, Math.floor(it.quantity));
+      bump(it.id ? rowProduct.get(it.id) : it.product_id, -qty);
+    }
+  }
 
   // Cost snapshot for brand-new lines: read the product's live cost so profit
   // reports stay accurate (matches how createOrder snapshots cost at order time).
@@ -675,10 +708,18 @@ export async function updateOrderItemsAction(
   const { error: recalcErr } = await admin.rpc("recompute_order_totals", { p_order_id: orderId });
   if (recalcErr) return { ok: false, error: recalcErr.message };
 
+  // Items are already written, so a stock failure here is reported but doesn't
+  // roll the edit back — the admin is told to correct the shelf figure.
+  const stock = await applyStockDeltas(admin, deltas);
+
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/products");
   revalidatePath("/orders");
   revalidatePath(`/orders/${orderId}`);
+  if (!stock.ok) {
+    return { ok: true, warning: `Items saved, but stock did not update: ${stock.error}` };
+  }
   return { ok: true };
 }
 

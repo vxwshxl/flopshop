@@ -13,13 +13,17 @@ function generateOtp(): string {
 /**
  * Applies `sign * quantity` to each line's product stock in parallel.
  * `sign` is -1 to deduct (order takes stock) and +1 to restore (cancel/delete).
+ *
+ * Reports failure rather than swallowing it: supabase-js resolves an RPC with
+ * `{ error }` instead of rejecting, so an un-inspected call fails silently and
+ * the order ships without ever leaving the shelf count.
  */
 export async function adjustStockForItems(
   supabase: ReturnType<typeof createAdminClient>,
   items: { product_id: string | null; quantity: number }[],
   sign: 1 | -1
-): Promise<void> {
-  await Promise.all(
+): Promise<{ ok: boolean; error?: string }> {
+  const results = await Promise.all(
     items
       .filter((it) => it.product_id)
       .map((it) =>
@@ -29,6 +33,36 @@ export async function adjustStockForItems(
         })
       )
   );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error("adjust_stock failed", failed.error);
+    return { ok: false, error: failed.error.message };
+  }
+  return { ok: true };
+}
+
+/**
+ * Applies a per-product stock delta (positive returns to the shelf, negative
+ * takes off it). Used when an order's lines change under it and only the
+ * difference should move.
+ */
+export async function applyStockDeltas(
+  supabase: ReturnType<typeof createAdminClient>,
+  deltas: Map<string, number>
+): Promise<{ ok: boolean; error?: string }> {
+  const entries = [...deltas].filter(([, d]) => d !== 0);
+  if (!entries.length) return { ok: true };
+  const results = await Promise.all(
+    entries.map(([product_id, p_delta]) =>
+      supabase.rpc("adjust_stock", { p_product_id: product_id, p_delta })
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error("adjust_stock failed", failed.error);
+    return { ok: false, error: failed.error.message };
+  }
+  return { ok: true };
 }
 
 export interface CreateOrderInput {
@@ -316,9 +350,17 @@ export async function updateOrderStatus(
   // pending → confirmed/etc: deduct. anything-deducted → cancelled: restore.
   // Each line is an independent atomic RPC, so fire them together rather than
   // paying a serial round-trip per item.
+  //
+  // A failed DEDUCT aborts the transition: shipping an order whose stock never
+  // left the shelf silently corrupts inventory. A failed RESTORE only logs —
+  // the customer must still be able to cancel, and an inflated shelf count is
+  // something an admin can correct.
   if (wasDeducted !== willDeduct) {
     const sign = willDeduct ? -1 : 1;
-    await adjustStockForItems(supabase, items, sign);
+    const stock = await adjustStockForItems(supabase, items, sign);
+    if (!stock.ok && willDeduct) {
+      return { ok: false, error: `Could not update stock: ${stock.error}` };
+    }
   }
 
   const updatePayload: Record<string, unknown> = {

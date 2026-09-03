@@ -211,7 +211,12 @@ export interface Product {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  /** The primary category — the one shown as the product's label and the one
+   *  sales reports attribute its revenue to. */
   category?: Category | null;
+  /** Every category this product sits in, primary included. Joined in by the
+   *  store and admin product queries; use `productCategoryIds()` to read it. */
+  product_categories?: { category_id: string }[];
 }
 
 /** Extra info imported from OpenFoodFacts. */

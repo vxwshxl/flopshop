@@ -7,6 +7,7 @@ import { CategoryFilter } from "./CategoryFilter";
 import { ProductCard } from "./ProductCard";
 import { useCart } from "@/lib/hooks/useCart";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { productInCategory } from "@/lib/utils/categories";
 import type { Category, Product } from "@/lib/types";
 
 interface Props {
@@ -46,7 +47,9 @@ export function StoreGrid({ categories, products, currency = "₹" }: Props) {
         return terms.every((t) => haystack.includes(t));
       });
     }
-    return active === "all" ? products : products.filter((p) => p.category_id === active);
+    // A product can sit in several categories, so a chip shows everything that
+    // lists it — not only the ones whose primary category it is.
+    return active === "all" ? products : products.filter((p) => productInCategory(p, active));
   }, [q, active, products]);
 
   return (

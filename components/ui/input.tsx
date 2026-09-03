@@ -59,6 +59,58 @@ function nodeText(node: React.ReactNode): string {
   return "";
 }
 
+type MenuRect = { left: number; width: number; top?: number; bottom?: number };
+
+/**
+ * Positions a portalled dropdown against its trigger: measures the trigger,
+ * flips the menu above when there isn't room below it, keeps it glued while the
+ * page scrolls, and dismisses it on a click outside. Shared by Select and
+ * MultiSelect so the two menus behave identically.
+ */
+function useMenuAnchor(open: boolean, close: () => void, estimateHeight: number) {
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const [rect, setRect] = React.useState<MenuRect | null>(null);
+
+  const place = React.useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // Prefer opening below, but flip above when there isn't enough room and
+    // there's more space up top — so the menu is never cut off by the viewport.
+    const menuH = menuRef.current?.offsetHeight ?? estimateHeight;
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const openUp = spaceBelow < menuH + 8 && spaceAbove > spaceBelow;
+    setRect({
+      left: r.left,
+      width: r.width,
+      top: openUp ? undefined : r.bottom + 4,
+      bottom: openUp ? window.innerHeight - r.top + 4 : undefined,
+    });
+  }, [estimateHeight]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    place();
+    const onScroll = () => place();
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) close();
+    };
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [open, place, close]);
+
+  return { triggerRef, menuRef, rect };
+}
+
 /** Custom select with a portalled menu so it's never clipped by table overflow. */
 export function Select({
   className,
@@ -71,9 +123,6 @@ export function Select({
   children,
 }: CustomSelectProps) {
   const [open, setOpen] = React.useState(false);
-  const [rect, setRect] = React.useState<
-    { left: number; width: number; top?: number; bottom?: number } | null
-  >(null);
   const [search, setSearch] = React.useState("");
   // Text typed into the menu's search box (separate from the typeahead buffer).
   const [filter, setFilter] = React.useState("");
@@ -83,8 +132,6 @@ export function Select({
   const lastSearchKey = React.useRef<string | null>(null);
   const lastSearchTime = React.useRef<number>(0);
   const repeatCount = React.useRef(0);
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const menuRef = React.useRef<HTMLDivElement>(null);
   const searchRef = React.useRef<HTMLInputElement>(null);
   const optionRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -131,25 +178,15 @@ export function Select({
     onChange?.({ target: { value: option.value } });
     setOpen(false);
   };
-  const place = React.useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    // Prefer opening below, but flip above when there isn't enough room and
-    // there's more space up top — so the menu is never cut off by the viewport.
-    const menuH =
-      menuRef.current?.offsetHeight ??
-      Math.min(288, optionCount * 38 + 8 + (showSearch ? 44 : 0));
-    const spaceBelow = window.innerHeight - r.bottom;
-    const spaceAbove = r.top;
-    const openUp = spaceBelow < menuH + 8 && spaceAbove > spaceBelow;
-    setRect({
-      left: r.left,
-      width: r.width,
-      top: openUp ? undefined : r.bottom + 4,
-      bottom: openUp ? window.innerHeight - r.top + 4 : undefined,
-    });
-  }, [optionCount, showSearch]);
+  const dismiss = React.useCallback(() => {
+    setOpen(false);
+    setFilter("");
+  }, []);
+  const { triggerRef, menuRef, rect } = useMenuAnchor(
+    open,
+    dismiss,
+    Math.min(288, optionCount * 38 + 8 + (showSearch ? 44 : 0))
+  );
 
   const resetSearch = React.useCallback(() => {
     if (searchTimeout.current) window.clearTimeout(searchTimeout.current);
@@ -195,30 +232,6 @@ export function Select({
     },
     [options, onChange, open, resetSearch, search]
   );
-
-  React.useEffect(() => {
-    if (!open) return;
-    place();
-    const onScroll = () => place();
-    const onPointer = (e: MouseEvent) => {
-      const target = e.target as Node | null;
-      if (
-        !triggerRef.current?.contains(target) &&
-        !menuRef.current?.contains(target)
-      ) {
-        setOpen(false);
-        setFilter("");
-      }
-    };
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
-    document.addEventListener("mousedown", onPointer);
-    return () => {
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
-      document.removeEventListener("mousedown", onPointer);
-    };
-  }, [open, place]);
 
   // Keep the keyboard-highlighted option scrolled into view.
   React.useEffect(() => {
@@ -365,6 +378,229 @@ export function Select({
               >
                 {footer}
               </div>
+            )}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
+
+type MultiSelectOption = { value: string; label: React.ReactNode; text?: string };
+
+/**
+ * Select several options at once. Same portalled menu and keyboard model as
+ * Select, but clicking an option toggles it and leaves the menu open — picking
+ * three categories shouldn't mean opening the menu three times.
+ *
+ * Order is meaningful and preserved: `values[0]` is the primary choice, so the
+ * caller can treat the first pick as the canonical one.
+ */
+export function MultiSelect({
+  className,
+  options,
+  values,
+  onChange,
+  disabled,
+  searchable,
+  searchPlaceholder = "Search…",
+  placeholder = "Select",
+  /** Rendered under the list, e.g. to explain what the first pick means. */
+  hint,
+}: {
+  className?: string;
+  options: MultiSelectOption[];
+  values: string[];
+  onChange: (values: string[]) => void;
+  disabled?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  placeholder?: string;
+  hint?: React.ReactNode;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [filter, setFilter] = React.useState("");
+  const [activeIndex, setActiveIndex] = React.useState(-1);
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  const optionRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const showSearch = searchable ?? options.length >= SEARCHABLE_THRESHOLD;
+  const q = filter.trim().toLowerCase();
+  const visible = q
+    ? options.filter((o) => `${nodeText(o.label)} ${o.text ?? ""}`.toLowerCase().includes(q))
+    : options;
+  const activeValue = activeIndex >= 0 ? visible[activeIndex]?.value : undefined;
+
+  const dismiss = React.useCallback(() => {
+    setOpen(false);
+    setFilter("");
+  }, []);
+  const { triggerRef, menuRef, rect } = useMenuAnchor(
+    open,
+    dismiss,
+    Math.min(288, visible.length * 38 + 8 + (showSearch ? 44 : 0))
+  );
+
+  const selectedSet = new Set(values);
+  // Summarise in the caller's order, not the menu's, so the primary reads first.
+  const chosen = values
+    .map((v) => options.find((o) => o.value === v))
+    .filter((o): o is MultiSelectOption => !!o);
+
+  function toggle(value: string) {
+    onChange(
+      selectedSet.has(value) ? values.filter((v) => v !== value) : [...values, value]
+    );
+  }
+
+  function menuKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, visible.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (event.key === "Enter" || event.key === " ") {
+      // Space would otherwise type into the filter box, so only Enter toggles
+      // when the search box has focus.
+      if (event.key === " " && showSearch && document.activeElement === searchRef.current) return;
+      event.preventDefault();
+      const option = visible[activeIndex];
+      if (option) toggle(option.value);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      // Don't let Escape bubble out and close a surrounding modal too.
+      event.stopPropagation();
+      dismiss();
+      triggerRef.current?.focus();
+    }
+  }
+
+  React.useEffect(() => {
+    if (!open || activeValue == null) return;
+    optionRefs.current[activeValue]?.scrollIntoView({ block: "nearest" });
+  }, [open, activeValue]);
+
+  React.useEffect(() => {
+    if (open && showSearch) searchRef.current?.focus();
+  }, [open, showSearch]);
+
+  return (
+    <div className={cn("relative", className)}>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => {
+          if (open) return dismiss();
+          setFilter("");
+          setActiveIndex(0);
+          setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (!open && (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            setFilter("");
+            setActiveIndex(0);
+            setOpen(true);
+          } else if (open) {
+            menuKeyDown(event);
+          }
+        }}
+        className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-left text-sm text-white transition hover:bg-white/10 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/30 disabled:pointer-events-none disabled:opacity-50"
+      >
+        {chosen.length === 0 ? (
+          <span className="text-white/40">{placeholder}</span>
+        ) : (
+          <span className="flex min-w-0 flex-wrap gap-1.5 py-0.5">
+            {chosen.map((o) => (
+              <span
+                key={o.value}
+                className="rounded-md bg-white/10 px-1.5 py-0.5 text-xs leading-5"
+              >
+                {o.label}
+              </span>
+            ))}
+          </span>
+        )}
+        <ChevronDown className={cn("h-4 w-4 shrink-0 opacity-60 transition", open && "rotate-180")} />
+      </button>
+
+      {open &&
+        rect &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: "fixed",
+              left: rect.left,
+              top: rect.top,
+              bottom: rect.bottom,
+              width: rect.width,
+              zIndex: 1000,
+            }}
+            className="flex max-h-72 flex-col overflow-hidden rounded-lg border border-white/15 bg-[#0c0c0c] p-1 text-sm text-white shadow-2xl"
+            role="listbox"
+            aria-multiselectable
+          >
+            {showSearch && (
+              <div className="relative mb-1 shrink-0">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+                <input
+                  ref={searchRef}
+                  value={filter}
+                  onChange={(e) => {
+                    setFilter(e.target.value);
+                    setActiveIndex(0);
+                  }}
+                  onKeyDown={menuKeyDown}
+                  placeholder={searchPlaceholder}
+                  autoComplete="off"
+                  className="h-9 w-full rounded-md border border-white/15 bg-white/5 pl-8 pr-2.5 text-sm text-white placeholder:text-white/40 focus:border-lime-400 focus:outline-none"
+                />
+              </div>
+            )}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {visible.length === 0 && (
+                <p className="px-2.5 py-3 text-center text-xs text-white/40">No matches</p>
+              )}
+              {visible.map((option, i) => {
+                const checked = selectedSet.has(option.value);
+                return (
+                  <button
+                    ref={(el) => {
+                      optionRefs.current[option.value] = el;
+                    }}
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={checked}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    onClick={() => toggle(option.value)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition hover:bg-lime-400 hover:text-black",
+                      i === activeIndex && "bg-lime-400 text-black"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                        checked ? "border-current bg-current/15" : "border-current/40"
+                      )}
+                    >
+                      {checked && <Check className="h-3 w-3" />}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {hint && (
+              <p className="mt-1 shrink-0 border-t border-white/10 px-2.5 pb-1 pt-1.5 text-[11px] leading-snug text-white/40">
+                {hint}
+              </p>
             )}
           </div>,
           document.body

@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { imagePositionStyle } from "@/lib/utils/image";
+import { productCategoryIds, productInCategory } from "@/lib/utils/categories";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/input";
@@ -92,7 +93,7 @@ export function ProductsTable({
     };
   }, []);
 
-  const byCat = cat === "all" ? products : products.filter((p) => p.category_id === cat);
+  const byCat = cat === "all" ? products : products.filter((p) => productInCategory(p, cat));
   const ctl = useTableControls(byCat, {
     searchFields: (p) => [p.name],
     dateField: (p) => p.created_at,
@@ -187,6 +188,9 @@ export function ProductsTable({
             )}
             {pageItems.map((p) => {
               const category = categories.find((c) => c.id === p.category_id);
+              // The primary category is the label; the rest are a "+N" hint so
+              // the row stays one line however many a product belongs to.
+              const extra = productCategoryIds(p).length - 1;
               return (
                 <tr
                   key={p.id}
@@ -205,7 +209,20 @@ export function ProductsTable({
                       <span className="font-medium text-black dark:text-white">{p.name}</span>
                     </div>
                   </td>
-                  <td className="p-3">{category ? `${category.icon} ${category.name}` : "—"}</td>
+                  <td className="p-3">
+                    {category ? `${category.icon} ${category.name}` : "—"}
+                    {extra > 0 && (
+                      <span
+                        className="ml-1.5 rounded bg-black/10 px-1.5 py-0.5 text-[11px] font-medium text-black/60 dark:bg-white/10 dark:text-white/60"
+                        title={productCategoryIds(p)
+                          .map((id) => categories.find((c) => c.id === id)?.name)
+                          .filter(Boolean)
+                          .join(", ")}
+                      >
+                        +{extra}
+                      </span>
+                    )}
+                  </td>
                   <td className="num p-3">{formatCurrency(p.cost_price, currency)}</td>
                   <td className="num p-3">{formatCurrency(p.selling_price, currency)}</td>
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
