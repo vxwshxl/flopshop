@@ -195,6 +195,9 @@ export interface Category {
   sort_order: number;
   is_active: boolean;
   created_at: string;
+  /** Parent in the category tree — e.g. Chips sits under Snacks. Null at the
+   *  top level. A product filed under a child also belongs to its ancestors. */
+  parent_id: string | null;
 }
 
 export interface Product {

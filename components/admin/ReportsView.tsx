@@ -24,6 +24,8 @@ import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
 import { useTableControls, byText, byNum } from "@/lib/hooks/useTableControls";
 import { formatCurrency, istDateString, paymentSplit } from "@/lib/utils/formatters";
 import { distributeProfit } from "@/lib/utils/shareholders";
+import { rootCategoryId } from "@/lib/utils/categories";
+import { cn } from "@/lib/utils/cn";
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import type { CreditSources } from "@/lib/utils/income";
 import { MethodTransfers } from "@/components/admin/MethodTransfers";
@@ -121,6 +123,18 @@ export function ReportsView({
     () => new Map(categories.map((c) => [c.id, `${c.icon} ${c.name}`])),
     [categories]
   );
+  const parentById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.parent_id])),
+    [categories]
+  );
+  /**
+   * Sub-categories (Chips, Bread, Chocolates) roll up into their parent by
+   * default, so "Sales by Category" reads as a handful of real lines instead of
+   * splintering Snacks across four slices. Switch to Detailed to see the
+   * sub-categories on their own.
+   */
+  const [catDepth, setCatDepth] = useState<"rollup" | "detailed">("rollup");
+  const hasChildren = useMemo(() => categories.some((c) => c.parent_id), [categories]);
 
   const inRange = useCallback(
     (d: string) => {
@@ -234,12 +248,17 @@ export function ReportsView({
     const map = new Map<string, number>();
     validOrders.forEach((o) =>
       o.order_items.forEach((it) => {
-        const id = it.product?.category_id ?? "other";
+        const own = it.product?.category_id ?? "other";
+        // Attribution stays one-per-line (a line is counted once), so revenue
+        // never double-counts however many categories the product also sits in.
+        const id = catDepth === "rollup" && own !== "other" ? rootCategoryId(own, parentById) : own;
         map.set(id, (map.get(id) ?? 0) + Number(it.total_price));
       })
     );
-    return Array.from(map.entries()).map(([id, value]) => ({ name: catName.get(id) ?? "Other", value }));
-  }, [validOrders, catName]);
+    return Array.from(map.entries())
+      .map(([id, value]) => ({ name: catName.get(id) ?? "Other", value }))
+      .sort((a, b) => b.value - a.value);
+  }, [validOrders, catName, parentById, catDepth]);
 
   // ---- Profit metrics ----
   const productRevenue = validOrders.reduce((s, o) => s + Number(o.subtotal), 0);
@@ -483,7 +502,30 @@ export function ReportsView({
               </div>
             </AdminCard>
 
-            <AdminCard title="Sales by Category">
+            <AdminCard
+              title="Sales by Category"
+              action={
+                hasChildren ? (
+                  <div className="flex rounded-lg border border-black/10 p-0.5 dark:border-white/15">
+                    {(["rollup", "detailed"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setCatDepth(mode)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-xs font-medium transition",
+                          catDepth === mode
+                            ? "bg-yellow-400 text-black"
+                            : "text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white"
+                        )}
+                      >
+                        {mode === "rollup" ? "Grouped" : "Detailed"}
+                      </button>
+                    ))}
+                  </div>
+                ) : undefined
+              }
+            >
               {categoryAgg.length === 0 ? (
                 <p className="py-10 text-center text-sm text-gray-500">No data</p>
               ) : (

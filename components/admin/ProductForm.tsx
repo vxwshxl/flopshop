@@ -10,7 +10,7 @@ import { Input, Label, Textarea, MultiSelect } from "@/components/ui/input";
 import { AdminCard } from "@/components/admin/StatCard";
 import { ImageAdjuster, type ImagePosition } from "@/components/admin/ImageAdjuster";
 import { DEFAULT_IMAGE_POSITION } from "@/lib/utils/image";
-import { productCategoryIds } from "@/lib/utils/categories";
+import { ancestorIds, orderCategoryTree, productCategoryIds } from "@/lib/utils/categories";
 import type { Category, Product, ProductDetails } from "@/lib/types";
 
 interface OffResult {
@@ -65,6 +65,19 @@ export function ProductForm({
     if (product) return productCategoryIds(product);
     return categories[0]?.id ? [categories[0].id] : [];
   });
+  const parentById = new Map(categories.map((c) => [c.id, c.parent_id]));
+
+  /**
+   * Picking a sub-category implies its parent — Chips is a kind of Snacks, so a
+   * bag of chips belongs under both. The database enforces this with a trigger;
+   * mirroring it here means the form shows what will actually be saved instead
+   * of the parent silently appearing after a reload.
+   */
+  function pickCategories(next: string[]) {
+    const withParents = next.flatMap((id) => [id, ...ancestorIds(id, parentById)]);
+    setCategoryIds([...new Set(withParents)]);
+  }
+
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState(product?.image_url ?? "");
@@ -283,14 +296,16 @@ export function ProductForm({
               <Label className="text-gray-300">Categories</Label>
               <MultiSelect
                 values={categoryIds}
-                onChange={setCategoryIds}
+                onChange={pickCategories}
                 placeholder="Pick one or more"
-                options={categories.map((c) => ({
+                options={orderCategoryTree(categories).map((c) => ({
                   value: c.id,
-                  label: `${c.icon} ${c.name}`,
+                  // Sub-categories are indented under their parent so the tree
+                  // is readable at a glance in a flat list.
+                  label: `${c.parent_id ? "↳ " : ""}${c.icon} ${c.name}`,
                   text: c.name,
                 }))}
-                hint="The product shows under every one you pick. The first is its primary category — the one used in sales reports."
+                hint="The product shows under every one you pick, and picking a sub-category adds its parent too. The first is its primary category — the one sales reports use."
               />
               {categoryIds.length === 0 && (
                 <p className="mt-1.5 text-xs text-amber-400/80">

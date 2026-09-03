@@ -81,8 +81,13 @@ CREATE TABLE categories (
   color TEXT DEFAULT '#6366f1',
   sort_order INTEGER DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
+  -- Sub-categories: Chips sits under Snacks. A product filed under a child
+  -- also belongs to its ancestors (see the trigger below), and reports roll a
+  -- child's sales up into its parent.
+  parent_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX categories_parent_idx ON categories (parent_id);
 
 INSERT INTO categories (name, slug, icon, color, sort_order) VALUES
   ('Snacks', 'snacks', '🍿', '#f59e0b', 1),
@@ -117,6 +122,36 @@ CREATE TABLE product_categories (
   PRIMARY KEY (product_id, category_id)
 );
 CREATE INDEX product_categories_category_idx ON product_categories (category_id);
+
+-- Filing a product under a sub-category files it under the parent too, whoever
+-- does the writing. Each inserted ancestor re-fires this, but by then its own
+-- ancestors exist and ON CONFLICT ends the chain.
+CREATE OR REPLACE FUNCTION public.add_product_category_ancestors()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.product_categories (product_id, category_id)
+  SELECT NEW.product_id, a.id FROM (
+    WITH RECURSIVE up AS (
+      SELECT c.id, c.parent_id, 1 AS depth
+        FROM public.categories c WHERE c.id = NEW.category_id
+      UNION ALL
+      -- depth caps the walk so a mis-set parent can't spin forever.
+      SELECT p.id, p.parent_id, up.depth + 1
+        FROM public.categories p JOIN up ON p.id = up.parent_id
+       WHERE up.depth < 10
+    )
+    SELECT id FROM up WHERE id <> NEW.category_id
+  ) a
+  ON CONFLICT DO NOTHING;
+  RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER product_categories_ancestors
+  AFTER INSERT ON product_categories
+  FOR EACH ROW EXECUTE FUNCTION public.add_product_category_ancestors();
 
 -- ORDERS -------------------------------------------------------
 CREATE TABLE orders (

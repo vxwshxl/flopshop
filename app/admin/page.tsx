@@ -8,6 +8,7 @@ import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
 import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { formatCurrency, getISTTimeBounds, toISTDate } from "@/lib/utils/formatters";
+import { rootCategoryId } from "@/lib/utils/categories";
 import type { Category, OrderStatus, Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,7 @@ export default async function AdminDashboard({
   const productList = (products as Product[]) ?? [];
   const cats = (categories as Category[]) ?? [];
   const catName = new Map(cats.map((c) => [c.id, `${c.icon} ${c.name}`]));
+  const parentById = new Map(cats.map((c) => [c.id, c.parent_id]));
 
   const notCancelled = (o: DashOrder) => o.status !== "cancelled";
 
@@ -143,18 +145,20 @@ export default async function AdminDashboard({
     }
   }
 
-  // Category breakdown
+  // Category breakdown. Sub-categories roll up into their parent — the glance
+  // view wants "Snacks", not Snacks split four ways across Chips/Bread/Sweets.
+  // Reports has a Detailed toggle for the finer view.
   const catTotals = new Map<string, number>();
   rangeOrders.forEach((o) =>
     o.order_items?.forEach((it) => {
-      const id = it.product?.category_id ?? "uncategorized";
+      const own = it.product?.category_id;
+      const id = own ? rootCategoryId(own, parentById) : "uncategorized";
       catTotals.set(id, (catTotals.get(id) ?? 0) + Number(it.total_price));
     })
   );
-  const pieData = Array.from(catTotals.entries()).map(([id, value]) => ({
-    name: catName.get(id) ?? "Other",
-    value,
-  }));
+  const pieData = Array.from(catTotals.entries())
+    .map(([id, value]) => ({ name: catName.get(id) ?? "Other", value }))
+    .sort((a, b) => b.value - a.value);
 
   const recent = orders.slice(0, 10);
 

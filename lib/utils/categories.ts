@@ -22,3 +22,58 @@ export function productInCategory(
 ): boolean {
   return productCategoryIds(p).includes(categoryId);
 }
+
+/**
+ * The top-level category a category rolls up into — Chips → Snacks, Snacks →
+ * Snacks. Reports use this so a sale of a Snickers filed under "Chocolates and
+ * Sweets" still counts towards Snacks rather than splintering the breakdown.
+ *
+ * Walks at most 10 links so a mis-set parent can't loop forever.
+ */
+export function rootCategoryId(
+  id: string,
+  parentById: Map<string, string | null>
+): string {
+  let current = id;
+  for (let i = 0; i < 10; i++) {
+    const parent = parentById.get(current);
+    if (!parent || parent === current) break;
+    current = parent;
+  }
+  return current;
+}
+
+/** Every ancestor of a category, nearest first (excludes the category itself). */
+export function ancestorIds(
+  id: string,
+  parentById: Map<string, string | null>
+): string[] {
+  const out: string[] = [];
+  let current = id;
+  for (let i = 0; i < 10; i++) {
+    const parent = parentById.get(current);
+    if (!parent || parent === current || out.includes(parent)) break;
+    out.push(parent);
+    current = parent;
+  }
+  return out;
+}
+
+/**
+ * Reorders a flat category list into tree order: each top-level category in its
+ * own sort order, immediately followed by its children. A flat `sort_order`
+ * puts Chips (5) four rows below Snacks (1), which reads as unrelated — this
+ * pulls them together so the nesting is visible without a tree widget.
+ *
+ * Orphans (a parent that's missing or inactive) fall back to the top level so
+ * nothing silently disappears from a picker.
+ */
+export function orderCategoryTree<T extends { id: string; parent_id: string | null; sort_order: number }>(
+  categories: T[]
+): T[] {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const bySort = (a: T, b: T) => a.sort_order - b.sort_order || a.id.localeCompare(b.id);
+  const roots = categories.filter((c) => !c.parent_id || !byId.has(c.parent_id)).sort(bySort);
+  const childrenOf = (id: string) => categories.filter((c) => c.parent_id === id).sort(bySort);
+  return roots.flatMap((root) => [root, ...childrenOf(root.id)]);
+}

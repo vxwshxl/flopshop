@@ -6,7 +6,7 @@ import { Pencil, Trash2, Plus, GripVertical } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { Pagination, usePagination } from "@/components/ui/pagination";
@@ -36,7 +36,14 @@ export function CategoriesManager({
   const [editing, setEditing] = useState<Category | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-  const [form, setForm] = useState({ name: "", icon: "📦", color: "#facc15", sort_order: "0", is_active: true });
+  const [form, setForm] = useState({
+    name: "",
+    icon: "📦",
+    color: "#facc15",
+    sort_order: "0",
+    is_active: true,
+    parent_id: "",
+  });
   const ctl = useTableControls(categories, {
     searchFields: (c) => [c.name, c.slug],
     sorters: {
@@ -49,9 +56,22 @@ export function CategoriesManager({
   });
   const { page, setPage, perPage, setPerPage, total, totalPages, pageItems } = usePagination(ctl.rows);
 
+  // Only top-level categories can be parents, and nothing may parent itself —
+  // that keeps the tree one level deep, which is all the shop needs and makes
+  // a cycle impossible.
+  const parentOptions = categories.filter((c) => !c.parent_id && c.id !== editing?.id);
+  const nameById = new Map(categories.map((c) => [c.id, c.name]));
+
   function openNew() {
     setEditing(null);
-    setForm({ name: "", icon: "📦", color: "#facc15", sort_order: String(categories.length + 1), is_active: true });
+    setForm({
+      name: "",
+      icon: "📦",
+      color: "#facc15",
+      sort_order: String(categories.length + 1),
+      is_active: true,
+      parent_id: "",
+    });
     setOpen(true);
   }
   function openEdit(c: Category) {
@@ -62,6 +82,7 @@ export function CategoriesManager({
       color: c.color,
       sort_order: String(c.sort_order),
       is_active: c.is_active,
+      parent_id: c.parent_id ?? "",
     });
     setOpen(true);
   }
@@ -77,6 +98,7 @@ export function CategoriesManager({
       color: form.color,
       sort_order: parseInt(form.sort_order) || 0,
       is_active: form.is_active,
+      parent_id: form.parent_id || null,
     };
     const { error } = editing
       ? await supabase.from("categories").update(payload).eq("id", editing.id)
@@ -146,10 +168,17 @@ export function CategoriesManager({
                   </div>
                 </td>
                 <td className="p-3">
-                  <span
-                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-yellow-400 bg-yellow-400 px-2.5 py-0.5 font-medium text-black"
-                  >
-                    {c.icon} {c.name}
+                  <span className="flex items-center gap-1.5">
+                    {/* Sub-category: name the parent so the nesting is visible
+                        even when the table is sorted by something else. */}
+                    {c.parent_id && (
+                      <span className="whitespace-nowrap text-xs text-black/40 dark:text-white/40">
+                        {nameById.get(c.parent_id) ?? "—"} ↳
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-yellow-400 bg-yellow-400 px-2.5 py-0.5 font-medium text-black">
+                      {c.icon} {c.name}
+                    </span>
                   </span>
                 </td>
                 <td className="p-3 text-black/50 dark:text-white/50">{c.slug}</td>
@@ -207,6 +236,24 @@ export function CategoriesManager({
               <Label>Sort order</Label>
               <Input type="number" value={form.sort_order} onChange={(e) => setForm((f) => ({ ...f, sort_order: e.target.value }))} />
             </div>
+          </div>
+          <div>
+            <Label>Sits under</Label>
+            <Select
+              value={form.parent_id}
+              onChange={(e) => setForm((f) => ({ ...f, parent_id: e.target.value }))}
+            >
+              <option value="">— Top level —</option>
+              {parentOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.icon} {c.name}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1.5 text-xs text-black/50 dark:text-white/50">
+              A product filed here also counts under the parent — so Chips also shows in Snacks
+              and its sales roll into Snacks in reports.
+            </p>
           </div>
           <label className="flex items-center gap-2 text-sm text-black/75 dark:text-white/75">
             <input

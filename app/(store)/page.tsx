@@ -16,7 +16,10 @@ export default async function HomePage() {
     supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
     supabase
       .from("products")
-      .select("*, category:categories(*), product_categories(category_id)")
+      // The FK is named explicitly: with product_categories in place there are
+      // two routes from products to categories (the primary category_id and the
+      // many-to-many join), and PostgREST refuses to guess between them.
+      .select("*, category:categories!products_category_id_fkey(*), product_categories(category_id)")
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
   ]);
