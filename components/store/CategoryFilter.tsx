@@ -25,5 +25,5 @@ export function CategoryFilter({ categories, active, onChange }: Props) {
     })),
   ];
 
-  return <ToggleGroup options={options} value={active} onChange={onChange} />;
+  return <ToggleGroup options={options} value={active} onChange={onChange} scrollArrows />;
 }
