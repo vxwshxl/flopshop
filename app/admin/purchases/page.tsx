@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
@@ -17,16 +18,20 @@ export default async function PurchasesPage() {
   const settings = await getSettings();
   const currency = settings.currency_symbol;
 
-  const [{ data: purchases }, { data: suppliers }] = await Promise.all([
-    supabase
-      .from("purchases")
-      .select("*")
-      .order("purchase_date", { ascending: false })
-      .order("created_at", { ascending: false }),
+  // The header sums total spend over the whole table, and the table paginates
+  // client-side — both need every row, not PostgREST's first 1000.
+  const [list, { data: suppliers }] = await Promise.all([
+    fetchAllRows<Purchase>((from, to) =>
+      supabase
+        .from("purchases")
+        .select("*")
+        .order("purchase_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to)
+    ),
     supabase.from("suppliers").select("*").eq("is_active", true).order("name"),
   ]);
-
-  const list = (purchases as Purchase[]) ?? [];
   const totalSpent = list.reduce((s, p) => s + Number(p.total_cost), 0);
 
   return (

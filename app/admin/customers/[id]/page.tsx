@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { PageHeader, AdminCard, StatCard } from "@/components/admin/StatCard";
 import { CustomerEditButton } from "@/components/admin/CustomerEditButton";
@@ -40,12 +41,17 @@ export default async function AdminCustomerDetail({ params }: { params: Promise<
 
   // Orders carry a name snapshot rather than a customer FK, so history is matched
   // by name (case-insensitive, the same rule `upsertCustomerByName` and merging use).
-  const { data: orderData } = await supabase
-    .from("orders")
-    .select("*")
-    .ilike("customer_name", escapeLike(customer.name))
-    .order("created_at", { ascending: false });
-  const orders = (orderData as Order[]) ?? [];
+  // Lifetime spend and outstanding are summed over this list, so it pages
+  // rather than truncating at 1000 once a regular has been coming long enough.
+  const orders = await fetchAllRows<Order>((from, to) =>
+    supabase
+      .from("orders")
+      .select("*")
+      .ilike("customer_name", escapeLike(customer.name))
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to)
+  );
 
   const { wallet, transactions } = await getWalletWithTransactions({ customerId: id });
   const balance = wallet ? Number(wallet.balance) : 0;

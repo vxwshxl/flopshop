@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { ReportsView } from "@/components/admin/ReportsView";
@@ -11,24 +12,34 @@ export default async function ReportsPage() {
   const supabase = await createClient();
   const settings = await getSettings();
 
+  // `orders`, `purchases` and `wallet_transactions` are the ledger-sized tables
+  // here — every figure on this page is a sum over all of them, so they go
+  // through `fetchAllRows` rather than stopping at PostgREST's 1000-row cap.
+  // The rest are small reference tables; one round trip each is right.
   const [
-    { data: orders },
+    orders,
     { data: products },
-    { data: purchases },
+    purchases,
     { data: categories },
     { data: shareholders },
     { data: settlements },
     { data: transfers },
-    { data: walletTxns },
+    walletTxns,
   ] = await Promise.all([
-    supabase
-      .from("orders")
-      .select(
-        "id, status, order_type, created_at, subtotal, total_amount, delivery_fee, delivery_person_earning, admin_delivery_earning, payment_method, paid_cash, paid_upi, order_items(quantity, total_price, product_name, cost_price, product:products(category_id))"
-      )
-      .order("created_at", { ascending: false }),
+    fetchAllRows<unknown>((from, to) =>
+      supabase
+        .from("orders")
+        .select(
+          "id, status, order_type, created_at, subtotal, total_amount, delivery_fee, delivery_person_earning, admin_delivery_earning, payment_method, paid_cash, paid_upi, order_items(quantity, total_price, product_name, cost_price, product:products(category_id))"
+        )
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to)
+    ),
     supabase.from("products").select("*").order("name"),
-    supabase.from("purchases").select("*"),
+    fetchAllRows<Purchase>((from, to) =>
+      supabase.from("purchases").select("*").order("id").range(from, to)
+    ),
     supabase.from("categories").select("*").order("sort_order"),
     supabase.from("shareholders").select("*").eq("is_active", true).order("sort_order"),
     supabase
@@ -41,12 +52,18 @@ export default async function ReportsPage() {
       .order("date", { ascending: false }),
     // The whole wallet ledger — used to trace credit-paid orders back to the
     // cash/UPI that originally funded those wallets.
-    supabase.from("wallet_transactions").select("order_id, wallet_id, amount, type, method"),
+    fetchAllRows<LedgerRow>((from, to) =>
+      supabase
+        .from("wallet_transactions")
+        .select("order_id, wallet_id, amount, type, method")
+        .order("id")
+        .range(from, to)
+    ),
   ]);
 
   // Credit-paid orders traced back to the cash/UPI that funded the wallet, for
   // the Reports "by source" income view.
-  const creditSources = buildCreditSources((walletTxns as LedgerRow[] | null) ?? []);
+  const creditSources = buildCreditSources(walletTxns);
 
   // Each shareholder's most recent cutoff → their outstanding profit since then,
   // plus the change that settlement left unpaid (partial settlement).
@@ -68,9 +85,9 @@ export default async function ReportsPage() {
       <PageHeader title="Reports" subtitle="Sales, profit & inventory analytics" />
       <ReportsView
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        orders={(orders as any) ?? []}
+        orders={orders as any}
         products={(products as Product[]) ?? []}
-        purchases={(purchases as Purchase[]) ?? []}
+        purchases={purchases}
         categories={(categories as Category[]) ?? []}
         settings={settings}
         shareholders={(shareholders as Shareholder[]) ?? []}

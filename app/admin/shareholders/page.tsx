@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getCurrentProfile, getSettings } from "@/lib/supabase/queries";
 import { PageHeader, StatCard } from "@/components/admin/StatCard";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
@@ -19,12 +20,19 @@ export default async function ShareholdersPage() {
   const settings = await getSettings();
   const currency = settings.currency_symbol ?? "₹";
 
-  const [{ data: ordersRaw }, { data: shareholdersRaw }, { data: settlementsRaw }, { data: usersRaw }] =
+  const [ordersRaw, { data: shareholdersRaw }, { data: settlementsRaw }, { data: usersRaw }] =
     await Promise.all([
-      supabase
-        .from("orders")
-        .select("created_at, status, subtotal, admin_delivery_earning, order_items(quantity, cost_price)")
-        .not("status", "eq", "cancelled"),
+      // Payouts are a sum over every non-cancelled order ever placed, so this
+      // must not stop at PostgREST's 1000-row cap — a short read here quietly
+      // understates what each shareholder is owed.
+      fetchAllRows<ProfitOrder>((from, to) =>
+        supabase
+          .from("orders")
+          .select("created_at, status, subtotal, admin_delivery_earning, order_items(quantity, cost_price)")
+          .not("status", "eq", "cancelled")
+          .order("id")
+          .range(from, to)
+      ),
       supabase.from("shareholders").select("*").order("sort_order", { ascending: true }),
       supabase
         .from("shareholder_settlements")
@@ -33,7 +41,7 @@ export default async function ShareholdersPage() {
       supabase.from("profiles").select("id, email, full_name").order("full_name"),
     ]);
 
-  const orders = (ordersRaw as unknown as ProfitOrder[]) ?? [];
+  const orders = ordersRaw;
   const shareholders = (shareholdersRaw as Shareholder[]) ?? [];
   const settlements = (settlementsRaw as ShareholderSettlement[]) ?? [];
   const users = (usersRaw as LinkUser[]) ?? [];

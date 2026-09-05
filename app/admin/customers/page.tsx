@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getCurrentProfile } from "@/lib/supabase/queries";
 import { CustomersManager } from "@/components/admin/CustomersManager";
 import type { Customer, Hostel } from "@/lib/types";
@@ -11,7 +12,9 @@ export default async function CustomersPage() {
   if (!profile || profile.role !== "admin") redirect("/");
 
   const supabase = await createClient();
-  const { data } = await supabase.from("customers").select("*").order("name");
+  const customers = await fetchAllRows<Customer>((from, to) =>
+    supabase.from("customers").select("*").order("name").order("id").range(from, to)
+  );
 
   const { data: hostelsData } = await supabase
     .from("hostels")
@@ -31,7 +34,7 @@ export default async function CustomersPage() {
 
   return (
     <CustomersManager
-      customers={(data as Customer[]) ?? []}
+      customers={customers}
       hostels={(hostelsData as Hostel[]) ?? []}
       balances={balances}
     />

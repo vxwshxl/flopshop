@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShoppingBag, IndianRupee, Package, AlertTriangle, Clock, Truck, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, AdminCard } from "@/components/admin/StatCard";
 import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
@@ -9,21 +10,45 @@ import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
 import { formatCurrency, getISTTimeBounds, toISTDate } from "@/lib/utils/formatters";
 import { rootCategoryId } from "@/lib/utils/categories";
-import type { Category, OrderStatus, Product } from "@/lib/types";
+import type { OrderStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+/** Only what the stat cards, the revenue series and the category pie actually
+ *  read. The recent-orders table pulls its own ten rows below — carrying
+ *  order_number/customer_name on all ~1200 aggregate rows to render ten of them
+ *  was a third of this query's payload. */
 interface DashOrder {
+  status: string;
+  total_amount: number;
+  created_at: string;
+  delivery_person_earning: number;
+  admin_delivery_earning: number;
+  order_items: { total_price: number; product: { category_id: string | null } | null }[];
+}
+
+interface RecentOrder {
   id: string;
   order_number: string;
   customer_name: string;
   order_type: "pickup" | "delivery";
   status: string;
   total_amount: number;
-  created_at: string;
-  delivery_person_earning: number;
-  admin_delivery_earning: number;
-  order_items: { quantity: number; total_price: number; product: { category_id: string | null } | null }[];
+}
+
+/** Stock fields plus what the low-stock list links to. */
+interface DashProduct {
+  id: string;
+  name: string;
+  current_stock: number;
+  minimum_stock: number;
+}
+
+interface DashCategory {
+  id: string;
+  name: string;
+  icon: string | null;
+  parent_id: string | null;
 }
 
 export default async function AdminDashboard({
@@ -39,25 +64,43 @@ export default async function AdminDashboard({
 
   const { since, until: now } = getISTTimeBounds(rangeDays, offsetDays ?? 0);
 
-  const [settings, { data: ordersRaw }, { data: products }, { data: categories }, { data: profiles }] = await Promise.all([
-    getSettings(),
-    supabase
-      .from("orders")
-      .select(
-        "id, order_number, customer_name, order_type, status, total_amount, created_at, delivery_person_earning, admin_delivery_earning, order_items(quantity, total_price, product:products(category_id))"
-      )
-      .gte("created_at", since.toISOString())
-      .lt("created_at", now.toISOString())
-      .order("created_at", { ascending: false }),
-    supabase.from("products").select("*").eq("is_active", true),
-    supabase.from("categories").select("*"),
-    supabase.from("profiles").select("id, is_active"),
-  ]);
+  const sinceISO = since.toISOString();
+  const nowISO = now.toISOString();
+
+  const [settings, orders, { data: recentRaw }, { data: products }, { data: categories }, { data: profiles }] =
+    await Promise.all([
+      getSettings(),
+      // Every order in the range, not the first 1000 of them. `id` is the
+      // tiebreaker that keeps the paging stable across same-timestamp orders.
+      fetchAllRows<DashOrder>((from, to) =>
+        supabase
+          .from("orders")
+          .select(
+            "status, total_amount, created_at, delivery_person_earning, admin_delivery_earning, order_items(total_price, product:products(category_id))"
+          )
+          .gte("created_at", sinceISO)
+          .lt("created_at", nowISO)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to)
+      ),
+      supabase
+        .from("orders")
+        .select("id, order_number, customer_name, order_type, status, total_amount")
+        .gte("created_at", sinceISO)
+        .lt("created_at", nowISO)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(10),
+      supabase.from("products").select("id, name, current_stock, minimum_stock").eq("is_active", true),
+      supabase.from("categories").select("id, name, icon, parent_id"),
+      supabase.from("profiles").select("id, is_active"),
+    ]);
 
   const currency = settings.currency_symbol;
-  const orders = (ordersRaw as unknown as DashOrder[]) ?? [];
-  const productList = (products as Product[]) ?? [];
-  const cats = (categories as Category[]) ?? [];
+  const recent = (recentRaw as RecentOrder[] | null) ?? [];
+  const productList = (products as DashProduct[] | null) ?? [];
+  const cats = (categories as DashCategory[] | null) ?? [];
   const catName = new Map(cats.map((c) => [c.id, `${c.icon} ${c.name}`]));
   const parentById = new Map(cats.map((c) => [c.id, c.parent_id]));
 
@@ -159,8 +202,6 @@ export default async function AdminDashboard({
   const pieData = Array.from(catTotals.entries())
     .map(([id, value]) => ({ name: catName.get(id) ?? "Other", value }))
     .sort((a, b) => b.value - a.value);
-
-  const recent = orders.slice(0, 10);
 
   return (
     <div>

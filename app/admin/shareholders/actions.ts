@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 import { shareholderShare, type ProfitOrder } from "@/lib/utils/shareholders";
 import type { Role, Shareholder } from "@/lib/types";
 
@@ -66,19 +67,25 @@ export async function settleShareholderAction(
   const prevCarry = Number(prev?.carry_forward ?? 0);
 
   const cutoff = new Date().toISOString();
-  const { data: orders, error } = await admin
-    .from("orders")
-    .select(ORDER_SELECT)
-    .not("status", "eq", "cancelled")
-    .lte("created_at", cutoff);
-  if (error) return { ok: false, error: error.message };
+  // The amount this writes into `shareholder_settlements` is a sum over every
+  // qualifying order, so it has to page past PostgREST's 1000-row cap — a short
+  // read here doesn't just display a wrong number, it records one.
+  let orders: ProfitOrder[];
+  try {
+    orders = await fetchAllRows<ProfitOrder>((from, to) =>
+      admin
+        .from("orders")
+        .select(ORDER_SELECT)
+        .not("status", "eq", "cancelled")
+        .lte("created_at", cutoff)
+        .order("id")
+        .range(from, to)
+    );
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not load orders." };
+  }
 
-  const { base, amount: due } = shareholderShare(
-    (orders as unknown as ProfitOrder[]) ?? [],
-    sh,
-    sinceIso,
-    prevCarry
-  );
+  const { base, amount: due } = shareholderShare(orders, sh, sinceIso, prevCarry);
   if (due <= 0) return { ok: false, error: `Nothing outstanding to settle for ${sh.name}.` };
 
   // Pay the full balance unless a smaller amount was asked for.
