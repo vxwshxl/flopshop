@@ -9,6 +9,7 @@ import {
   createOrder,
   updateOrderStatus,
   type CreateOrderInput,
+  type CreateOrderResult,
 } from "@/lib/server/orders";
 import {
   refundOrderCredit,
@@ -1188,6 +1189,61 @@ export async function deleteOrderAction(orderId: string) {
   return { ok: true };
 }
 
+/** How long after an identical walk-in order a repeat is treated as suspect. */
+const DUPLICATE_WINDOW_MINUTES = 5;
+
+/** Same products, same quantities — order-independent. */
+function itemSignature(items: { product_id: string; quantity: number }[]): string {
+  return items
+    .map((i) => `${i.product_id}:${i.quantity}`)
+    .sort()
+    .join("|");
+}
+
+/**
+ * A walk-in order for the same customer with the same basket, minutes old.
+ *
+ * Creating a manual order takes a couple of seconds of server work, and for
+ * most of that the screen looks unchanged — so a sale that seems not to have
+ * registered gets entered a second time, and the shop loses the stock twice.
+ * Six such pairs sat in the first 1,225 orders. This makes the second attempt
+ * ask instead of silently booking, without ever blocking a genuine repeat sale.
+ */
+async function findRecentDuplicate(
+  admin: ReturnType<typeof createAdminClient>,
+  input: { customer_name: string; items: { product_id: string; quantity: number }[] }
+): Promise<{ order_number: string; created_at: string } | null> {
+  const name = input.customer_name?.trim().toLowerCase();
+  if (!name || !input.items?.length) return null;
+
+  const since = new Date(Date.now() - DUPLICATE_WINDOW_MINUTES * 60_000).toISOString();
+  const { data } = await admin
+    .from("orders")
+    .select("order_number, created_at, customer_name, order_items(product_id, quantity)")
+    .eq("is_manual", true)
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const want = itemSignature(input.items);
+  const rows =
+    (data as
+      | {
+          order_number: string;
+          created_at: string;
+          customer_name: string | null;
+          order_items: { product_id: string; quantity: number }[];
+        }[]
+      | null) ?? [];
+
+  for (const o of rows) {
+    if ((o.customer_name ?? "").trim().toLowerCase() !== name) continue;
+    if (itemSignature(o.order_items ?? []) === want)
+      return { order_number: o.order_number, created_at: o.created_at };
+  }
+  return null;
+}
+
 export async function createManualOrderAction(
   input: Omit<CreateOrderInput, "confirm" | "is_manual"> & {
     payment_pending?: boolean;
@@ -1195,12 +1251,27 @@ export async function createManualOrderAction(
     amount_paid?: number;
     /** Cash overpaid with no change available — credited to the customer's wallet. */
     overpay_to_wallet?: number;
+    /** Set once the admin has confirmed a flagged repeat really is a second sale. */
+    allow_duplicate?: boolean;
   }
-) {
+): Promise<CreateOrderResult & { duplicate?: { order_number: string; created_at: string } }> {
   const actor = await requireRole(["admin"]);
   if (!actor) return { ok: false, error: "Not authorized." };
 
-  const { payment_pending, amount_paid, overpay_to_wallet, ...orderInput } = input;
+  const { payment_pending, amount_paid, overpay_to_wallet, allow_duplicate, ...orderInput } = input;
+
+  if (!allow_duplicate) {
+    const dup = await findRecentDuplicate(createAdminClient(), {
+      customer_name: input.customer_name,
+      items: input.items ?? [],
+    });
+    if (dup)
+      return {
+        ok: false,
+        error: `${dup.order_number} already has this exact basket for ${input.customer_name.trim()}.`,
+        duplicate: dup,
+      };
+  }
 
   // Walk-in orders are handed over on the spot: create confirmed + paid, then
   // mark completed so it lands fully done (no OTP — manual orders skip it).

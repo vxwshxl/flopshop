@@ -28,7 +28,14 @@ export function ConfirmDialog({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <button className="absolute inset-0 bg-black/70" onClick={onCancel} aria-label="Close dialog" />
+      {/* Explicitly not a submit: this dialog can be rendered inside a <form>,
+          where an untyped button would post it on a backdrop click. */}
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/70"
+        onClick={onCancel}
+        aria-label="Close dialog"
+      />
       <div
         role="alertdialog"
         aria-modal="true"

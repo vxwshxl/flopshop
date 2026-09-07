@@ -10,7 +10,8 @@ import { AdminCard } from "@/components/admin/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Autocomplete } from "@/components/ui/autocomplete";
-import { formatCurrency } from "@/lib/utils/formatters";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { formatCurrency, formatTime } from "@/lib/utils/formatters";
 import { deliverySplit } from "@/lib/utils/orderHelpers";
 import { imagePositionStyle } from "@/lib/utils/image";
 import type { Customer, OrderType, PaymentMethod, Product, Profile, SettingsMap } from "@/lib/types";
@@ -157,6 +158,14 @@ export function ManualOrderForm({
 
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // A repeat of a basket already booked minutes ago, held for the admin to
+  // confirm or drop. `pending` keeps the exact payload so confirming re-sends
+  // what was flagged rather than whatever the form looks like by then.
+  const [duplicate, setDuplicate] = useState<{ order_number: string; created_at: string } | null>(null);
+  const pending = useRef<OrderPayload | null>(null);
+  // `saving` disables the button, but a state flag only takes effect on the next
+  // render. This blocks a second submit in the same tick outright.
+  const inFlight = useRef(false);
 
   // Typing searches everything (out-of-stock rows still show, disabled); with an
   // empty box the menu lists the full in-stock catalogue.
@@ -280,14 +289,12 @@ export function ManualOrderForm({
     if (hasCredit && creditNum > creditBalance)
       return toast.error(`Wallet only has ${formatCurrency(creditBalance, currency)}.`);
 
-    setSaving(true);
-
     // For credit orders the wallet covers (total − cash − upi).
     // paid_cash / paid_upi record the non-wallet legs.
     const paidCash = derivedMethod === "credit" ? cashNum : derivedMethod === "split" ? cashNum : 0;
     const paidUpi  = derivedMethod === "credit" ? upiNum  : derivedMethod === "split" ? upiNum  : 0;
 
-    const res = await createManualOrderAction({
+    await send({
       items: lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity, unit_price: l.unitPrice })),
       order_type: orderType,
       customer_name: customer.name,
@@ -319,9 +326,31 @@ export function ManualOrderForm({
       ...(overpay > 0 ? { overpay_to_wallet: overpay } : {}),
       notes,
     });
+  }
 
+  /**
+   * Sends one attempt. A basket the server recognises as a repeat comes back
+   * flagged rather than booked, and is re-sent only once the admin confirms.
+   */
+  async function send(payload: OrderPayload, allowDuplicate = false) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
+    const res = await createManualOrderAction(
+      allowDuplicate ? { ...payload, allow_duplicate: true } : payload
+    );
+    inFlight.current = false;
     setSaving(false);
+
+    if (!res.ok && res.duplicate) {
+      pending.current = payload;
+      setDuplicate(res.duplicate);
+      return;
+    }
     if (!res.ok || !res.order) return toast.error(res.error ?? "Failed to create order.");
+
+    setDuplicate(null);
+    pending.current = null;
 
     // Reset all fields.
     setLines([]);
@@ -347,7 +376,21 @@ export function ManualOrderForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4 lg:grid-cols-3">
+    <form
+      onSubmit={submit}
+      onKeyDown={(e) => {
+        // Enter must never book a sale. This form has a dozen text fields and
+        // implicit submission fires the order from any of them — the fastest of
+        // the duplicate pairs in the books were five seconds apart, far too
+        // quick to have been re-typed. Only the Complete-order button submits.
+        if (e.key !== "Enter") return;
+        const el = e.target as HTMLElement;
+        if (el.tagName === "TEXTAREA") return;
+        if (el.tagName === "BUTTON" && (el as HTMLButtonElement).type === "submit") return;
+        e.preventDefault();
+      }}
+      className="grid gap-4 lg:grid-cols-3"
+    >
       <div className="space-y-4 lg:col-span-2">
         <AdminCard title="Add Products">
           <div className="relative" ref={pickerRef}>
@@ -759,6 +802,31 @@ export function ManualOrderForm({
             : "Complete Order"}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={!!duplicate}
+        title="This order was already entered"
+        description={
+          duplicate
+            ? `${duplicate.order_number} booked the same items for ${customer.name.trim()} at ${formatTime(duplicate.created_at)}. Saving again charges the customer twice and takes the stock twice. Only continue if this really is a second, separate sale.`
+            : ""
+        }
+        confirmLabel="Yes, it's a second sale"
+        cancelLabel="Cancel"
+        loading={saving}
+        onCancel={() => {
+          setDuplicate(null);
+          pending.current = null;
+        }}
+        onConfirm={() => {
+          const payload = pending.current;
+          setDuplicate(null);
+          if (payload) send(payload, true);
+        }}
+      />
     </form>
   );
 }
+
+/** Exactly what the create action accepts, so a flagged attempt can be re-sent. */
+type OrderPayload = Parameters<typeof createManualOrderAction>[0];
