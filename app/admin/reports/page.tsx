@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/supabase/queries";
 import { PageHeader } from "@/components/admin/StatCard";
 import { ReportsView } from "@/components/admin/ReportsView";
 import { buildCreditSources, type LedgerRow } from "@/lib/utils/income";
+import { computeCashDrift } from "@/lib/utils/cash-drift";
 import type { Category, MethodTransfer, Product, Purchase, Shareholder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -51,11 +52,14 @@ export default async function ReportsPage() {
       .select("*, legs:method_transfer_legs(*)")
       .order("date", { ascending: false }),
     // The whole wallet ledger — used to trace credit-paid orders back to the
-    // cash/UPI that originally funded those wallets.
-    fetchAllRows<LedgerRow>((from, to) =>
+    // cash/UPI that originally funded those wallets, and to spot cash paid out
+    // of the drawer against credit the shop was paid for by UPI/bank. The
+    // second reading walks each wallet in time order, hence the date sort.
+    fetchAllRows<LedgerRow & { created_at: string }>((from, to) =>
       supabase
         .from("wallet_transactions")
-        .select("order_id, wallet_id, amount, type, method")
+        .select("order_id, wallet_id, amount, type, method, created_at")
+        .order("created_at", { ascending: true })
         .order("id")
         .range(from, to)
     ),
@@ -64,6 +68,10 @@ export default async function ReportsPage() {
   // Credit-paid orders traced back to the cash/UPI that funded the wallet, for
   // the Reports "by source" income view.
   const creditSources = buildCreditSources(walletTxns);
+
+  // Cash that left the drawer to repay UPI/bank-funded credit and hasn't been
+  // squared off with an Income Transfer yet.
+  const cashDrift = computeCashDrift(walletTxns, (transfers as MethodTransfer[]) ?? []);
 
   // Each shareholder's most recent cutoff → their outstanding profit since then,
   // plus the change that settlement left unpaid (partial settlement).
@@ -95,6 +103,7 @@ export default async function ReportsPage() {
         carryById={carryById}
         transfers={(transfers as MethodTransfer[]) ?? []}
         creditSources={creditSources}
+        cashDrift={cashDrift}
       />
     </div>
   );

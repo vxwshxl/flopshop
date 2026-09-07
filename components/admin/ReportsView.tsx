@@ -28,7 +28,9 @@ import { rootCategoryId } from "@/lib/utils/categories";
 import { cn } from "@/lib/utils/cn";
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
 import type { CreditSources } from "@/lib/utils/income";
+import { NO_CASH_DRIFT, type CashDrift } from "@/lib/utils/cash-drift";
 import { MethodTransfers } from "@/components/admin/MethodTransfers";
+import { CashDriftAlert } from "@/components/admin/CashDriftAlert";
 import type { Category, MethodTransfer, Product, Purchase, SettingsMap, Shareholder } from "@/lib/types";
 
 interface ReportOrder {
@@ -77,6 +79,7 @@ export function ReportsView({
   carryById = {},
   transfers = [],
   creditSources = { byOrder: {}, fallback: { cash: 0, upi: 0, bank: 0, other: 1 } },
+  cashDrift = NO_CASH_DRIFT,
 }: {
   orders: ReportOrder[];
   products: Product[];
@@ -93,6 +96,8 @@ export function ReportsView({
   transfers?: MethodTransfer[];
   /** Funding mix behind each credit-paid order, for the "by source" view. */
   creditSources?: CreditSources;
+  /** Cash paid out against UPI/bank-funded credit that no Income Transfer covers yet. */
+  cashDrift?: CashDrift;
 }) {
   const currency = settings.currency_symbol ?? "₹";
   const [tab, setTab] = useState<Tab>("Sales");
@@ -384,6 +389,8 @@ export function ReportsView({
             <StatCard label="Wallet/Credit" value={formatCurrency(income.credit, currency)} hint="Paid from store credit" />
             <StatCard label="Bank / Other" value={formatCurrency(income.bank + income.other, currency)} />
           </div>
+
+          <CashDriftAlert drift={cashDrift} currency={currency} />
 
           <AdminCard
             title="Income by Payment Method"

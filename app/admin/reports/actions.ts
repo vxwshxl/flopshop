@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import type { IncomeMethod, Role } from "@/lib/types";
+import { fetchAllRows } from "@/lib/supabase/paginate";
+import {
+  CASH_DRIFT_NOTE,
+  computeCashDrift,
+  type DriftLedgerRow,
+} from "@/lib/utils/cash-drift";
+import type { IncomeMethod, MethodTransfer, Role } from "@/lib/types";
 
 const METHODS: IncomeMethod[] = ["cash", "upi", "bank", "credit", "other"];
 
@@ -77,4 +83,56 @@ export async function deleteMethodTransferAction(
 
   revalidatePath("/admin/reports");
   return { ok: true };
+}
+
+/**
+ * Book the outstanding cash-out drift as Income Transfers.
+ *
+ * Recomputes from the ledger rather than trusting numbers from the browser, and
+ * dates each transfer to the day the cash actually left the drawer so past
+ * periods stay right. Already-booked days are skipped (the reconciliation notes
+ * its own transfers), which also makes a half-finished run safe to repeat.
+ */
+export async function reconcileWalletCashDriftAction(): Promise<
+  { ok: true; created: number; amount: number } | { ok: false; error: string }
+> {
+  const actor = await requireAdmin();
+  if (!actor) return { ok: false, error: "Not authorized." };
+
+  const admin = createAdminClient();
+  const [rows, { data: transfers, error: tErr }] = await Promise.all([
+    fetchAllRows<DriftLedgerRow>((from, to) =>
+      admin
+        .from("wallet_transactions")
+        .select("wallet_id, amount, type, method, created_at")
+        .order("created_at", { ascending: true })
+        .order("id")
+        .range(from, to)
+    ),
+    admin.from("method_transfers").select("*, legs:method_transfer_legs(*)"),
+  ]);
+  if (tErr) return { ok: false, error: tErr.message };
+
+  const drift = computeCashDrift(rows, (transfers as MethodTransfer[]) ?? []);
+  if (!drift.days.length) return { ok: false, error: "Nothing left to reconcile." };
+
+  let created = 0;
+  let amount = 0;
+  for (const day of drift.days) {
+    const legs: { method: IncomeMethod; delta: number }[] = [];
+    if (day.upi >= 0.01) legs.push({ method: "upi", delta: day.upi });
+    if (day.bank >= 0.01) legs.push({ method: "bank", delta: day.bank });
+    const out = Number((day.upi + day.bank).toFixed(2));
+    legs.push({ method: "cash", delta: -out });
+
+    const res = await createMethodTransferAction({ date: day.date, note: CASH_DRIFT_NOTE, legs });
+    // Stop at the first failure: what's already booked stands, and a re-run
+    // picks up from there rather than doubling anything.
+    if (!res.ok) return created ? { ok: true, created, amount } : res;
+    created += 1;
+    amount = Number((amount + out).toFixed(2));
+  }
+
+  revalidatePath("/admin/reports");
+  return { ok: true, created, amount };
 }
