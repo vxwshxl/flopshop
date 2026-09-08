@@ -14,6 +14,10 @@ export interface ToggleOption {
  * (inspired by Aave's Glass for the Web). The selected label stays legible
  * because the indicator is bright glass and labels sit above it.
  *
+ * `variant="solid"` swaps the lens for filled primary boxes — used by the
+ * storefront's top-level category row, where the choice is a section of the
+ * shop rather than a view of the same list and deserves the heavier weight.
+ *
  * `scrollArrows` adds pointer-only nudge buttons at the edges for rows that
  * outgrow their container (the category chips). Touch users keep swiping, so
  * the arrows stay hidden below `md`.
@@ -24,13 +28,16 @@ export function ToggleGroup({
   onChange,
   className,
   scrollArrows = false,
+  variant = "lens",
 }: {
   options: ToggleOption[];
   value: string;
   onChange: (value: string) => void;
   className?: string;
   scrollArrows?: boolean;
+  variant?: "lens" | "solid";
 }) {
+  const solid = variant === "solid";
   const containerRef = React.useRef<HTMLDivElement>(null);
   const btnRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
   const [lens, setLens] = React.useState({ left: 0, width: 0, ready: false });
@@ -39,9 +46,11 @@ export function ToggleGroup({
   const measure = React.useCallback(() => {
     const container = containerRef.current;
     const el = btnRefs.current[value];
-    if (!container || !el) return;
+    // No lens to place in the solid variant — skip the state write so a
+    // selection there doesn't re-render the row for nothing.
+    if (!container || !el || solid) return;
     setLens({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
-  }, [value]);
+  }, [value, solid]);
 
   const measureOverflow = React.useCallback(() => {
     const el = containerRef.current;
@@ -96,7 +105,7 @@ export function ToggleGroup({
         className
       )}
     >
-      {lens.ready && (
+      {!solid && lens.ready && (
         <span
           aria-hidden
           className="glass-lens pointer-events-none absolute bottom-1 top-1 rounded-full transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -113,11 +122,18 @@ export function ToggleGroup({
             }}
             type="button"
             onClick={() => onChange(o.value)}
+            aria-pressed={active}
             className={cn(
-              "relative z-10 flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors duration-200",
-              active
-                ? "border-transparent text-black"
-                : "border-white/25 text-white/70 hover:border-white/50 hover:text-white"
+              "relative z-10 flex shrink-0 items-center gap-1.5 border text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60",
+              // Solid boxes carry a full 44px touch target; the lens pills are
+              // a secondary row and keep their lighter height.
+              solid ? "min-h-11 rounded-xl px-4" : "rounded-full px-4 py-1.5",
+              active && solid && "border-transparent bg-lime-400 text-black",
+              active && !solid && "border-transparent text-black",
+              !active && solid &&
+                "border-white/15 bg-white/[0.04] text-white/75 hover:border-white/35 hover:bg-white/10 hover:text-white",
+              !active && !solid &&
+                "border-white/25 text-white/70 hover:border-white/50 hover:text-white"
             )}
           >
             {o.label}

@@ -77,3 +77,27 @@ export function orderCategoryTree<T extends { id: string; parent_id: string | nu
   const childrenOf = (id: string) => categories.filter((c) => c.parent_id === id).sort(bySort);
   return roots.flatMap((root) => [root, ...childrenOf(root.id)]);
 }
+
+/**
+ * The same tree, grouped: each top-level category with its children attached.
+ *
+ * The storefront row shows only the roots, and reveals a root's children once
+ * it's picked — a shopper chooses "Snacks" before "Chips" instead of being
+ * handed every shelf in the shop at once.
+ *
+ * Orphans (parent missing or inactive) count as top level, matching
+ * `orderCategoryTree`, so nothing silently drops out of the row.
+ */
+export function categoryTree<T extends { id: string; parent_id: string | null; sort_order: number }>(
+  categories: T[]
+): { root: T; children: T[] }[] {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const bySort = (a: T, b: T) => a.sort_order - b.sort_order || a.id.localeCompare(b.id);
+  return categories
+    .filter((c) => !c.parent_id || !byId.has(c.parent_id))
+    .sort(bySort)
+    .map((root) => ({
+      root,
+      children: categories.filter((c) => c.parent_id === root.id).sort(bySort),
+    }));
+}
