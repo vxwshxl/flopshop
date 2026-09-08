@@ -11,6 +11,7 @@ import { AdminCard } from "@/components/admin/StatCard";
 import { ImageAdjuster, type ImagePosition } from "@/components/admin/ImageAdjuster";
 import { DEFAULT_IMAGE_POSITION } from "@/lib/utils/image";
 import { ancestorIds, orderCategoryTree, productCategoryIds } from "@/lib/utils/categories";
+import { CategoryCreateModal } from "@/components/admin/CategoryCreateModal";
 import type { Category, Product, ProductDetails } from "@/lib/types";
 
 interface OffResult {
@@ -66,6 +67,8 @@ export function ProductForm({
     return categories[0]?.id ? [categories[0].id] : [];
   });
   const parentById = new Map(categories.map((c) => [c.id, c.parent_id]));
+  // Non-null while the quick-create modal is open, holding the typed name.
+  const [newCategory, setNewCategory] = useState<string | null>(null);
 
   /**
    * Picking a sub-category implies its parent — Chips is a kind of Snacks, so a
@@ -306,6 +309,22 @@ export function ProductForm({
                   text: c.name,
                 }))}
                 hint="The product shows under every one you pick, and picking a sub-category adds its parent too. The first is its primary category — the one sales reports use."
+                onCreate={setNewCategory}
+                createLabel="New category"
+              />
+              <CategoryCreateModal
+                open={newCategory !== null}
+                initialName={newCategory ?? ""}
+                categories={categories}
+                onClose={() => setNewCategory(null)}
+                onCreated={(c) => {
+                  setNewCategory(null);
+                  // Not in `categories` until the refresh lands, so its parent
+                  // is named here instead of via pickCategories' lookup. The
+                  // new category leads so it becomes the primary, not its parent.
+                  pickCategories([...categoryIds, c.id, ...(c.parent_id ? [c.parent_id] : [])]);
+                  router.refresh();
+                }}
               />
               {categoryIds.length === 0 && (
                 <p className="mt-1.5 text-xs text-amber-400/80">

@@ -141,3 +141,12 @@ export function getISTTimeBounds(days: number, offsetDays = 0) {
   return { since, until };
 }
 
+
+/** URL-safe key for a name — "Bread, Pies & Biscuits" → "bread-pies-biscuits". */
+export function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

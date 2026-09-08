@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Check, Tags, X } from "lucide-react";
+import { Pencil, Trash2, Check, Tags, X, SlidersHorizontal } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { chunked } from "@/lib/utils/batch";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { imagePositionStyle } from "@/lib/utils/image";
 import {
@@ -20,6 +21,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { MultiSelect, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableToolbar, SortHeader } from "@/components/admin/TableControls";
+import { BulkEditProductsModal } from "@/components/admin/BulkEditProductsModal";
+import { CategoryCreateModal } from "@/components/admin/CategoryCreateModal";
 import { TableScroll, tableCardClass, stickyHead } from "@/components/admin/TableShell";
 import { useTableControls, byText, byNum, byDate } from "@/lib/hooks/useTableControls";
 import { usePersistentState } from "@/lib/hooks/usePersistentState";
@@ -30,13 +33,6 @@ function stockColorByVal(p: Product, value: string | undefined) {
   if (n <= 0) return "text-red-400";
   if (n <= p.minimum_stock) return "text-yellow-400";
   return "text-white";
-}
-
-/** Split a list into batches so one bulk write doesn't turn into a huge request. */
-function chunked<T>(list: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
-  return out;
 }
 
 export function ProductsTable({
@@ -63,6 +59,9 @@ export function ProductsTable({
   const [bulkMode, setBulkMode] = useState<"add" | "replace">("add");
   const [applying, setApplying] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
+  const [bulkEdit, setBulkEdit] = useState(false);
+  // Non-null while the quick-create modal is open, holding the typed name.
+  const [newCategory, setNewCategory] = useState<string | null>(null);
 
   // Inline stock editing — instant local update, debounced background save.
   const [stocks, setStocks] = useState<Record<string, string>>(() =>
@@ -103,6 +102,25 @@ export function ProductsTable({
     // Auto-save shortly after typing stops (well within 2.5s).
     timers.current[id] = setTimeout(() => saveStock(id), 800);
   }
+
+  // Re-sync the inputs whenever the server rows change — a bulk edit, a
+  // purchase, another admin. Fields with an unsaved keystroke are skipped, so
+  // a refresh mid-typing can't yank the value out from under the cursor.
+  useEffect(() => {
+    setStocks((cur) => {
+      let changed = false;
+      const next = { ...cur };
+      for (const p of products) {
+        if (dirty.current[p.id] !== undefined) continue;
+        const server = String(p.current_stock);
+        if (next[p.id] !== server) {
+          next[p.id] = server;
+          changed = true;
+        }
+      }
+      return changed ? next : cur;
+    });
+  }, [products]);
 
   // Safety net for mobile: persist any pending edits when the field loses focus
   // (keyboard closes) or the page is hidden/backgrounded.
@@ -403,6 +421,8 @@ export function ProductsTable({
               text: c.name,
             }))}
             hint="Picking a sub-category adds its parent too. The first pick is the primary category — the one sales reports use."
+            onCreate={setNewCategory}
+            createLabel="New category"
           />
           <div className="flex overflow-hidden rounded-lg border border-black/15 dark:border-white/15">
             {(["add", "replace"] as const).map((m) => (
@@ -427,6 +447,9 @@ export function ProductsTable({
             onClick={() => (bulkMode === "replace" ? setConfirmReplace(true) : applyCategories())}
           >
             Apply
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setBulkEdit(true)}>
+            <SlidersHorizontal className="h-3.5 w-3.5" /> Edit details
           </Button>
           <button
             type="button"
@@ -493,6 +516,30 @@ export function ProductsTable({
         loading={!!deleteTarget && busy === deleteTarget.id}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={removeConfirmed}
+      />
+      <CategoryCreateModal
+        open={newCategory !== null}
+        initialName={newCategory ?? ""}
+        categories={categories}
+        onClose={() => setNewCategory(null)}
+        onCreated={(c) => {
+          setNewCategory(null);
+          // The new row reaches `categories` only on the refresh below, so its
+          // parent is named here rather than looked up by pickBulkCats. The new
+          // category goes first so it, not the parent, becomes the primary.
+          pickBulkCats([...bulkCats, c.id, ...(c.parent_id ? [c.parent_id] : [])]);
+          router.refresh();
+        }}
+      />
+      <BulkEditProductsModal
+        open={bulkEdit}
+        products={pinned}
+        currency={currency}
+        onClose={() => setBulkEdit(false)}
+        onDone={(ok) => {
+          router.refresh();
+          if (ok) setBulkEdit(false);
+        }}
       />
       <ConfirmDialog
         open={confirmReplace}

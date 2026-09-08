@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const fieldBase =
@@ -407,6 +407,13 @@ export function MultiSelect({
   placeholder = "Select",
   /** Rendered under the list, e.g. to explain what the first pick means. */
   hint,
+  /**
+   * Offers a "create" row in the menu, handed whatever has been typed into the
+   * search box. For pickers whose list the user is also allowed to add to, so
+   * a missing option is fixed where it's noticed instead of on another page.
+   */
+  onCreate,
+  createLabel = "New option",
 }: {
   className?: string;
   options: MultiSelectOption[];
@@ -417,6 +424,8 @@ export function MultiSelect({
   searchPlaceholder?: string;
   placeholder?: string;
   hint?: React.ReactNode;
+  onCreate?: (query: string) => void;
+  createLabel?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const [filter, setFilter] = React.useState("");
@@ -438,7 +447,7 @@ export function MultiSelect({
   const { triggerRef, menuRef, rect } = useMenuAnchor(
     open,
     dismiss,
-    Math.min(288, visible.length * 38 + 8 + (showSearch ? 44 : 0))
+    Math.min(288, visible.length * 38 + 8 + (showSearch ? 44 : 0) + (onCreate ? 38 : 0))
   );
 
   const selectedSet = new Set(values);
@@ -597,6 +606,22 @@ export function MultiSelect({
                 );
               })}
             </div>
+            {onCreate && (
+              <button
+                type="button"
+                onClick={() => {
+                  const query = filter.trim();
+                  dismiss();
+                  onCreate(query);
+                }}
+                className="mt-1 flex w-full shrink-0 items-center gap-2 rounded-md border-t border-white/10 px-2.5 py-2 text-left text-white/70 transition hover:bg-lime-400 hover:text-black"
+              >
+                <Plus className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">
+                  {filter.trim() ? `Create “${filter.trim()}”` : createLabel}
+                </span>
+              </button>
+            )}
             {hint && (
               <p className="mt-1 shrink-0 border-t border-white/10 px-2.5 pb-1 pt-1.5 text-[11px] leading-snug text-white/40">
                 {hint}
