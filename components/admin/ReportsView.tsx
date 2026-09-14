@@ -17,6 +17,8 @@ import {
 import Link from "next/link";
 import { Download, ChevronRight } from "lucide-react";
 import { StatCard, AdminCard } from "@/components/admin/StatCard";
+import { CategoryPie } from "@/components/admin/CategoryPie";
+import { compactNumber, tooltipStyle } from "@/components/admin/chart-theme";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Pagination, usePagination } from "@/components/ui/pagination";
@@ -58,7 +60,6 @@ interface ReportOrder {
 const tabs = ["Sales", "Profit", "Inventory"] as const;
 type Tab = (typeof tabs)[number];
 
-const PIE_COLORS = ["#f59e0b", "#3b82f6", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"];
 const INCOME_COLORS: Record<string, string> = {
   Cash: "#10b981",
   UPI: "#3b82f6",
@@ -66,7 +67,6 @@ const INCOME_COLORS: Record<string, string> = {
   "Wallet/Credit": "#a3e635",
   Other: "#6b7280",
 };
-const tooltipStyle = { backgroundColor: "#0a0a0a", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
 
 export function ReportsView({
   orders,
@@ -472,9 +472,9 @@ export function ReportsView({
                 <BarChart data={dailySeries} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#222" />
                   <XAxis dataKey="date" stroke="#666" fontSize={11} />
-                  <YAxis stroke="#666" fontSize={11} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="Revenue ₹" />
+                  <YAxis stroke="#666" fontSize={11} tickFormatter={compactNumber} width={48} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(Number(v), currency)} />
+                  <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="Revenue" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -533,21 +533,7 @@ export function ReportsView({
                 ) : undefined
               }
             >
-              {categoryAgg.length === 0 ? (
-                <p className="py-10 text-center text-sm text-gray-500">No data</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie data={categoryAgg} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                      {categoryAgg.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
+              <CategoryPie data={categoryAgg} currency={currency} empty="No data" />
             </AdminCard>
           </div>
         </div>

@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/paginate";
 import { getSettings } from "@/lib/supabase/queries";
 import { StatCard, AdminCard } from "@/components/admin/StatCard";
-import { RevenueChart, CategoryPie } from "@/components/admin/DashboardCharts";
+import { RevenueChart } from "@/components/admin/DashboardCharts";
+import { CategoryPie } from "@/components/admin/CategoryPie";
 import { DashboardRangeSelect } from "@/components/admin/DashboardRangeSelect";
 import { DASHBOARD_RANGES, type DashboardRange } from "@/lib/constants/dashboard";
 import { OrderStatusBadge } from "@/components/store/OrderStatusBadge";
@@ -109,6 +110,7 @@ export default async function AdminDashboard({
   // All stats below are scoped to the selected range.
   const rangeOrders = orders.filter(notCancelled);
   const rangeRevenue = rangeOrders.reduce((s, o) => s + Number(o.total_amount), 0);
+  const aov = rangeOrders.length ? rangeRevenue / rangeOrders.length : 0;
   const profileList = (profiles as { id: string; is_active: boolean }[]) ?? [];
   const totalUsers = profileList.length;
   const activeUsers = profileList.filter((p) => p.is_active).length;
@@ -242,8 +244,8 @@ export default async function AdminDashboard({
 
         <StatCard
           className="lg:col-span-1"
-          label="Orders in range"
-          value={rangeOrders.length}
+          label="Avg Order Value"
+          value={formatCurrency(aov, currency)}
           hint={rangeLabel.toLowerCase()}
           icon={<ShoppingBag className="h-4 w-4" />}
         />
@@ -258,10 +260,10 @@ export default async function AdminDashboard({
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <AdminCard title={`Revenue · ${rangeLabel}`} className="lg:col-span-2">
-          <RevenueChart data={days} />
+          <RevenueChart data={days} currency={currency} />
         </AdminCard>
         <AdminCard title="Sales by Category">
-          <CategoryPie data={pieData} />
+          <CategoryPie data={pieData} currency={currency} />
         </AdminCard>
       </div>
 
